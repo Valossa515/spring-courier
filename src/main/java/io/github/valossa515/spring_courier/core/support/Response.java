@@ -1,5 +1,8 @@
 package io.github.valossa515.spring_courier.core.support;
 
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
+
 import java.util.Objects;
 /**
  * Representa uma resposta genérica para operações, contendo dados, erro, status de sucesso e código de status.
@@ -42,49 +45,56 @@ public class Response<T> {
     /**
      * Cria uma resposta de sucesso com dados
      */
-    public static <T> Response<T> success(T data) {
+    @Contract(value = "_ -> new", pure = true)
+    public static <T> @NotNull Response<T> success(T data) {
         return new Response<>(data, null, true, 200);
     }
 
     /**
      * Cria uma resposta de sucesso com dados e status code customizado
      */
-    public static <T> Response<T> success(T data, int statusCode) {
+    @Contract(value = "_, _ -> new", pure = true)
+    public static <T> @NotNull Response<T> success(T data, int statusCode) {
         return new Response<>(data, null, true, statusCode);
     }
 
     /**
      * Cria uma resposta de sucesso sem dados
      */
-    public static <T> Response<T> success() {
+    @Contract(value = " -> new", pure = true)
+    public static <T> @NotNull Response<T> success() {
         return new Response<>(null, null, true, 200);
     }
 
     /**
      * Cria uma resposta de erro com mensagem
      */
-    public static <T> Response<T> error(String error) {
+    @Contract(value = "_ -> new", pure = true)
+    public static <T> @NotNull Response<T> error(String error) {
         return new Response<>(null, error, false, 500);
     }
 
     /**
      * Cria uma resposta de erro com mensagem e status code customizado
      */
-    public static <T> Response<T> error(String error, int statusCode) {
+    @Contract(value = "_, _ -> new", pure = true)
+    public static <T> @NotNull Response<T> error(String error, int statusCode) {
         return new Response<>(null, error, false, statusCode);
     }
 
     /**
      * Cria uma resposta de erro a partir de uma exceção
      */
-    public static <T> Response<T> error(Throwable throwable) {
+    @Contract("_ -> new")
+    public static <T> @NotNull Response<T> error(@NotNull Throwable throwable) {
         return new Response<>(null, throwable.getMessage(), false, 500);
     }
 
     /**
      * Cria uma resposta de erro a partir de uma exceção com status code customizado
      */
-    public static <T> Response<T> error(Throwable throwable, int statusCode) {
+    @Contract("_, _ -> new")
+    public static <T> @NotNull Response<T> error(@NotNull Throwable throwable, int statusCode) {
         return new Response<>(null, throwable.getMessage(), false, statusCode);
     }
 
@@ -203,7 +213,8 @@ public class Response<T> {
     /**
      * Método estático para criar um builder
      */
-    public static <T> Builder<T> builder() {
+    @Contract(value = " -> new", pure = true)
+    public static <T> @NotNull Builder<T> builder() {
         return new Builder<>();
     }
 }

@@ -52,7 +52,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
      * @throws BeansException Em caso de erro no processamento do bean.
      */
     @Override
-    public Object postProcessAfterInitialization(Object bean, @NotNull String beanName) throws BeansException {
+    public Object postProcessAfterInitialization(@NotNull Object bean, @NotNull String beanName) throws BeansException {
         Class<?> beanClass = bean.getClass();
 
         if (shouldProcessBean(beanClass)) {
@@ -68,7 +68,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
      * @param beanClass Classe do bean.
      * @return true se deve ser processado, false caso contrário.
      */
-    private boolean shouldProcessBean(Class<?> beanClass) {
+    private boolean shouldProcessBean(@NotNull Class<?> beanClass) {
         return beanClass.isAnnotationPresent(ExposeHandler.class) ||
                 isHandlerInterface(beanClass);
     }
@@ -79,7 +79,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
      * @param beanClass Classe do bean.
      * @return true se implementa, false caso contrário.
      */
-    private boolean isHandlerInterface(Class<?> beanClass) {
+    private boolean isHandlerInterface(@NotNull Class<?> beanClass) {
         // Verifica interfaces implementadas
         for (Class<?> iface : beanClass.getInterfaces()) {
             if (isHandlerInterfaceType(iface)) {
@@ -126,7 +126,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
      * @param interfaceType Tipo da interface.
      * @return true se possui método handle, false caso contrário.
      */
-    private boolean hasValidHandleMethod(Class<?> interfaceType) {
+    private boolean hasValidHandleMethod(@NotNull Class<?> interfaceType) {
         try {
             Method[] methods = interfaceType.getMethods();
             for (Method method : methods) {
@@ -155,7 +155,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
      * @param bean     Instância do bean.
      * @param beanClass Classe do bean.
      */
-    private void discoverAndRegisterHandler(Object bean, Class<?> beanClass) {
+    private void discoverAndRegisterHandler(Object bean, @NotNull Class<?> beanClass) {
         logger.debug("Processando handler candidate: {}", beanClass.getName());
 
         // Analisa interfaces genéricas
@@ -166,7 +166,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
 
         // Analisa superclasse genérica
         Type genericSuperclass = beanClass.getGenericSuperclass();
-        if (genericSuperclass != null && genericSuperclass instanceof ParameterizedType) {
+        if (genericSuperclass instanceof ParameterizedType) {
             registerHandlerFromType(bean, genericSuperclass);
         }
 

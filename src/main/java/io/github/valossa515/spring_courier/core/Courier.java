@@ -2,6 +2,7 @@ package io.github.valossa515.spring_courier.core;
 
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -33,7 +34,7 @@ public class Courier {
     private static final Logger logger = LoggerFactory.getLogger(Courier.class);
     private final HandlerRegistry handlerRegistry;
 
-    public Courier(HandlerRegistry handlerRegistry) {
+    public Courier(@NotNull HandlerRegistry handlerRegistry) {
         this.handlerRegistry = handlerRegistry;
         logger.info("Courier inicializado com {} handlers registrados", handlerRegistry.getHandlerCount());
     }
@@ -47,7 +48,7 @@ public class Courier {
      * @throws RuntimeException se ocorrer erro na execução do handler
      */
     @SuppressWarnings("unchecked")
-    public <T> T send(IRequest<T> request) {
+    public <T> T send(@NotNull IRequest<T> request) {
         logger.debug("Enviando request: {}", request.getClass().getSimpleName());
 
         Object handler = handlerRegistry.getHandler(request.getClass());
@@ -76,7 +77,7 @@ public class Courier {
         }
     }
 
-    private Method findHandleMethod(Class<?> handlerClass) {
+    private @NotNull Method findHandleMethod(@NotNull Class<?> handlerClass) {
         for (Method method : handlerClass.getMethods()) {
             if (method.getName().equals("handle") && method.getParameterCount() == 1) {
                 return method;
