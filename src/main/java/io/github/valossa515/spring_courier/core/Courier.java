@@ -1,6 +1,7 @@
 package io.github.valossa515.spring_courier.core;
 
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
+import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -33,9 +34,12 @@ import java.lang.reflect.Method;
 public class Courier {
     private static final Logger logger = LoggerFactory.getLogger(Courier.class);
     private final HandlerRegistry handlerRegistry;
+    private final PipelineExecutor pipelineExecutor;
 
-    public Courier(@NotNull HandlerRegistry handlerRegistry) {
+    public Courier(@NotNull HandlerRegistry handlerRegistry,
+                   @NotNull PipelineExecutor pipelineExecutor) {
         this.handlerRegistry = handlerRegistry;
+        this.pipelineExecutor = pipelineExecutor;
         logger.info("Courier inicializado com {} handlers registrados", handlerRegistry.getHandlerCount());
     }
 
@@ -52,11 +56,11 @@ public class Courier {
         logger.debug("Enviando request: {}", request.getClass().getSimpleName());
 
         Object handler = handlerRegistry.getHandler(request.getClass());
-        return (T) invokeHandler(handler, request);
+        return pipelineExecutor.execute(request, () -> invokeHandlerDirectly(handler, request));
     }
 
     @SuppressWarnings("unchecked")
-    private <R> R invokeHandler(Object handler, IRequest<R> request) {
+    private <R> R invokeHandlerDirectly(Object handler, IRequest<R> request) {
         try {
             Method handleMethod = findHandleMethod(handler.getClass());
             long startTime = System.currentTimeMillis();

@@ -1,6 +1,9 @@
 package io.github.valossa515.spring_courier.config;
 
 import io.github.valossa515.spring_courier.core.Courier;
+import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
+import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
+import io.github.valossa515.spring_courier.core.support.BehaviorDiscoveryPostProcessor;
 import io.github.valossa515.spring_courier.core.support.HandlerDiscoveryPostProcessor;
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import org.springframework.context.ApplicationContext;
@@ -12,7 +15,6 @@ import org.springframework.context.annotation.Configuration;
  * <p>
  * Esta classe registra beans necessários para o funcionamento do Courier, incluindo o registro de handlers,
  * o componente de envio de requisições e o pós-processador de descoberta de handlers.
- * Deve ser importada automaticamente ao utilizar a anotação {@link io.github.valossa515.spring_courier.EnableSpringCourier}.
  * </p>
  *
  * <p>
@@ -23,8 +25,7 @@ import org.springframework.context.annotation.Configuration;
  *   <li>{@link HandlerDiscoveryPostProcessor}: Realiza a descoberta automática de handlers no contexto Spring.</li>
  * </ul>
  * </p>
- *
- * @see io.github.valossa515.spring_courier.EnableSpringCourier
+ * @author Valossa515
  * @see HandlerRegistry
  * @see Courier
  * @see HandlerDiscoveryPostProcessor
@@ -38,13 +39,29 @@ public class CourierAutoConfiguration{
     }
 
     @Bean
-    public Courier courier(HandlerRegistry handlerRegistry) {
-        return new Courier(handlerRegistry);
+    public PipelineRegistry pipelineRegistry() {
+        return new PipelineRegistry();
+    }
+
+    @Bean
+    public PipelineExecutor pipelineExecutor(PipelineRegistry pipelineRegistry) {
+        return new PipelineExecutor(pipelineRegistry);
+    }
+
+    @Bean
+    public Courier courier(HandlerRegistry handlerRegistry, PipelineExecutor pipelineExecutor) {
+        return new Courier(handlerRegistry, pipelineExecutor);
     }
 
     @Bean
     public HandlerDiscoveryPostProcessor handlerDiscoveryPostProcessor(
             HandlerRegistry handlerRegistry, ApplicationContext applicationContext) {
         return new HandlerDiscoveryPostProcessor(handlerRegistry, applicationContext);
+    }
+
+    @Bean
+    public BehaviorDiscoveryPostProcessor behaviorDiscoveryPostProcessor(
+            PipelineRegistry pipelineRegistry, ApplicationContext applicationContext) {
+        return new BehaviorDiscoveryPostProcessor(pipelineRegistry, applicationContext);
     }
 }
