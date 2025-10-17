@@ -12,7 +12,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class PipelineRegistry {
     private final Map<Class<?>, List<PipelineBehavior<?, ?>>> behaviorRegistry = new ConcurrentHashMap<>();
-    private final Map<Class<?>, Integer> behaviorOrderCache = new ConcurrentHashMap<>();
     private static final Logger logger = org.slf4j.LoggerFactory.getLogger(PipelineRegistry.class);
 
     public void registerBehavior(Class<?> requestType, PipelineBehavior<?, ?> behavior) {
@@ -25,14 +24,14 @@ public class PipelineRegistry {
      * Obtém a ordem de execução de um behavior
      */
     private int getBehaviorOrder(PipelineBehavior<?, ?> behavior) {
-        Class<?> behaviorClass = behavior.getClass();
-        return behaviorOrderCache.computeIfAbsent(behaviorClass, this::calculateBehaviorOrder);
+        return calculateBehaviorOrder(behavior);
     }
 
     /**
      * Calcula a ordem baseado em @Order ou interface Ordered
      */
-    private int calculateBehaviorOrder(Class<?> behaviorClass) {
+    private int calculateBehaviorOrder(PipelineBehavior<?, ?> behavior) {
+        Class<?> behaviorClass = behavior.getClass();
         // Verifica annotation @Order
         Order orderAnnotation = behaviorClass.getAnnotation(Order.class);
         if (orderAnnotation != null) {
@@ -40,14 +39,8 @@ public class PipelineRegistry {
         }
 
         // Verifica se implementa Ordered
-        if (Ordered.class.isAssignableFrom(behaviorClass)) {
-            try {
-                PipelineBehavior<?, ?> instance = (PipelineBehavior<?, ?>) behaviorClass.getDeclaredConstructor().newInstance();
-                return ((Ordered) instance).getOrder();
-            } catch (Exception e) {
-                // Fallback para ordem padrão se não conseguir instanciar
-                logger.warn("Could not instantiate behavior to get order, using default: {}", behaviorClass.getSimpleName());
-            }
+        if (behavior instanceof Ordered orderedBehavior) {
+            return orderedBehavior.getOrder();
         }
 
         // Ordem padrão (baixa prioridade)
