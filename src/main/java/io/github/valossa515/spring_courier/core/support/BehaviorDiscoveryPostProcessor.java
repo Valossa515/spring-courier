@@ -2,10 +2,11 @@ package io.github.valossa515.spring_courier.core.support;
 
 import io.github.valossa515.spring_courier.core.pipelines.PipelineBehavior;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
-import org.springframework.context.ApplicationContext;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -14,11 +15,19 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
     private static final Logger logger = LoggerFactory.getLogger(BehaviorDiscoveryPostProcessor.class);
 
     private final PipelineRegistry pipelineRegistry;
-    private final ApplicationContext applicationContext;
 
-    public BehaviorDiscoveryPostProcessor(PipelineRegistry pipelineRegistry, ApplicationContext applicationContext) {
+    public BehaviorDiscoveryPostProcessor(PipelineRegistry pipelineRegistry) {
         this.pipelineRegistry = pipelineRegistry;
-        this.applicationContext = applicationContext;
+    }
+
+    @Override
+    public Object postProcessAfterInitialization(@NotNull Object bean, @NotNull String beanName) throws BeansException {
+        if (bean instanceof PipelineBehavior<?, ?> behavior) {
+            logger.debug("Pipeline behavior bean detected: {}", beanName);
+            registerPipelineBehavior(behavior);
+        }
+
+        return bean;
     }
 
     private void registerPipelineBehavior(PipelineBehavior<?, ?> behavior) {

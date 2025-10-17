@@ -61,7 +61,7 @@ public class CourierAutoConfiguration{
 
     @Bean
     public BehaviorDiscoveryPostProcessor behaviorDiscoveryPostProcessor(
-            PipelineRegistry pipelineRegistry, ApplicationContext applicationContext) {
-        return new BehaviorDiscoveryPostProcessor(pipelineRegistry, applicationContext);
+            PipelineRegistry pipelineRegistry) {
+        return new BehaviorDiscoveryPostProcessor(pipelineRegistry);
     }
 }
