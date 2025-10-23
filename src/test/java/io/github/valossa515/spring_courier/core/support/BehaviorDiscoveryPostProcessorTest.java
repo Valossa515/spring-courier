@@ -31,6 +31,10 @@ class BehaviorDiscoveryPostProcessorTest {
     @Test
     void ignoresBehaviorsWithoutResolvableRequestType() {
         PipelineBehavior<?, ?> behavior = new GenericBehavior() {
+            @Override
+            public String handle(IRequest<String> request, Next<String> next) {
+                return "";
+            }
         };
 
         postProcessor.postProcessAfterInitialization(behavior, "genericBehavior");
