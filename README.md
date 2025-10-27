@@ -106,9 +106,8 @@ public class GetProductByIdHandler implements QueryHandler<GetProductByIdQuery, 
 spring-courier/
  ├── src/main/java/dev/valossa/springcourier/
  │    ├── core/               # Contratos e abstrações principais
- │    ├── handlers/           # Handlers genéricos
  │    ├── annotations/        # Anotações utilitárias
- │    └── courier/            # Implementação do mediator
+ │    └── config/             # Configurações da lib
  └── pom.xml
 ```
 
