@@ -48,7 +48,7 @@ Adicione a dependência no seu `pom.xml`:
 ### 1️⃣ Criando um Command e um Handler
 
 ```java
-public record CreateProductCommand(String name, BigDecimal price) implements Command<CreateProductResponse> {}
+public record CreateProductCommand(String name, BigDecimal price) implements ICommand<CreateProductResponse> {}
 
 @Service
 public class CreateProductHandler implements CommandHandler<CreateProductCommand, CreateProductResponse> {
@@ -86,7 +86,7 @@ public class ProductController {
 ### 3️⃣ Exemplo de Query
 
 ```java
-public record GetProductByIdQuery(UUID id) implements Query<GetProductResponse> {}
+public record GetProductByIdQuery(UUID id) implements IQuery<GetProductResponse> {}
 
 @Service
 public class GetProductByIdHandler implements QueryHandler<GetProductByIdQuery, GetProductResponse> {
