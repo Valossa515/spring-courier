@@ -33,7 +33,7 @@ Adicione a dependência no seu `pom.xml`:
 
 ```xml
 <dependency>
-    <groupId>dev.valossa</groupId>
+    <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
     <version>1.0.0</version>
 </dependency>
