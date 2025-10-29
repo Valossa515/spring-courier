@@ -5,12 +5,20 @@ import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
+/**
+ * BeanPostProcessor responsável por descobrir e registrar comportamentos (PipelineBehaviors)
+ * durante a inicialização do contexto Spring.
+ *
+ * Agora compatível com beans proxied pelo Spring (CGLIB/AOP),
+ * garantindo que o tipo de requisição genérico seja resolvido corretamente.
+ */
 public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
     private static final Logger logger = LoggerFactory.getLogger(BehaviorDiscoveryPostProcessor.class);
 
@@ -23,28 +31,34 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
     @Override
     public Object postProcessAfterInitialization(@NotNull Object bean, @NotNull String beanName) throws BeansException {
         if (bean instanceof PipelineBehavior<?, ?> behavior) {
-            logger.debug("Pipeline behavior bean detected: {}", beanName);
-            registerPipelineBehavior(behavior);
+            Class<?> targetClass = AopUtils.getTargetClass(bean);
+            if (targetClass == null) {
+                logger.warn("Não foi possível determinar a classe alvo para o behavior: {}", beanName);
+                return bean;
+            }
+
+            logger.debug("🔍 Pipeline behavior detectado: {}", targetClass.getSimpleName());
+            registerPipelineBehavior(behavior, targetClass);
         }
 
         return bean;
     }
 
-    private void registerPipelineBehavior(PipelineBehavior<?, ?> behavior) {
-        Class<?> behaviorClass = behavior.getClass();
+    private void registerPipelineBehavior(PipelineBehavior<?, ?> behavior, Class<?> behaviorClass) {
         Class<?> requestType = extractRequestTypeFromBehavior(behaviorClass);
 
         if (requestType != null) {
             pipelineRegistry.registerBehavior(requestType, behavior);
-            logger.info("Registered pipeline behavior: {} -> {}",
+            logger.info("✅ Pipeline behavior registrado: {} -> {}",
                     requestType.getSimpleName(), behaviorClass.getSimpleName());
         } else {
-            logger.warn("Could not determine request type for behavior: {}", behaviorClass.getSimpleName());
+            logger.warn("⚠️ Não foi possível determinar o tipo de request para behavior: {}",
+                    behaviorClass.getSimpleName());
         }
     }
 
     private Class<?> extractRequestTypeFromBehavior(Class<?> behaviorClass) {
-        // Analisa interfaces genéricas
+        // Verifica interfaces genéricas da classe alvo
         Type[] genericInterfaces = behaviorClass.getGenericInterfaces();
         for (Type genericInterface : genericInterfaces) {
             Class<?> requestType = extractRequestTypeFromParameterizedType(genericInterface);
@@ -53,15 +67,18 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
             }
         }
 
-        // Analisa superclasse genérica
+        // Verifica superclasse genérica
         Type genericSuperclass = behaviorClass.getGenericSuperclass();
         return extractRequestTypeFromParameterizedType(genericSuperclass);
     }
 
     private Class<?> extractRequestTypeFromParameterizedType(Type type) {
         if (type instanceof ParameterizedType parameterizedType) {
-            Class<?> rawType = (Class<?>) parameterizedType.getRawType();
-            if (PipelineBehavior.class.isAssignableFrom(rawType)) {
+            Type rawType = parameterizedType.getRawType();
+
+            if (rawType instanceof Class<?> rawClass
+                    && PipelineBehavior.class.isAssignableFrom(rawClass)) {
+
                 Type[] typeArguments = parameterizedType.getActualTypeArguments();
                 if (typeArguments.length > 0 && typeArguments[0] instanceof Class<?> requestType) {
                     return requestType;

@@ -70,7 +70,6 @@ public class Courier {
             long duration = System.currentTimeMillis() - startTime;
             logger.debug("Handler executado em {}ms: {} -> {}",
                     duration, request.getClass().getSimpleName(), handler.getClass().getSimpleName());
-
             return result;
         } catch (InvocationTargetException e) {
             logger.error("Erro na execução do handler: {}", e.getTargetException().getMessage(), e.getTargetException());
