@@ -37,9 +37,9 @@ class CourierTest {
             return invoker.invoke();
         });
 
-        String result = courier.send(request);
+        var response = courier.send(request);
 
-        assertEquals("handled", result);
+        assertEquals("handled", response.getData());
         verify(handlerRegistry).getHandler(SampleRequest.class);
         ArgumentCaptor<PipelineExecutor.HandlerInvoker<SampleRequest, String>> invokerCaptor =
                 ArgumentCaptor.forClass(PipelineExecutor.HandlerInvoker.class);
@@ -56,35 +56,37 @@ class CourierTest {
         RealRequest request = new RealRequest();
         realRegistry.registerHandler(RealRequest.class, new RealHandler());
 
-        String result = realCourier.send(request);
+        var response = realCourier.send(request);
 
-        assertEquals("real-response", result);
+        assertEquals("real-response", response.getData());
     }
 
     @Test
-    void sendThrowsWhenHandlerLacksHandleMethod() {
+    void sendReturnsErrorResponseWhenHandlerLacksHandleMethod() {
         HandlerRegistry realRegistry = new HandlerRegistry();
         PipelineExecutor realExecutor = new PipelineExecutor(new PipelineRegistry());
         Courier realCourier = new Courier(realRegistry, realExecutor);
 
         realRegistry.registerHandler(SampleRequest.class, new Object());
 
-        SampleRequest request = new SampleRequest();
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> realCourier.send(request));
-        assertTrue(exception.getMessage().contains("No handle method"));
+        var response = realCourier.send(new SampleRequest());
+
+        assertFalse(response.isSuccess());
+        assertTrue(response.getError().contains("No handle method"));
     }
 
     @Test
-    void sendWrapsExceptionsThrownByHandler() {
+    void sendReturnsErrorResponseWhenHandlerThrowsException() {
         HandlerRegistry realRegistry = new HandlerRegistry();
         PipelineExecutor realExecutor = new PipelineExecutor(new PipelineRegistry());
         Courier realCourier = new Courier(realRegistry, realExecutor);
 
         realRegistry.registerHandler(RealRequest.class, new FailingHandler());
 
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> realCourier.send(new RealRequest()));
-        assertTrue(exception.getMessage().contains("Handler execution failed"));
-        assertInstanceOf(IllegalStateException.class, exception.getCause());
+        var response = realCourier.send(new RealRequest());
+
+        assertFalse(response.isSuccess());
+        assertTrue(response.getError().contains("boom"));
     }
 
     private static class SampleRequest implements IRequest<String> {

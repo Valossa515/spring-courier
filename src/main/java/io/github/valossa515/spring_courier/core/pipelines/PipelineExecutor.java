@@ -1,6 +1,7 @@
 package io.github.valossa515.spring_courier.core.pipelines;
 
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
+import io.github.valossa515.spring_courier.core.support.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -8,7 +9,6 @@ import java.util.List;
 
 public class PipelineExecutor {
     private static final Logger logger = LoggerFactory.getLogger(PipelineExecutor.class);
-
     private final PipelineRegistry pipelineRegistry;
 
     public PipelineExecutor(PipelineRegistry pipelineRegistry) {
@@ -16,55 +16,60 @@ public class PipelineExecutor {
     }
 
     /**
-     * Executa o request através do pipeline de behaviors
+     * Executa o request através dos behaviors, garantindo compatibilidade entre
+     * handlers que retornam TResponse e os que retornam Response<TResponse>.
      */
-    public <TRequest extends IRequest<TResponse>, TResponse> TResponse execute(
+    @SuppressWarnings("unchecked")
+    public <TRequest extends IRequest<TResponse>, TResponse> Response<TResponse> execute(
             TRequest request,
             HandlerInvoker<TRequest, TResponse> handlerInvoker) {
 
         List<PipelineBehavior<TRequest, TResponse>> behaviors =
                 pipelineRegistry.getBehaviors((Class<TRequest>) request.getClass());
 
+        Response<TResponse> response;
+
         if (behaviors.isEmpty()) {
-            logger.debug("No behaviors found for request: {}", request.getClass().getSimpleName());
-            return handlerInvoker.invoke();
+            logger.debug("Nenhum behavior encontrado para request: {}", request.getClass().getSimpleName());
+            response = normalize(handlerInvoker.invoke());
+        } else {
+            logger.debug("Executando {} behaviors para request: {}",
+                    behaviors.size(), request.getClass().getSimpleName());
+            response = (Response<TResponse>) executeBehaviorChain(request, behaviors, 0, handlerInvoker);
         }
 
-        logger.debug("Executing {} behaviors for request: {}",
-                behaviors.size(), request.getClass().getSimpleName());
-
-        // Executa a chain de behaviors recursivamente
-        return executeBehaviorChain(request, behaviors, 0, handlerInvoker);
+        return response;
     }
 
-    /**
-     * Interface para invocar o handler final
-     */
     @FunctionalInterface
     public interface HandlerInvoker<TRequest extends IRequest<TResponse>, TResponse> {
-        TResponse invoke();
+        Object invoke(); // pode retornar TResponse ou Response<TResponse>
     }
 
-    /**
-     * Método recursivo que executa a chain de behaviors
-     */
     private <TRequest extends IRequest<TResponse>, TResponse> TResponse executeBehaviorChain(
             TRequest request,
             List<PipelineBehavior<TRequest, TResponse>> behaviors,
             int currentIndex,
             HandlerInvoker<TRequest, TResponse> handlerInvoker) {
 
-        // Se chegou ao final da chain, invoca o handler
         if (currentIndex >= behaviors.size()) {
-            return handlerInvoker.invoke();
+            return (TResponse) normalize(handlerInvoker.invoke());
         }
 
-        // Pega o behavior atual
         PipelineBehavior<TRequest, TResponse> currentBehavior = behaviors.get(currentIndex);
-
-        // Invoca o behavior atual, passando uma função para o próximo
         return currentBehavior.handle(request, () ->
                 executeBehaviorChain(request, behaviors, currentIndex + 1, handlerInvoker)
         );
+    }
+
+    /**
+     * Converte automaticamente qualquer retorno para Response<TResponse>.
+     */
+    @SuppressWarnings("unchecked")
+    private <TResponse> Response<TResponse> normalize(Object result) {
+        if (result instanceof Response<?> response) {
+            return (Response<TResponse>) response;
+        }
+        return Response.success((TResponse) result);
     }
 }

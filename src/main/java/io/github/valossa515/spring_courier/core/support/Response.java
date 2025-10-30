@@ -2,6 +2,7 @@ package io.github.valossa515.spring_courier.core.support;
 
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.Objects;
 /**
@@ -132,6 +133,7 @@ public class Response<T> {
     /**
      * Método utilitário para lançar exceção se a resposta for de erro
      */
+    @JsonIgnore
     public T getDataOrThrow() {
         if (!success) {
             throw new RuntimeException("Response contains error: " + error);
@@ -142,6 +144,7 @@ public class Response<T> {
     /**
      * Método utilitário para lançar exceção customizada se a resposta for de erro
      */
+    @JsonIgnore
     public T getDataOrThrow(RuntimeException exception) {
         if (!success) {
             throw exception;

@@ -1,6 +1,7 @@
 package io.github.valossa515.spring_courier.core.pipelines;
 
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
+import io.github.valossa515.spring_courier.core.support.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -26,12 +27,12 @@ class PipelineExecutorTest {
         TestRequest request = new TestRequest();
         AtomicInteger handlerInvocations = new AtomicInteger();
 
-        String response = pipelineExecutor.execute(request, () -> {
+        var response = pipelineExecutor.execute(request, () -> {
             handlerInvocations.incrementAndGet();
             return "handler";
         });
 
-        assertEquals("handler", response);
+        assertEquals("handler", response.getData());
         assertEquals(1, handlerInvocations.get());
     }
 
@@ -48,19 +49,18 @@ class PipelineExecutorTest {
 
         TestRequest request = new TestRequest();
 
-        String result = pipelineExecutor.execute(request, () -> {
+        var response = pipelineExecutor.execute(request, () -> {
             executionOrder.add("handler");
             return "result";
         });
 
-        assertEquals("result -> third -> second -> first", result);
+        assertEquals("result -> third -> second -> first", response.getData());
         assertEquals(List.of("first", "second", "third", "handler"), executionOrder);
     }
 
-    private static class TestRequest implements IRequest<String> {
-    }
+    private static class TestRequest implements IRequest<Response<String>> { }
 
-    private static class RecordingBehavior implements PipelineBehavior<TestRequest, String> {
+    private static class RecordingBehavior implements PipelineBehavior<TestRequest, Response<String>> {
         private final String name;
         private final List<String> executionOrder;
 
@@ -70,9 +70,11 @@ class PipelineExecutorTest {
         }
 
         @Override
-        public String handle(TestRequest request, Next<String> next) {
+        public Response<String> handle(TestRequest request, Next<Response<String>> next) {
             executionOrder.add(name);
-            return next.invoke() + " -> " + name;
+            var nextResponse = next.invoke();
+            String chained = nextResponse.getData() + " -> " + name;
+            return Response.success(chained);
         }
     }
 }
