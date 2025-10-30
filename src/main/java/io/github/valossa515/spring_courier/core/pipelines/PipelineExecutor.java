@@ -7,6 +7,13 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+/**
+ * Responsável por orquestrar a execução das requisições através da cadeia de
+ * {@link PipelineBehavior}s registrados, garantindo que o resultado final seja
+ * normalizado para {@link Response}. Esta classe coordena a chamada dos
+ * behaviors e do handler final, permitindo que preocupações transversais sejam
+ * aplicadas de forma consistente.
+ */
 public class PipelineExecutor {
     private static final Logger logger = LoggerFactory.getLogger(PipelineExecutor.class);
     private final PipelineRegistry pipelineRegistry;
@@ -43,7 +50,16 @@ public class PipelineExecutor {
 
     @FunctionalInterface
     public interface HandlerInvoker<TRequest extends IRequest<TResponse>, TResponse> {
-        Object invoke(); // pode retornar TResponse ou Response<TResponse>
+
+        /**
+         * Executa o handler associado ao request, retornando diretamente o
+         * resultado produzido. A implementação pode retornar tanto a resposta
+         * concreta quanto um {@link Response} já padronizado.
+         *
+         * @return instância de {@link Response} ou o valor bruto de TResponse a
+         * ser normalizado.
+         */
+        Object invoke();
     }
 
     private <TRequest extends IRequest<TResponse>, TResponse> TResponse executeBehaviorChain(
