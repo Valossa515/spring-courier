@@ -58,9 +58,11 @@ class PipelineExecutorTest {
         assertEquals(List.of("first", "second", "third", "handler"), executionOrder);
     }
 
-    private static class TestRequest implements IRequest<Response<String>> { }
+    // ✅ O request define apenas o tipo final (String), o executor normaliza pra Response<String>
+    private static class TestRequest implements IRequest<String> { }
 
-    private static class RecordingBehavior implements PipelineBehavior<TestRequest, Response<String>> {
+    // ✅ O behavior agora trabalha com o tipo de retorno "puro", e não Response<>
+    private static class RecordingBehavior implements PipelineBehavior<TestRequest, String> {
         private final String name;
         private final List<String> executionOrder;
 
@@ -70,11 +72,11 @@ class PipelineExecutorTest {
         }
 
         @Override
-        public Response<String> handle(TestRequest request, Next<Response<String>> next) {
+        public String handle(TestRequest request, Next<String> next) {
             executionOrder.add(name);
-            var nextResponse = next.invoke();
+            Response<String> nextResponse = Response.success(next.invoke());
             String chained = nextResponse.getData() + " -> " + name;
-            return Response.success(chained);
+            return chained;
         }
     }
 }

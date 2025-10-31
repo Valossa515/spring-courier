@@ -3,6 +3,7 @@ package io.github.valossa515.spring_courier.core.support;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.springframework.http.ResponseEntity;
 
 import java.util.Objects;
 /**
@@ -150,6 +151,11 @@ public class Response<T> {
             throw exception;
         }
         return data;
+    }
+
+    @JsonIgnore
+    public ResponseEntity<Response<T>> toEntity() {
+        return ResponseEntity.status(statusCode).body(this);
     }
 
     // equals, hashCode e toString para melhor debugging

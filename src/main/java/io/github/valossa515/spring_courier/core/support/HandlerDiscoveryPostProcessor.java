@@ -80,6 +80,17 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
             return true;
         }
 
+        for (Type genericInterface : interfaceType.getGenericInterfaces()) {
+            if (genericInterface instanceof ParameterizedType parameterizedType) {
+                Type rawType = parameterizedType.getRawType();
+                if (rawType instanceof Class<?> rawClass &&
+                        io.github.valossa515.spring_courier.core.interfaces.IRequest.class.isAssignableFrom(rawClass)) {
+                    logger.debug("Interface personalizada detectada como IRequest: {}", interfaceType.getSimpleName());
+                    return true;
+                }
+            }
+        }
+
         return hasValidHandleMethod(interfaceType);
     }
 
