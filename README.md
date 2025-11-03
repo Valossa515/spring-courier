@@ -2,10 +2,10 @@
 > 🚀 Uma biblioteca Java para simplificar a implementação do padrão **CQRS + Mediator** em aplicações **Spring Boot**.
 
 [![Build](https://img.shields.io/github/actions/workflow/status/Valossa515/spring-courier/build.yml?branch=main)](https://github.com/Valossa515/spring-courier/actions)
-[![Maven Central](https://img.shields.io/maven-central/v/dev.valossa/spring-courier)](https://search.maven.org/artifact/dev.valossa/spring-courier)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.valossa515/spring-courier)](https://central.sonatype.com/artifact/io.github.valossa515/spring-courier)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Java](https://img.shields.io/badge/java-17%2B-orange)](https://openjdk.org/)
-[![Spring Boot](https://img.shields.io/badge/spring--boot-3.x-brightgreen)](https://spring.io/projects/spring-boot)
+[![Java](https://img.shields.io/badge/java-24%2B-orange)](https://openjdk.org/projects/jdk/24/)
+[![Spring Boot](https://img.shields.io/badge/spring--boot-3.5.x-brightgreen)](https://spring.io/projects/spring-boot)
 
 ---
 
