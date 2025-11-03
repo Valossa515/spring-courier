@@ -3,83 +3,43 @@ package io.github.valossa515.spring_courier.core.pipelines;
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
 
 /**
- * Representa um comportamento intermediário dentro do pipeline de processamento
- * de requisições. Cada implementação pode executar ações antes ou depois da
- * invocação do próximo elemento da cadeia, permitindo adicionar
- * funcionalidades transversais como logging, validação ou auditoria.
+ * Represents an intermediate behavior within the request processing pipeline.
+ * Each implementation can execute logic before or after invoking the next
+ * element in the chain, enabling cross-cutting features such as logging,
+ * validation, or auditing.
  *
- * <p>Exemplo de behavior que registra tempo de execução ao redor do handler:</p>
- *
- * <pre>
- * public class LoggingBehavior implements PipelineBehavior&lt;CreateUserCommand, Response&lt;UserDto>> {
- *     private static final Logger logger = LoggerFactory.getLogger(LoggingBehavior.class);
- *
- *     @Override
- *     public Response&lt;UserDto> handle(CreateUserCommand request, Next&lt;Response&lt;UserDto>> next) {
- *         long startedAt = System.nanoTime();
- *         Response&lt;UserDto> response = next.invoke();
- *         logger.debug("CreateUserCommand processado em {} nanos", System.nanoTime() - startedAt);
- *         return response;
- *     }
- * }
- * </pre>
- *
- * @param <TRequest>  tipo da requisição, que deve implementar {@link IRequest}
- *                    com o tipo de resposta correspondente.
- * @param <TResponse> tipo de resposta esperado para a requisição em questão.
+ * @param <TRequest>  request type, which must implement {@link IRequest} for the
+ *                    corresponding response type.
+ * @param <TResponse> response type expected for the handled request.
  */
 public interface PipelineBehavior<TRequest extends IRequest<TResponse>, TResponse> {
 
     /**
-     * Manipula a requisição atual e decide quando (ou se) delegar a execução ao
-     * próximo elemento da cadeia.
+     * Handles the current request and decides when (or if) the execution should
+     * be delegated to the next element in the chain.
      *
-     * <p>Dentro da implementação é comum capturar o retorno do {@code next}
-     * para aplicar transformações ou lidar com exceções:</p>
-     *
-     * <pre>
-     * public Response&lt;UserDto> handle(CreateUserCommand request, Next&lt;Response&lt;UserDto>> next) {
-     *     try {
-     *         return next.invoke();
-     *     } catch (ConstraintViolationException exception) {
-     *         return Response.failure(exception.getMessage());
-     *     }
-     * }
-     * </pre>
-     *
-     * @param request requisição recebida pelo pipeline.
-     * @param next    invocador responsável por seguir para o próximo behavior ou
-     *                handler final.
-     * @return a resposta resultante da execução do pipeline.
+     * @param request request received by the pipeline.
+     * @param next    invoker responsible for calling the next behavior or the
+     *                final handler.
+     * @return response produced by the pipeline.
      */
     TResponse handle(TRequest request, Next<TResponse> next);
 
     /**
-     * Contrato que encapsula a invocação do próximo comportamento registrado ou
-     * do handler final. Usado para compor a cadeia de execução do pipeline.
+     * Contract that encapsulates the invocation of the next registered
+     * behavior or the final handler. It is used to compose the pipeline
+     * execution chain.
      *
-     * <p>O método {@link #invoke()} deve ser chamado exatamente uma vez, a menos
-     * que o behavior deseje interromper o fluxo. Por exemplo:</p>
-     *
-     * <pre>
-     * public Response&lt;UserDto> handle(CreateUserCommand request, Next&lt;Response&lt;UserDto>> next) {
-     *     if (!request.isEnabled()) {
-     *         return Response.failure("Operação desabilitada");
-     *     }
-     *     return next.invoke();
-     * }
-     * </pre>
-     *
-     * @param <TResponse> tipo da resposta esperada após a invocação do próximo
-     *                    comportamento.
+     * @param <TResponse> type of the response expected after invoking the next
+     *                    behavior.
      */
     interface Next<TResponse> {
 
         /**
-         * Executa o próximo comportamento registrado ou o handler final do
+         * Executes the next registered behavior or the final handler in the
          * pipeline.
          *
-         * @return a resposta produzida pela continuação da cadeia.
+         * @return response produced by the continuation of the chain.
          */
         TResponse invoke();
     }
