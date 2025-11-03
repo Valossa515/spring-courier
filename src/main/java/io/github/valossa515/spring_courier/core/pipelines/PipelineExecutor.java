@@ -8,21 +8,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
- * Responsável por orquestrar a execução das requisições através da cadeia de
- * {@link PipelineBehavior}s registrados, garantindo que o resultado final seja
- * normalizado para {@link Response}. Esta classe coordena a chamada dos
- * behaviors e do handler final, permitindo que preocupações transversais sejam
- * aplicadas de forma consistente.
- *
- * <p>Uso típico:</p>
- *
- * <pre>
- * CreateUserCommand command = new CreateUserCommand("alice@example.com");
- * Response&lt;UserDto> response = pipelineExecutor.execute(
- *         command,
- *         () -> createUserHandler.handle(command)
- * );
- * </pre>
+ * Coordinates the execution of registered {@link PipelineBehavior} instances
+ * and normalizes the final result as a {@link Response}.
  */
 public class PipelineExecutor {
     private static final Logger logger = LoggerFactory.getLogger(PipelineExecutor.class);
@@ -33,16 +20,14 @@ public class PipelineExecutor {
     }
 
     /**
-     * Executa o request através dos behaviors, garantindo compatibilidade entre
-     * handlers que retornam {@code TResponse} e os que retornam
-     * {@code Response<TResponse>}.
+     * Executes the request through the behavior chain and normalizes the
+     * outcome as a {@link Response}.
      *
-     * @param <TRequest>      tipo da requisição encaminhada ao pipeline.
-     * @param <TResponse>     tipo de resposta esperada após a execução.
-     * @param request         instância da requisição a ser processada.
-     * @param handlerInvoker  invocador responsável por acionar o handler final.
-     * @return sempre uma instância normalizada de {@link Response} contendo
-     * os dados ou erros resultantes da execução.
+     * @param <TRequest>     request type passed to the pipeline
+     * @param <TResponse>    response type expected from the handler
+     * @param request        request instance to process
+     * @param handlerInvoker callback that invokes the underlying handler
+     * @return normalized response produced by the handler or behaviors
      */
     @SuppressWarnings("unchecked")
     public <TRequest extends IRequest<TResponse>, TResponse> Response<TResponse> execute(
@@ -55,12 +40,12 @@ public class PipelineExecutor {
         List<PipelineBehavior<TRequest, TResponse>> behaviors =
                 pipelineRegistry.getBehaviors((Class<TRequest>) request.getClass());
 
-        // 🔹 Executa handler diretamente ou via cadeia de behaviors
+        // 🔹 Execute the handler directly or via the behavior chain
         Object result = behaviors.isEmpty()
                 ? handlerInvoker.invoke()
                 : executeBehaviorChain(request, behaviors, 0, handlerInvoker);
 
-        // 🔹 Normaliza o retorno (Response<T> ou valor bruto)
+        // 🔹 Normalize the return value (Response<T> or raw value)
         return normalize(result);
     }
 
@@ -85,24 +70,16 @@ public class PipelineExecutor {
     public interface HandlerInvoker<TRequest extends IRequest<TResponse>, TResponse> {
 
         /**
-         * Executa o handler associado ao request, retornando diretamente o
-         * resultado produzido. A implementação pode retornar tanto a resposta
-         * concreta quanto um {@link Response} já padronizado.
+         * Invokes the handler associated with the request and returns either a
+         * raw value or a {@link Response} instance.
          *
-         * <p>Exemplo de implementação inline:</p>
-         *
-         * <pre>
-         * pipelineExecutor.execute(request, () -> handler.handle(request));
-         * </pre>
-         *
-         * @return instância de {@link Response} ou o valor bruto de TResponse a
-         * ser normalizado.
+         * @return handler result to normalize
          */
         Object invoke();
     }
 
     /**
-     * Executa recursivamente a cadeia de behaviors registrada.
+     * Executes the registered behaviors recursively.
      */
     @SuppressWarnings("unchecked")
     private <TRequest extends IRequest<TResponse>, TResponse> Object executeBehaviorChain(
@@ -122,7 +99,7 @@ public class PipelineExecutor {
     }
 
     /**
-     * Converte automaticamente qualquer retorno para {@code Response<TResponse>}.
+     * Converts the handler output to {@code Response<TResponse>} when needed.
      */
     @SuppressWarnings("unchecked")
     private <TResponse> Response<TResponse> normalize(Object result) {

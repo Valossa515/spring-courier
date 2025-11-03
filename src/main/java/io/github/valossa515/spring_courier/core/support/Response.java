@@ -7,31 +7,10 @@ import org.springframework.http.ResponseEntity;
 
 import java.util.Objects;
 /**
- * Representa uma resposta genérica para operações, contendo dados, erro,
- * status de sucesso e código de status.
+ * Immutable value object that represents the result of an operation, including
+ * optional data, an error message, the success flag, and an HTTP status code.
  *
- * <p>Esta classe é imutável e fornece métodos utilitários para criar respostas
- * de sucesso ou erro, além de um builder para cenários mais complexos.</p>
- *
- * <p>Principais métodos:</p>
- * <ul>
- *   <li>{@link #success(Object)} cria uma resposta de sucesso com dados.</li>
- *   <li>{@link #success(Object, int)} cria uma resposta de sucesso com dados e
- *       código customizado.</li>
- *   <li>{@link #success()} cria uma resposta de sucesso sem dados.</li>
- *   <li>{@link #error(String)} cria uma resposta de erro com mensagem.</li>
- *   <li>{@link #error(String, int)} cria uma resposta de erro com mensagem e
- *       código customizado.</li>
- *   <li>{@link #error(Throwable)} cria uma resposta de erro a partir de uma
- *       exceção.</li>
- *   <li>{@link #error(Throwable, int)} cria uma resposta de erro a partir de
- *       uma exceção com código customizado.</li>
- *   <li>{@link #getDataOrThrow()} retorna os dados ou lança exceção se houver
- *       erro.</li>
- *   <li>{@link #builder()} cria um builder para respostas customizadas.</li>
- * </ul>
- *
- * @param <T> tipo dos dados retornados na resposta
+ * @param <T> response payload type
  */
 public class Response<T> {
     private final T data;
@@ -39,7 +18,7 @@ public class Response<T> {
     private final boolean success;
     private final int statusCode;
 
-    // Construtor privado para garantir imutabilidade
+    // Private constructor to maintain immutability
     private Response(T data, String error, boolean success, int statusCode) {
         this.data = data;
         this.error = error;
@@ -48,7 +27,7 @@ public class Response<T> {
     }
 
     /**
-     * Cria uma resposta de sucesso com dados
+     * Creates a successful response with data.
      */
     @Contract(value = "_ -> new", pure = true)
     public static <T> @NotNull Response<T> success(T data) {
@@ -56,7 +35,7 @@ public class Response<T> {
     }
 
     /**
-     * Cria uma resposta de sucesso com dados e status code customizado
+     * Creates a successful response with data and a custom status code.
      */
     @Contract(value = "_, _ -> new", pure = true)
     public static <T> @NotNull Response<T> success(T data, int statusCode) {
@@ -64,7 +43,7 @@ public class Response<T> {
     }
 
     /**
-     * Cria uma resposta de sucesso sem dados
+     * Creates a successful response without data.
      */
     @Contract(value = " -> new", pure = true)
     public static <T> @NotNull Response<T> success() {
@@ -72,7 +51,7 @@ public class Response<T> {
     }
 
     /**
-     * Cria uma resposta de erro com mensagem
+     * Creates an error response with the provided message.
      */
     @Contract(value = "_ -> new", pure = true)
     public static <T> @NotNull Response<T> error(String error) {
@@ -80,7 +59,7 @@ public class Response<T> {
     }
 
     /**
-     * Cria uma resposta de erro com mensagem e status code customizado
+     * Creates an error response with the provided message and status code.
      */
     @Contract(value = "_, _ -> new", pure = true)
     public static <T> @NotNull Response<T> error(String error, int statusCode) {
@@ -88,7 +67,7 @@ public class Response<T> {
     }
 
     /**
-     * Cria uma resposta de erro a partir de uma exceção
+     * Creates an error response based on the supplied exception.
      */
     @Contract("_ -> new")
     public static <T> @NotNull Response<T> error(@NotNull Throwable throwable) {
@@ -96,7 +75,7 @@ public class Response<T> {
     }
 
     /**
-     * Cria uma resposta de erro a partir de uma exceção com status code customizado
+     * Creates an error response from an exception and a custom status code.
      */
     @Contract("_, _ -> new")
     public static <T> @NotNull Response<T> error(@NotNull Throwable throwable, int statusCode) {
@@ -121,21 +100,21 @@ public class Response<T> {
     }
 
     /**
-     * Verifica se a resposta contém dados
+     * Indicates whether the response contains data.
      */
     public boolean hasData() {
         return data != null;
     }
 
     /**
-     * Verifica se a resposta contém erro
+     * Indicates whether the response contains an error message.
      */
     public boolean hasError() {
         return error != null;
     }
 
     /**
-     * Método utilitário para lançar exceção se a resposta for de erro
+     * Throws a generic exception when the response represents an error.
      */
     @JsonIgnore
     public T getDataOrThrow() {
@@ -146,7 +125,7 @@ public class Response<T> {
     }
 
     /**
-     * Método utilitário para lançar exceção customizada se a resposta for de erro
+     * Throws the provided exception when the response represents an error.
      */
     @JsonIgnore
     public T getDataOrThrow(RuntimeException exception) {
@@ -161,7 +140,7 @@ public class Response<T> {
         return ResponseEntity.status(statusCode).body(this);
     }
 
-    // equals, hashCode e toString para melhor debugging
+    // equals, hashCode, and toString for easier debugging
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -189,7 +168,7 @@ public class Response<T> {
     }
 
     /**
-     * Builder para respostas complexas
+     * Builder used to create custom response instances.
      */
     public static class Builder<T> {
         private T data;
@@ -223,7 +202,7 @@ public class Response<T> {
     }
 
     /**
-     * Método estático para criar um builder
+     * Provides a convenient entry point to create a builder.
      */
     @Contract(value = " -> new", pure = true)
     public static <T> @NotNull Builder<T> builder() {

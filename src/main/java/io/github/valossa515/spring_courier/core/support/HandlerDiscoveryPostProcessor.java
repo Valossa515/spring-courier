@@ -19,15 +19,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * BeanPostProcessor responsável por descobrir e registrar handlers
- * de comandos, queries e handlers genéricos baseados em IRequest.
- *
- * <p>Agora compatível com:</p>
- * <ul>
- *   <li>Handlers padrão de comando e query ({@code CommandHandler}/{@code QueryHandler})</li>
- *   <li>Implementações genéricas de {@code RequestHandlerBase<TRequest, TResponse>}</li>
- *   <li>Beans proxied via CGLIB ou outros mecanismos de AOP</li>
- * </ul>
+ * {@link BeanPostProcessor} that detects handler beans and registers them in
+ * the {@link HandlerRegistry} so they can participate in the CQRS pipeline.
  */
 public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
     private static final Logger logger = LoggerFactory.getLogger(HandlerDiscoveryPostProcessor.class);
@@ -58,7 +51,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
     }
 
     /**
-     * Define se o bean deve ser processado como handler.
+     * Determines whether the bean should be treated as a handler candidate.
      */
     private boolean shouldProcessBean(@NotNull Class<?> beanClass) {
         return beanClass.isAnnotationPresent(ExposeHandler.class)
@@ -109,7 +102,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
     }
 
     /**
-     * Identifica e registra handlers com base nos tipos genéricos.
+     * Registers handlers based on their declared generic types.
      */
     private void discoverAndRegisterHandler(Object bean, @NotNull Class<?> beanClass) {
         logger.debug("Processando handler candidate: {}", beanClass.getName());
@@ -121,7 +114,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
             registered |= registerHandlerFromType(bean, genericInterface);
         }
 
-        // ✅ cobre RequestHandlerBase
+        // ✅ covers RequestHandlerBase
         Type genericSuperclass = beanClass.getGenericSuperclass();
         if (genericSuperclass instanceof ParameterizedType parameterizedType) {
             registered |= registerHandlerFromType(bean, parameterizedType);
@@ -167,7 +160,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
                 }
             }
 
-            // Se for RequestHandlerBase, extrai do supertipo
+            // If it is RequestHandlerBase, extract from the supertype
             Type superType = handlerClass.getGenericSuperclass();
             if (superType instanceof ParameterizedType parameterizedType) {
                 Type[] args = parameterizedType.getActualTypeArguments();
@@ -182,7 +175,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
     }
 
     /**
-     * Detecta handlers que estendem RequestHandlerBase.
+     * Detects handlers that extend {@code RequestHandlerBase}.
      */
     private boolean isRequestHandlerBase(Class<?> beanClass) {
         Class<?> superclass = beanClass.getSuperclass();

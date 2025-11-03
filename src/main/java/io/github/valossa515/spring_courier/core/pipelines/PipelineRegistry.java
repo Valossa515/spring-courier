@@ -16,34 +16,34 @@ public class PipelineRegistry {
 
     public void registerBehavior(Class<?> requestType, PipelineBehavior<?, ?> behavior) {
         behaviorRegistry.computeIfAbsent(requestType, k -> new ArrayList<>()).add(behavior);
-        // Reordenar behaviors quando adicionar novo
+        // Reorder behaviors whenever a new one is added
         sortBehaviors(requestType);
     }
 
     /**
-     * Obtém a ordem de execução de um behavior
+     * Resolves the execution order associated with the behavior instance.
      */
     private int getBehaviorOrder(PipelineBehavior<?, ?> behavior) {
         return calculateBehaviorOrder(behavior);
     }
 
     /**
-     * Calcula a ordem baseado em @Order ou interface Ordered
+     * Calculates the order based on {@link Order} or the {@link Ordered} contract.
      */
     private int calculateBehaviorOrder(PipelineBehavior<?, ?> behavior) {
         Class<?> behaviorClass = behavior.getClass();
-        // Verifica annotation @Order
+        // Check for the @Order annotation
         Order orderAnnotation = behaviorClass.getAnnotation(Order.class);
         if (orderAnnotation != null) {
             return orderAnnotation.value();
         }
 
-        // Verifica se implementa Ordered
+        // Check if it implements Ordered
         if (behavior instanceof Ordered orderedBehavior) {
             return orderedBehavior.getOrder();
         }
 
-        // Ordem padrão (baixa prioridade)
+        // Default order (low priority)
         return Ordered.LOWEST_PRECEDENCE;
     }
 
@@ -61,7 +61,7 @@ public class PipelineRegistry {
             return Collections.emptyList();
         }
 
-        // Filtra apenas os behaviors que são compatíveis com o tipo de request
+        // Include only behaviors compatible with the request type
         List<PipelineBehavior<TRequest, TResponse>> compatibleBehaviors = new ArrayList<>();
 
         for (PipelineBehavior<?, ?> behavior : behaviors) {
@@ -76,15 +76,15 @@ public class PipelineRegistry {
     private <TRequest extends IRequest<TResponse>, TResponse> boolean isBehaviorCompatible(
             PipelineBehavior<?, ?> behavior, Class<TRequest> requestType) {
 
-        // Extrai o tipo de request que o behavior espera
+        // Extract the request type expected by the behavior
         Class<?> behaviorRequestType = extractRequestTypeFromBehavior(behavior.getClass());
 
-        // Verifica compatibilidade
+        // Check compatibility
         return behaviorRequestType != null && behaviorRequestType.isAssignableFrom(requestType);
     }
 
     private Class<?> extractRequestTypeFromBehavior(Class<?> behaviorClass) {
-        // Analisa interfaces genéricas
+        // Inspect generic interfaces
         Type[] genericInterfaces = behaviorClass.getGenericInterfaces();
         for (Type genericInterface : genericInterfaces) {
             Class<?> requestType = extractRequestTypeFromParameterizedType(genericInterface);
@@ -93,7 +93,7 @@ public class PipelineRegistry {
             }
         }
 
-        // Analisa superclasse genérica
+        // Inspect generic superclass
         Type genericSuperclass = behaviorClass.getGenericSuperclass();
         return extractRequestTypeFromParameterizedType(genericSuperclass);
     }

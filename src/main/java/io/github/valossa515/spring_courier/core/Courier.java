@@ -14,10 +14,8 @@ import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Central de envio e roteamento de requisições no padrão CQRS.
- * Compatível tanto com handlers síncronos (handle) quanto assíncronos (execute).
- *
- * @author Valossa515
+ * Dispatches requests through the CQRS pipeline, invoking synchronous or
+ * asynchronous handlers as needed.
  */
 @Component
 public class Courier {
@@ -33,7 +31,7 @@ public class Courier {
     }
 
     /**
-     * Envia uma requisição e retorna uma {@link Response} tipada.
+     * Sends a request and returns a typed {@link Response}.
      */
     @SuppressWarnings("unchecked")
     public <TResponse> Response<TResponse> send(@NotNull IRequest<TResponse> request) {
@@ -50,8 +48,8 @@ public class Courier {
     }
 
     /**
-     * Invoca o handler, identificando automaticamente se ele usa "handle" (sincrono)
-     * ou "execute" (assíncrono da RequestHandlerBase).
+     * Invokes the handler, transparently supporting "handle" and "execute"
+     * method conventions.
      */
     @SuppressWarnings("unchecked")
     private <R> Response<R> invokeHandler(Object handler, IRequest<R> request) {
@@ -78,7 +76,7 @@ public class Courier {
             logger.error("Erro no handler: {}", target.getMessage(), target);
             return Response.error(target.getMessage());
         } catch (RuntimeException e) {
-            // 🔥 Aqui garantimos que o teste passe corretamente
+            // 🔥 Ensure the test expectations continue to pass
             logger.error("Erro no Courier: {}", e.getMessage());
             return Response.error(e.getMessage());
         } catch (Exception e) {
@@ -98,7 +96,7 @@ public class Courier {
     }
 
     /**
-     * Retorna o número de handlers registrados.
+     * Returns the number of registered handlers.
      */
     public int getRegisteredHandlersCount() {
         return handlerRegistry.getHandlerCount();

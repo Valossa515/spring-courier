@@ -13,11 +13,8 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 /**
- * BeanPostProcessor responsável por descobrir e registrar comportamentos (PipelineBehaviors)
- * durante a inicialização do contexto Spring.
- *
- * Agora compatível com beans proxied pelo Spring (CGLIB/AOP),
- * garantindo que o tipo de requisição genérico seja resolvido corretamente.
+ * {@link BeanPostProcessor} that discovers {@link PipelineBehavior} beans and
+ * registers them in the {@link PipelineRegistry} during context startup.
  */
 public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
     private static final Logger logger = LoggerFactory.getLogger(BehaviorDiscoveryPostProcessor.class);
@@ -58,7 +55,7 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
     }
 
     private Class<?> extractRequestTypeFromBehavior(Class<?> behaviorClass) {
-        // Verifica interfaces genéricas da classe alvo
+        // Check generic interfaces on the target class
         Type[] genericInterfaces = behaviorClass.getGenericInterfaces();
         for (Type genericInterface : genericInterfaces) {
             Class<?> requestType = extractRequestTypeFromParameterizedType(genericInterface);
@@ -67,7 +64,7 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
             }
         }
 
-        // Verifica superclasse genérica
+        // Check the generic superclass
         Type genericSuperclass = behaviorClass.getGenericSuperclass();
         return extractRequestTypeFromParameterizedType(genericSuperclass);
     }
