@@ -60,7 +60,11 @@
             <artifactId>jackson-annotations</artifactId>
             <version>2.19.2</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <!-- Testes -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

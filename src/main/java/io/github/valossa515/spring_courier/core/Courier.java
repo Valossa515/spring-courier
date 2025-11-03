@@ -40,7 +40,13 @@ public class Courier {
         logger.debug("Enviando request: {}", request.getClass().getSimpleName());
 
         Object handler = handlerRegistry.getHandler(request.getClass());
-        return pipelineExecutor.execute(request, () -> invokeHandler(handler, request));
+
+        var result = pipelineExecutor.execute(request, () -> invokeHandler(handler, request));
+
+        if(result instanceof Response<?> response)
+            return (Response<TResponse>) response;
+
+        return Response.success((TResponse) result);
     }
 
     /**
