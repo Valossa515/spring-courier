@@ -13,6 +13,16 @@ import java.util.List;
  * normalizado para {@link Response}. Esta classe coordena a chamada dos
  * behaviors e do handler final, permitindo que preocupações transversais sejam
  * aplicadas de forma consistente.
+ *
+ * <p>Uso típico:</p>
+ *
+ * <pre>{@code
+ * CreateUserCommand command = new CreateUserCommand("alice@example.com");
+ * Response<UserDto> response = pipelineExecutor.execute(
+ *         command,
+ *         () -> createUserHandler.handle(command)
+ * );
+ * </pre>
  */
 public class PipelineExecutor {
     private static final Logger logger = LoggerFactory.getLogger(PipelineExecutor.class);
@@ -65,6 +75,20 @@ public class PipelineExecutor {
 
     @FunctionalInterface
     public interface HandlerInvoker<TRequest extends IRequest<TResponse>, TResponse> {
+
+        /**
+         * Executa o handler associado ao request, retornando diretamente o
+         * resultado produzido. A implementação pode retornar tanto a resposta
+         * concreta quanto um {@link Response} já padronizado.
+         *
+         * <p>Exemplo de implementação inline:</p>
+         *
+         * <pre>{@code
+         * pipelineExecutor.execute(request, () -> handler.handle(request));
+         * </pre>
+         *
+         * @return instância de {@link Response} ou o valor bruto de TResponse a
+         * ser normalizado.
         /**
          * Executa o handler associado ao request, retornando diretamente o
          * resultado produzido. Pode ser tanto o valor cru quanto um Response<T>.

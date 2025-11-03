@@ -5,6 +5,17 @@ package io.github.valossa515.spring_courier.core.exceptions;
  * determinado request. Permite que os consumidores detectem configurações
  * incompletas do pipeline e reajam registrando o handler apropriado ou
  * tratando o cenário de ausência.
+ *
+ * <p>Uso típico:</p>
+ *
+ * <pre>{@code
+ * try {
+ *     pipelineExecutor.execute(request, () -> handlerRegistry.invoke(request));
+ * } catch (HandlerNotFoundException ex) {
+ *     logger.error("Handler ausente para {}", request.getClass(), ex);
+ *     throw new IllegalStateException("Configure os handlers antes de processar", ex);
+ * }
+ * </pre>
  */
 public class HandlerNotFoundException extends RuntimeException {
 
