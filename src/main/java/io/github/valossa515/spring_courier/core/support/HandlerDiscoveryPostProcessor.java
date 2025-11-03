@@ -22,10 +22,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * BeanPostProcessor responsável por descobrir e registrar handlers
  * de comandos, queries e handlers genéricos baseados em IRequest.
  *
- * Agora compatível com:
- * - CommandHandler / QueryHandler padrão
- * - Handlers genéricos (RequestHandlerBase<TRequest, TResponse>)
- * - Beans proxied via CGLIB / AOP
+ * <p>Agora compatível com:</p>
+ * <ul>
+ *   <li>Handlers padrão de comando e query ({@code CommandHandler}/{@code QueryHandler})</li>
+ *   <li>Implementações genéricas de {@code RequestHandlerBase<TRequest, TResponse>}</li>
+ *   <li>Beans proxied via CGLIB ou outros mecanismos de AOP</li>
+ * </ul>
  */
 public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
     private static final Logger logger = LoggerFactory.getLogger(HandlerDiscoveryPostProcessor.class);
