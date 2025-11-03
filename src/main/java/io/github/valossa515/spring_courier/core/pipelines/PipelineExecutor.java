@@ -85,13 +85,10 @@ public class PipelineExecutor {
          *
          * <pre>{@code
          * pipelineExecutor.execute(request, () -> handler.handle(request));
-         * </pre>
+         * }</pre>
          *
-         * @return instância de {@link Response} ou o valor bruto de TResponse a
+         * @return instância de {@link Response} ou o valor bruto de {@code TResponse} a
          * ser normalizado.
-        /**
-         * Executa o handler associado ao request, retornando diretamente o
-         * resultado produzido. Pode ser tanto o valor cru quanto um Response<T>.
          */
         Object invoke();
     }

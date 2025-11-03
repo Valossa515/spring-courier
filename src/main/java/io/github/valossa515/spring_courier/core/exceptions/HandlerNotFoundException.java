@@ -15,7 +15,7 @@ package io.github.valossa515.spring_courier.core.exceptions;
  *     logger.error("Handler ausente para {}", request.getClass(), ex);
  *     throw new IllegalStateException("Configure os handlers antes de processar", ex);
  * }
- * </pre>
+ * }</pre>
  */
 public class HandlerNotFoundException extends RuntimeException {
 

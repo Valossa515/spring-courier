@@ -17,14 +17,13 @@ import org.springframework.context.annotation.Configuration;
  * o componente de envio de requisições e o pós-processador de descoberta de handlers.
  * </p>
  *
- * <p>
- * Os beans registrados são:
+ * <p>Os beans registrados são:</p>
  * <ul>
  *   <li>{@link HandlerRegistry}: Gerencia o registro e localização de handlers.</li>
  *   <li>{@link Courier}: Responsável pelo envio e roteamento de requisições.</li>
  *   <li>{@link HandlerDiscoveryPostProcessor}: Realiza a descoberta automática de handlers no contexto Spring.</li>
  * </ul>
- * </p>
+ *
  * @author Valossa515
  * @see HandlerRegistry
  * @see Courier

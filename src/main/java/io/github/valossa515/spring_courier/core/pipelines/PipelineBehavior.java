@@ -24,9 +24,9 @@ import io.github.valossa515.spring_courier.core.interfaces.IRequest;
  * }
  * </pre>
  *
- * @param <TRequest>  tipo da requisição, que deve implementar {@link IRequest}
- *                    com o tipo de resposta correspondente.
- * @param <TResponse> tipo de resposta esperado para a requisição em questão.
+ * @param &lt;TRequest&gt;  tipo da requisição, que deve implementar {@link IRequest}
+ *                        com o tipo de resposta correspondente.
+ * @param &lt;TResponse&gt; tipo de resposta esperado para a requisição em questão.
  */
 public interface PipelineBehavior<TRequest extends IRequest<TResponse>, TResponse> {
 
@@ -70,8 +70,8 @@ public interface PipelineBehavior<TRequest extends IRequest<TResponse>, TRespons
      * }
      * </pre>
      *
-     * @param <TResponse> tipo da resposta esperada após a invocação do próximo
-     *                    comportamento.
+     * @param &lt;TResponse&gt; tipo da resposta esperada após a invocação do próximo
+     *                        comportamento.
      */
     interface Next<TResponse> {
 

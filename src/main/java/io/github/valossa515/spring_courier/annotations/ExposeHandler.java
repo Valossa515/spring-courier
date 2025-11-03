@@ -12,13 +12,11 @@ import java.lang.annotation.*;
  * O valor opcional pode ser utilizado para definir um nome específico para o bean.
  * </p>
  *
- * <p>
- * Exemplo de uso:
- * <pre>
- * &#64;ExposeHandler("meuHandler")
+ * <p>Exemplo de uso:</p>
+ * <pre>{@code
+ * @ExposeHandler("meuHandler")
  * public class MeuHandler implements CommandHandler&lt;MeuComando, MinhaResposta&gt; { ... }
- * </pre>
- * </p>
+ * }</pre>
  *
  * @see org.springframework.stereotype.Component
  */
