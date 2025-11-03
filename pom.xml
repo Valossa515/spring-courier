@@ -5,13 +5,48 @@
 
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <name>spring-courier</name>
-    <description>Lib CQRS leve para Spring Boot</description>
+    <version>0.0.1</version>
+    <name>Spring Courier</name>
+    <description>Lib CQRS leve para Spring Boot, inspirada no MediatR (.NET)</description>
+    <url>https://github.com/valossa515/spring-courier</url>
+
+    <!-- ✅ Metadados exigidos pelo Maven Central -->
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>valossa515</id>
+            <name>Felipe Martins</name>
+            <email>valossa515@gmail.com</email>
+            <url>https://github.com/valossa515</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/valossa515/spring-courier.git</connection>
+        <developerConnection>scm:git:ssh://github.com/valossa515/spring-courier.git</developerConnection>
+        <url>https://github.com/valossa515/spring-courier</url>
+    </scm>
+
+    <!-- ✅ Maven Central Portal (novo fluxo) -->
+    <distributionManagement>
+        <repository>
+            <id>central</id>
+            <name>Central Portal</name>
+            <url>https://central.sonatype.com/publish</url>
+        </repository>
+    </distributionManagement>
 
     <properties>
         <java.version>24</java.version>
         <spring-boot.version>3.5.5</spring-boot.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <dependencyManagement>
@@ -49,22 +84,27 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-api -->
+        <!-- Logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>2.0.17</version>
         </dependency>
+
+        <!-- JSON -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
             <version>2.19.2</version>
         </dependency>
+
+        <!-- Web (para testes e exemplos) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
             <scope>provided</scope>
         </dependency>
+
         <!-- Testes -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -86,14 +126,51 @@
                 </configuration>
             </plugin>
 
-            <!-- Plugin Spring Boot (não obrigatório em libs, mas útil se quiser rodar exemplos) -->
+            <!-- GPG Signature -->
             <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>${spring-boot.version}</version>
-                <configuration>
-                    <skip>true</skip>
-                </configuration>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.2.4</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals><goal>sign</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Source JAR -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals><goal>jar-no-fork</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Javadoc JAR -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.6.3</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals><goal>jar</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Deploy para Central Portal -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>3.1.2</version>
             </plugin>
         </plugins>
     </build>
