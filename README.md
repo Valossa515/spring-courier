@@ -1,7 +1,6 @@
 # 📦 Spring Courier  
 > 🚀 Uma biblioteca Java para simplificar a implementação do padrão **CQRS + Mediator** em aplicações **Spring Boot**.
 
-[![Build](https://img.shields.io/github/actions/workflow/status/Valossa515/spring-courier/build.yml?branch=main)](https://github.com/Valossa515/spring-courier/actions)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.valossa515/spring-courier)](https://central.sonatype.com/artifact/io.github.valossa515/spring-courier)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Java](https://img.shields.io/badge/java-24%2B-orange)](https://openjdk.org/projects/jdk/24/)
