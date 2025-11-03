@@ -12,14 +12,12 @@ import java.lang.annotation.*;
  * permitindo o registro e funcionamento dos componentes necessários para o padrão CQRS.
  * </p>
  *
- * <p>
- * Exemplo de uso:
- * <pre>
- * &#64;EnableSpringCourier
- * &#64;SpringBootApplication
+ * <p>Exemplo de uso:</p>
+ * <pre>{@code
+ * @EnableSpringCourier
+ * @SpringBootApplication
  * public class MinhaAplicacao { ... }
- * </pre>
- * </p>
+ * }</pre>
  *
  * @see io.github.valossa515.spring_courier.config.CourierAutoConfiguration
  */
