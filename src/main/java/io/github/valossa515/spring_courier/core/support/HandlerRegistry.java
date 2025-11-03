@@ -8,22 +8,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Registro de handlers para diferentes tipos de requisições.
- * <p>
- * Permite registrar, recuperar e verificar handlers associados a tipos específicos de requisições.
- * Utiliza um {@link ConcurrentHashMap} para garantir segurança em ambientes concorrentes.
- * </p>
- *
- * Métodos principais:
- * <ul>
- *   <li>{@link #registerHandler(Class, Object)}: Registra um handler para um tipo de requisição.</li>
- *   <li>{@link #getHandler(Class)}: Recupera o handler associado ao tipo de requisição informado.</li>
- *   <li>{@link #hasHandlerFor(Class)}: Verifica se existe um handler para o tipo de requisição.</li>
- *   <li>{@link #getHandlerCount()}: Retorna a quantidade de handlers registrados.</li>
- *   <li>{@link #getHandlers()}: Retorna um mapa com todos os handlers registrados.</li>
- * </ul>
- *
- * Os logs são gerenciados via SLF4J.
+ * Thread-safe registry that maps request types to their handlers for use inside
+ * the courier pipeline.
  */
 public class HandlerRegistry {
     private static final Logger logger = LoggerFactory.getLogger(HandlerRegistry.class);

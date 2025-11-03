@@ -1,23 +1,18 @@
 package io.github.valossa515.spring_courier.core.interfaces;
 
 /**
- * Interface funcional para manipulação de consultas (queries) no padrão CQRS.
- * <p>
- * Implementações desta interface devem processar uma consulta do tipo {@link IRequest}
- * e retornar uma resposta do tipo especificado.
- * Utilizada para separar o tratamento de queries dos comandos em arquiteturas orientadas a mensagens.
- * </p>
+ * Functional interface for handling CQRS queries.
  *
- * @param <Q> Tipo da consulta, que deve implementar {@link IRequest}
- * @param <R> Tipo da resposta retornada pelo handler
+ * @param <Q> query type that extends {@link IRequest}
+ * @param <R> response type returned by the handler
  */
 @FunctionalInterface
 public interface QueryHandler<Q extends IRequest<R>, R>{
     /**
-     * Processa a consulta recebida e retorna uma resposta.
+     * Handles the received query and returns the resulting response.
      *
-     * @param query consulta a ser processada
-     * @return resposta resultante do processamento
+     * @param query query to process
+     * @return response produced by the handler
      */
     R handle(Q query);
 }
