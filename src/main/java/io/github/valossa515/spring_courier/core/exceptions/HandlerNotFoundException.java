@@ -8,14 +8,14 @@ package io.github.valossa515.spring_courier.core.exceptions;
  *
  * <p>Uso típico:</p>
  *
- * <pre>{@code
+ * <pre>
  * try {
  *     pipelineExecutor.execute(request, () -> handlerRegistry.invoke(request));
  * } catch (HandlerNotFoundException ex) {
  *     logger.error("Handler ausente para {}", request.getClass(), ex);
  *     throw new IllegalStateException("Configure os handlers antes de processar", ex);
  * }
- * }</pre>
+ * </pre>
  */
 public class HandlerNotFoundException extends RuntimeException {
 

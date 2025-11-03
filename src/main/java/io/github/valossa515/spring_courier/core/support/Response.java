@@ -7,28 +7,31 @@ import org.springframework.http.ResponseEntity;
 
 import java.util.Objects;
 /**
- * Representa uma resposta genérica para operações, contendo dados, erro, status de sucesso e código de status.
- * <p>
- * Esta classe é imutável e fornece métodos utilitários para criar respostas de sucesso ou erro,
- * além de um builder para casos mais complexos.
- * </p>
+ * Representa uma resposta genérica para operações, contendo dados, erro,
+ * status de sucesso e código de status.
  *
- * <p>
- * Principais métodos:
+ * <p>Esta classe é imutável e fornece métodos utilitários para criar respostas
+ * de sucesso ou erro, além de um builder para cenários mais complexos.</p>
+ *
+ * <p>Principais métodos:</p>
  * <ul>
- *   <li>{@link #success(Object)}: Cria uma resposta de sucesso com dados.</li>
- *   <li>{@link #success(Object, int)}: Cria uma resposta de sucesso com dados e código customizado.</li>
- *   <li>{@link #success()}: Cria uma resposta de sucesso sem dados.</li>
- *   <li>{@link #error(String)}: Cria uma resposta de erro com mensagem.</li>
- *   <li>{@link #error(String, int)}: Cria uma resposta de erro com mensagem e código customizado.</li>
- *   <li>{@link #error(Throwable)}: Cria uma resposta de erro a partir de uma exceção.</li>
- *   <li>{@link #error(Throwable, int)}: Cria uma resposta de erro a partir de uma exceção e código customizado.</li>
- *   <li>{@link #getDataOrThrow()}: Retorna os dados ou lança exceção se houver erro.</li>
- *   <li>{@link #builder()}: Cria um builder para respostas customizadas.</li>
+ *   <li>{@link #success(Object)} cria uma resposta de sucesso com dados.</li>
+ *   <li>{@link #success(Object, int)} cria uma resposta de sucesso com dados e
+ *       código customizado.</li>
+ *   <li>{@link #success()} cria uma resposta de sucesso sem dados.</li>
+ *   <li>{@link #error(String)} cria uma resposta de erro com mensagem.</li>
+ *   <li>{@link #error(String, int)} cria uma resposta de erro com mensagem e
+ *       código customizado.</li>
+ *   <li>{@link #error(Throwable)} cria uma resposta de erro a partir de uma
+ *       exceção.</li>
+ *   <li>{@link #error(Throwable, int)} cria uma resposta de erro a partir de
+ *       uma exceção com código customizado.</li>
+ *   <li>{@link #getDataOrThrow()} retorna os dados ou lança exceção se houver
+ *       erro.</li>
+ *   <li>{@link #builder()} cria um builder para respostas customizadas.</li>
  * </ul>
- * </p>
  *
- * @param <T> Tipo dos dados retornados na resposta
+ * @param <T> tipo dos dados retornados na resposta
  */
 public class Response<T> {
     private final T data;

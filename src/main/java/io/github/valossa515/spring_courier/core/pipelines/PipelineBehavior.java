@@ -10,23 +10,23 @@ import io.github.valossa515.spring_courier.core.interfaces.IRequest;
  *
  * <p>Exemplo de behavior que registra tempo de execução ao redor do handler:</p>
  *
- * <pre>{@code
- * public class LoggingBehavior implements PipelineBehavior<CreateUserCommand, Response<UserDto>> {
+ * <pre>
+ * public class LoggingBehavior implements PipelineBehavior&lt;CreateUserCommand, Response&lt;UserDto>> {
  *     private static final Logger logger = LoggerFactory.getLogger(LoggingBehavior.class);
  *
  *     @Override
- *     public Response<UserDto> handle(CreateUserCommand request, Next<Response<UserDto>> next) {
+ *     public Response&lt;UserDto> handle(CreateUserCommand request, Next&lt;Response&lt;UserDto>> next) {
  *         long startedAt = System.nanoTime();
- *         Response<UserDto> response = next.invoke();
+ *         Response&lt;UserDto> response = next.invoke();
  *         logger.debug("CreateUserCommand processado em {} nanos", System.nanoTime() - startedAt);
  *         return response;
  *     }
  * }
  * </pre>
  *
- * @param &lt;TRequest&gt;  tipo da requisição, que deve implementar {@link IRequest}
- *                        com o tipo de resposta correspondente.
- * @param &lt;TResponse&gt; tipo de resposta esperado para a requisição em questão.
+ * @param <TRequest>  tipo da requisição, que deve implementar {@link IRequest}
+ *                    com o tipo de resposta correspondente.
+ * @param <TResponse> tipo de resposta esperado para a requisição em questão.
  */
 public interface PipelineBehavior<TRequest extends IRequest<TResponse>, TResponse> {
 
@@ -37,8 +37,8 @@ public interface PipelineBehavior<TRequest extends IRequest<TResponse>, TRespons
      * <p>Dentro da implementação é comum capturar o retorno do {@code next}
      * para aplicar transformações ou lidar com exceções:</p>
      *
-     * <pre>{@code
-     * public Response<UserDto> handle(CreateUserCommand request, Next<Response<UserDto>> next) {
+     * <pre>
+     * public Response&lt;UserDto> handle(CreateUserCommand request, Next&lt;Response&lt;UserDto>> next) {
      *     try {
      *         return next.invoke();
      *     } catch (ConstraintViolationException exception) {
@@ -61,8 +61,8 @@ public interface PipelineBehavior<TRequest extends IRequest<TResponse>, TRespons
      * <p>O método {@link #invoke()} deve ser chamado exatamente uma vez, a menos
      * que o behavior deseje interromper o fluxo. Por exemplo:</p>
      *
-     * <pre>{@code
-     * public Response<UserDto> handle(CreateUserCommand request, Next<Response<UserDto>> next) {
+     * <pre>
+     * public Response&lt;UserDto> handle(CreateUserCommand request, Next&lt;Response&lt;UserDto>> next) {
      *     if (!request.isEnabled()) {
      *         return Response.failure("Operação desabilitada");
      *     }
@@ -70,8 +70,8 @@ public interface PipelineBehavior<TRequest extends IRequest<TResponse>, TRespons
      * }
      * </pre>
      *
-     * @param &lt;TResponse&gt; tipo da resposta esperada após a invocação do próximo
-     *                        comportamento.
+     * @param <TResponse> tipo da resposta esperada após a invocação do próximo
+     *                    comportamento.
      */
     interface Next<TResponse> {
 

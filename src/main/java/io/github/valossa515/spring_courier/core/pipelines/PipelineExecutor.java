@@ -16,9 +16,9 @@ import java.util.List;
  *
  * <p>Uso típico:</p>
  *
- * <pre>{@code
+ * <pre>
  * CreateUserCommand command = new CreateUserCommand("alice@example.com");
- * Response<UserDto> response = pipelineExecutor.execute(
+ * Response&lt;UserDto> response = pipelineExecutor.execute(
  *         command,
  *         () -> createUserHandler.handle(command)
  * );
@@ -34,7 +34,15 @@ public class PipelineExecutor {
 
     /**
      * Executa o request através dos behaviors, garantindo compatibilidade entre
-     * handlers que retornam TResponse e os que retornam Response<TResponse>.
+     * handlers que retornam {@code TResponse} e os que retornam
+     * {@code Response<TResponse>}.
+     *
+     * @param <TRequest>      tipo da requisição encaminhada ao pipeline.
+     * @param <TResponse>     tipo de resposta esperada após a execução.
+     * @param request         instância da requisição a ser processada.
+     * @param handlerInvoker  invocador responsável por acionar o handler final.
+     * @return sempre uma instância normalizada de {@link Response} contendo
+     * os dados ou erros resultantes da execução.
      */
     @SuppressWarnings("unchecked")
     public <TRequest extends IRequest<TResponse>, TResponse> Response<TResponse> execute(
@@ -83,11 +91,11 @@ public class PipelineExecutor {
          *
          * <p>Exemplo de implementação inline:</p>
          *
-         * <pre>{@code
+         * <pre>
          * pipelineExecutor.execute(request, () -> handler.handle(request));
-         * }</pre>
+         * </pre>
          *
-         * @return instância de {@link Response} ou o valor bruto de {@code TResponse} a
+         * @return instância de {@link Response} ou o valor bruto de TResponse a
          * ser normalizado.
          */
         Object invoke();
@@ -114,7 +122,7 @@ public class PipelineExecutor {
     }
 
     /**
-     * Converte automaticamente qualquer retorno para Response<TResponse>.
+     * Converte automaticamente qualquer retorno para {@code Response<TResponse>}.
      */
     @SuppressWarnings("unchecked")
     private <TResponse> Response<TResponse> normalize(Object result) {
