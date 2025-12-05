@@ -98,6 +98,7 @@ public class Courier {
         for (Method method : handlerClass.getMethods()) {
             if ((method.getName().equals("handle") || method.getName().equals("execute"))
                     && method.getParameterCount() == 1) {
+                method.setAccessible(true); // Make method accessible
                 return method;
             }
         }
@@ -123,6 +124,7 @@ public class Courier {
         for (Object handler : handlers) {
             try {
                 Method method = findHandleMethod(handler.getClass());
+                method.setAccessible(true); // Make method accessible for test inner classes
                 method.invoke(handler, notification);
                 logger.debug("Notification handler executado: {} -> {}", 
                         notification.getClass().getSimpleName(), handler.getClass().getSimpleName());
