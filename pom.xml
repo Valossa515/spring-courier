@@ -44,7 +44,7 @@
     </distributionManagement>
 
     <properties>
-        <java.version>24</java.version>
+        <java.version>17</java.version>
         <spring-boot.version>3.5.5</spring-boot.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>

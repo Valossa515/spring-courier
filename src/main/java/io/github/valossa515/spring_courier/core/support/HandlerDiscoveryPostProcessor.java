@@ -76,12 +76,15 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
         }
 
         for (Type genericInterface : interfaceType.getGenericInterfaces()) {
-            if (genericInterface instanceof ParameterizedType parameterizedType) {
+            if (genericInterface instanceof ParameterizedType) {
+                ParameterizedType parameterizedType = (ParameterizedType) genericInterface;
                 Type rawType = parameterizedType.getRawType();
-                if (rawType instanceof Class<?> rawClass &&
-                        io.github.valossa515.spring_courier.core.interfaces.IRequest.class.isAssignableFrom(rawClass)) {
-                    logger.debug("Interface personalizada detectada como IRequest: {}", interfaceType.getSimpleName());
-                    return true;
+                if (rawType instanceof Class<?>) {
+                    Class<?> rawClass = (Class<?>) rawType;
+                    if (io.github.valossa515.spring_courier.core.interfaces.IRequest.class.isAssignableFrom(rawClass)) {
+                        logger.debug("Interface personalizada detectada como IRequest: {}", interfaceType.getSimpleName());
+                        return true;
+                    }
                 }
             }
         }
@@ -116,7 +119,8 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
 
         // ✅ covers RequestHandlerBase
         Type genericSuperclass = beanClass.getGenericSuperclass();
-        if (genericSuperclass instanceof ParameterizedType parameterizedType) {
+        if (genericSuperclass instanceof ParameterizedType) {
+            ParameterizedType parameterizedType = (ParameterizedType) genericSuperclass;
             registered |= registerHandlerFromType(bean, parameterizedType);
         }
 
@@ -129,16 +133,19 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
     }
 
     private boolean registerHandlerFromType(Object bean, Type type) {
-        if (type instanceof ParameterizedType parameterizedType) {
+        if (type instanceof ParameterizedType) {
+            ParameterizedType parameterizedType = (ParameterizedType) type;
             Type rawType = parameterizedType.getRawType();
 
-            if (rawType instanceof Class<?> rawClass) {
+            if (rawType instanceof Class<?>) {
+                Class<?> rawClass = (Class<?>) rawType;
                 // cobre tanto CommandHandler/QueryHandler quanto RequestHandlerBase
                 if (isHandlerInterfaceType(rawClass) ||
                         rawClass.getSimpleName().equals("RequestHandlerBase")) {
 
                     Type[] typeArguments = parameterizedType.getActualTypeArguments();
-                    if (typeArguments.length >= 1 && typeArguments[0] instanceof Class<?> requestType) {
+                    if (typeArguments.length >= 1 && typeArguments[0] instanceof Class<?>) {
+                        Class<?> requestType = (Class<?>) typeArguments[0];
                         handlerRegistry.registerHandler(requestType, bean);
                         logger.debug("Handler registrado para request type: {}", requestType.getSimpleName());
                         return true;
@@ -152,7 +159,8 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
     private String extractRequestTypeFromHandler(Class<?> handlerClass) {
         try {
             for (Type genericInterface : handlerClass.getGenericInterfaces()) {
-                if (genericInterface instanceof ParameterizedType parameterizedType) {
+                if (genericInterface instanceof ParameterizedType) {
+                    ParameterizedType parameterizedType = (ParameterizedType) genericInterface;
                     Type[] typeArguments = parameterizedType.getActualTypeArguments();
                     if (typeArguments.length > 0) {
                         return typeArguments[0].getTypeName();
@@ -162,7 +170,8 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
 
             // If it is RequestHandlerBase, extract from the supertype
             Type superType = handlerClass.getGenericSuperclass();
-            if (superType instanceof ParameterizedType parameterizedType) {
+            if (superType instanceof ParameterizedType) {
+                ParameterizedType parameterizedType = (ParameterizedType) superType;
                 Type[] args = parameterizedType.getActualTypeArguments();
                 if (args.length > 0) {
                     return args[0].getTypeName();

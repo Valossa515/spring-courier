@@ -41,8 +41,9 @@ public class Courier {
 
         var result = pipelineExecutor.execute(request, () -> invokeHandler(handler, request));
 
-        if(result instanceof Response<?> response)
-            return (Response<TResponse>) response;
+        if(result instanceof Response<?>) {
+            return (Response<TResponse>) result;
+        }
 
         return Response.success((TResponse) result);
     }
@@ -66,8 +67,9 @@ public class Courier {
             logger.debug("Handler executado em {}ms: {} -> {}", duration,
                     request.getClass().getSimpleName(), handler.getClass().getSimpleName());
 
-            if (result instanceof Response<?> response)
-                return (Response<R>) response;
+            if (result instanceof Response<?>) {
+                return (Response<R>) result;
+            }
 
             return Response.success((R) result);
 
