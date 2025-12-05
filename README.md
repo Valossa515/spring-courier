@@ -2,6 +2,7 @@
 > 🚀 Uma biblioteca Java para simplificar a implementação do padrão **CQRS + Mediator** em aplicações **Spring Boot**.
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.valossa515/spring-courier)](https://central.sonatype.com/artifact/io.github.valossa515/spring-courier)
+[![Publish to Maven Central](https://github.com/Valossa515/spring-courier/actions/workflows/publish-maven-central.yml/badge.svg)](https://github.com/Valossa515/spring-courier/actions/workflows/publish-maven-central.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Java](https://img.shields.io/badge/java-17%2B-orange)](https://openjdk.org/projects/jdk/17/)
 [![Spring Boot](https://img.shields.io/badge/spring--boot-3.5.x-brightgreen)](https://spring.io/projects/spring-boot)
@@ -207,6 +208,36 @@ Siga os passos abaixo para contribuir:
 2. Crie uma branch (`feature/nova-funcionalidade`)  
 3. Faça suas alterações e adicione testes  
 4. Envie um Pull Request 🚀
+
+Para mais informações sobre o processo de contribuição e publicação de releases, consulte o [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## 📦 Releases e Publicação
+
+Este projeto utiliza **GitHub Actions** para automatizar completamente o processo de publicação no Maven Central.
+
+### Para Usuários
+
+As versões publicadas estão disponíveis no [Maven Central](https://central.sonatype.com/artifact/io.github.valossa515/spring-courier).
+
+### Para Maintainers
+
+Para publicar uma nova versão:
+
+1. **Atualize a versão** no `pom.xml`
+2. **Crie uma release** no GitHub com a tag correspondente (ex: `v1.0.0`)
+3. A **GitHub Action será disparada automaticamente** e publicará a biblioteca no Maven Central
+
+A action executa:
+- ✅ Build e testes
+- ✅ Geração de JARs (main, sources, javadocs)
+- ✅ Assinatura GPG de todos os artefatos
+- ✅ Geração de checksums (SHA1, MD5, SHA256, SHA512)
+- ✅ Criação do bundle Maven Central
+- ✅ Upload automático para o Sonatype Central Portal
+
+**Secrets necessários**: Consulte o [CONTRIBUTING.md](CONTRIBUTING.md#-processo-de-release-para-maintainers) para instruções detalhadas sobre a configuração dos secrets do GitHub.
 
 ---
 
