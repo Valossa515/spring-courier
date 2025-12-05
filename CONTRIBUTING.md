@@ -46,8 +46,7 @@ Para publicar uma nova versão no Maven Central, você precisa configurar os seg
 |--------|-----------|------------|
 | `GPG_PRIVATE_KEY` | Chave GPG privada em formato ASCII armored | Exportar sua chave GPG (veja abaixo) |
 | `GPG_PASSPHRASE` | Senha da chave GPG | A senha que você definiu ao criar a chave GPG |
-| `SONATYPE_USERNAME` | Username do Sonatype Central Portal | Seu username de login no Central Portal |
-| `SONATYPE_TOKEN` | Token de acesso do Sonatype | Gerar em https://central.sonatype.com/account |
+| `SONATYPE_TOKEN` | Token de acesso do Sonatype Central Portal | Gerar em https://central.sonatype.com/account |
 
 ### 🔐 Configurando a Chave GPG
 
@@ -111,10 +110,8 @@ gpg --keyserver keys.openpgp.org --send-keys ABCD1234EFGH5678
 
 1. Vá em: https://central.sonatype.com/account
 2. Clique em "Generate User Token"
-3. Copie o Username e o Token gerados
-4. Adicione aos GitHub Secrets:
-   - `SONATYPE_USERNAME`: Username
-   - `SONATYPE_TOKEN`: Token
+3. Copie o Token gerado
+4. Adicione ao GitHub Secrets como `SONATYPE_TOKEN`
 
 ### 📋 Fazendo uma Release
 

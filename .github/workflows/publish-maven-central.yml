@@ -88,16 +88,24 @@ jobs:
             sha512sum "$file" | awk '{print $1}' > "${file}.sha512"
           }
           
-          # Gerar checksums para todos os artefatos
-          for artifact in spring-courier-${VERSION}.jar \
-                         spring-courier-${VERSION}-sources.jar \
-                         spring-courier-${VERSION}-javadoc.jar \
-                         spring-courier-${VERSION}.pom \
-                         spring-courier-${VERSION}.jar.asc \
-                         spring-courier-${VERSION}-sources.jar.asc \
-                         spring-courier-${VERSION}-javadoc.jar.asc \
-                         spring-courier-${VERSION}.pom.asc; do
+          # Lista de artefatos base (sem .asc)
+          ARTIFACTS=(
+            "spring-courier-${VERSION}.jar"
+            "spring-courier-${VERSION}-sources.jar"
+            "spring-courier-${VERSION}-javadoc.jar"
+            "spring-courier-${VERSION}.pom"
+          )
+          
+          # Gerar checksums para artefatos base
+          for artifact in "${ARTIFACTS[@]}"; do
             generate_checksums "$artifact"
+          done
+          
+          # Gerar checksums para arquivos .asc (assinaturas)
+          for artifact in "${ARTIFACTS[@]}"; do
+            if [ -f "${artifact}.asc" ]; then
+              generate_checksums "${artifact}.asc"
+            fi
           done
           
           echo "Checksums gerados:"
@@ -112,44 +120,41 @@ jobs:
           BUNDLE_DIR="maven-central-bundle"
           mkdir -p "$BUNDLE_DIR"
           
-          # Copiar todos os artefatos necessários para o bundle
-          cp spring-courier-${VERSION}.jar "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}.jar.asc "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}.jar.sha1 "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}.jar.md5 "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}.jar.sha256 "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}.jar.sha512 "$BUNDLE_DIR/"
+          # Lista de artefatos base
+          ARTIFACTS=(
+            "spring-courier-${VERSION}.jar"
+            "spring-courier-${VERSION}-sources.jar"
+            "spring-courier-${VERSION}-javadoc.jar"
+            "spring-courier-${VERSION}.pom"
+          )
           
-          cp spring-courier-${VERSION}-sources.jar "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}-sources.jar.asc "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}-sources.jar.sha1 "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}-sources.jar.md5 "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}-sources.jar.sha256 "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}-sources.jar.sha512 "$BUNDLE_DIR/"
+          # Lista de extensões (incluindo arquivo base, assinatura e checksums)
+          EXTENSIONS=("" ".asc" ".sha1" ".md5" ".sha256" ".sha512")
           
-          cp spring-courier-${VERSION}-javadoc.jar "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}-javadoc.jar.asc "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}-javadoc.jar.sha1 "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}-javadoc.jar.md5 "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}-javadoc.jar.sha256 "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}-javadoc.jar.sha512 "$BUNDLE_DIR/"
-          
-          cp spring-courier-${VERSION}.pom "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}.pom.asc "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}.pom.sha1 "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}.pom.md5 "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}.pom.sha256 "$BUNDLE_DIR/"
-          cp spring-courier-${VERSION}.pom.sha512 "$BUNDLE_DIR/"
+          # Copiar todos os artefatos e seus checksums/assinaturas
+          for artifact in "${ARTIFACTS[@]}"; do
+            for ext in "${EXTENSIONS[@]}"; do
+              file="${artifact}${ext}"
+              if [ -f "$file" ]; then
+                cp "$file" "$BUNDLE_DIR/"
+                echo "Copiado: $file"
+              else
+                echo "Aviso: Arquivo não encontrado: $file"
+              fi
+            done
+          done
           
           # Criar o arquivo ZIP do bundle
           zip -r spring-courier-${VERSION}-bundle.zip "$BUNDLE_DIR"
           
           echo "Bundle criado: spring-courier-${VERSION}-bundle.zip"
           ls -lh spring-courier-${VERSION}-bundle.zip
+          echo ""
+          echo "Conteúdo do bundle:"
+          unzip -l spring-courier-${VERSION}-bundle.zip
       
       - name: Publish to Maven Central
         env:
-          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_TOKEN: ${{ secrets.SONATYPE_TOKEN }}
         run: |
           VERSION=${{ steps.extract-version.outputs.VERSION }}
