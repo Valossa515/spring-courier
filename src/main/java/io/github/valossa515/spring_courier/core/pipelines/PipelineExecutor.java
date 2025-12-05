@@ -103,8 +103,8 @@ public class PipelineExecutor {
      */
     @SuppressWarnings("unchecked")
     private <TResponse> Response<TResponse> normalize(Object result) {
-        if (result instanceof Response<?> response) {
-            return (Response<TResponse>) response;
+        if (result instanceof Response<?>) {
+            return (Response<TResponse>) result;
         }
         return Response.success((TResponse) result);
     }
