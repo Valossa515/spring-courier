@@ -1,8 +1,10 @@
 package io.github.valossa515.spring_courier.core;
 
+import io.github.valossa515.spring_courier.core.interfaces.INotification;
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
+import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
 import io.github.valossa515.spring_courier.core.support.Response;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -11,21 +13,26 @@ import org.springframework.stereotype.Component;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * Dispatches requests through the CQRS pipeline, invoking synchronous or
- * asynchronous handlers as needed.
+ * asynchronous handlers as needed. Also supports publishing notifications
+ * to multiple handlers.
  */
 @Component
 public class Courier {
     private static final Logger logger = LoggerFactory.getLogger(Courier.class);
     private final HandlerRegistry handlerRegistry;
+    private final NotificationRegistry notificationRegistry;
     private final PipelineExecutor pipelineExecutor;
 
     public Courier(@NotNull HandlerRegistry handlerRegistry,
+                   @NotNull NotificationRegistry notificationRegistry,
                    @NotNull PipelineExecutor pipelineExecutor) {
         this.handlerRegistry = handlerRegistry;
+        this.notificationRegistry = notificationRegistry;
         this.pipelineExecutor = pipelineExecutor;
         logger.info("Courier inicializado com {} handlers registrados", handlerRegistry.getHandlerCount());
     }
@@ -91,6 +98,54 @@ public class Courier {
         for (Method method : handlerClass.getMethods()) {
             if ((method.getName().equals("handle") || method.getName().equals("execute"))
                     && method.getParameterCount() == 1) {
+                return method;
+            }
+        }
+        throw new RuntimeException("No handle method found in handler: " + handlerClass.getName());
+    }
+
+    /**
+     * Publishes a notification to all registered handlers.
+     * All handlers will be invoked, and any exceptions will be logged but not propagated.
+     *
+     * @param notification the notification to publish
+     */
+    public void publish(@NotNull INotification notification) {
+        logger.debug("Publicando notification: {}", notification.getClass().getSimpleName());
+
+        List<Object> handlers = notificationRegistry.getHandlers(notification.getClass());
+        
+        if (handlers.isEmpty()) {
+            logger.warn("Nenhum handler registrado para notification: {}", notification.getClass().getSimpleName());
+            return;
+        }
+
+        for (Object handler : handlers) {
+            try {
+                Method method = findHandleMethod(handler.getClass());
+                method.invoke(handler, notification);
+                logger.debug("Notification handler executado: {} -> {}", 
+                        notification.getClass().getSimpleName(), handler.getClass().getSimpleName());
+            } catch (Exception e) {
+                logger.error("Erro ao executar notification handler {}: {}", 
+                        handler.getClass().getSimpleName(), e.getMessage(), e);
+            }
+        }
+    }
+
+    /**
+     * Publishes a notification asynchronously to all registered handlers.
+     *
+     * @param notification the notification to publish
+     * @return CompletableFuture that completes when all handlers finish
+     */
+    public CompletableFuture<Void> publishAsync(@NotNull INotification notification) {
+        return CompletableFuture.runAsync(() -> publish(notification));
+    }
+
+    private @NotNull Method findHandleMethod(@NotNull Class<?> handlerClass) {
+        for (Method method : handlerClass.getMethods()) {
+            if (method.getName().equals("handle") && method.getParameterCount() == 1) {
                 return method;
             }
         }

@@ -30,7 +30,7 @@ class CourierStressTest {
     void setUp() {
         HandlerRegistry handlerRegistry = new HandlerRegistry();
         PipelineExecutor pipelineExecutor = new PipelineExecutor(new PipelineRegistry());
-        courier = new Courier(handlerRegistry, pipelineExecutor);
+        courier = new Courier(handlerRegistry, new io.github.valossa515.spring_courier.core.support.NotificationRegistry(), pipelineExecutor);
         handler = new CountingStressHandler();
         handlerRegistry.registerHandler(StressRequest.class, handler);
     }

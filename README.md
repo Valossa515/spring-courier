@@ -18,9 +18,12 @@ Ela fornece uma infraestrutura para desacoplar comandos, consultas e eventos —
 ## ✨ Recursos
 
 ✅ Suporte a **Command Handlers** e **Query Handlers**  
+✅ **Notification/Event Support** — Publique eventos para múltiplos handlers  
+✅ **Validation Pipeline** — Valide requests antes da execução  
 ✅ Estrutura genérica e flexível baseada em **interfaces**  
 ✅ Total integração com o **Spring Context**  
 ✅ Suporte a **Request/Response Pattern**  
+✅ **Async Support** — Publicação assíncrona de notificações  
 ✅ Extensível para eventos e pipelines personalizados  
 ✅ Zero configuração adicional — **plug and play**
 
@@ -99,6 +102,81 @@ public class GetProductByIdHandler implements QueryHandler<GetProductByIdQuery, 
 
 ---
 
+### 4️⃣ Publicando Notificações/Eventos
+
+```java
+// Definindo uma notificação
+public record ProductCreatedEvent(UUID productId, String name) implements INotification {}
+
+// Handler 1 - Enviar email
+@Service
+public class SendEmailOnProductCreated implements NotificationHandler<ProductCreatedEvent> {
+    @Override
+    public void handle(ProductCreatedEvent event) {
+        // Lógica para enviar email
+        System.out.println("Email enviado para produto: " + event.name());
+    }
+}
+
+// Handler 2 - Atualizar cache
+@Service
+public class UpdateCacheOnProductCreated implements NotificationHandler<ProductCreatedEvent> {
+    @Override
+    public void handle(ProductCreatedEvent event) {
+        // Lógica para atualizar cache
+        System.out.println("Cache atualizado para produto: " + event.productId());
+    }
+}
+
+// Publicando a notificação
+@Service
+public class ProductService {
+    private final Courier courier;
+    
+    public void createProduct(String name) {
+        // ... criar produto ...
+        
+        // Publica notificação - todos os handlers serão executados
+        courier.publish(new ProductCreatedEvent(UUID.randomUUID(), name));
+        
+        // Ou de forma assíncrona
+        courier.publishAsync(new ProductCreatedEvent(UUID.randomUUID(), name));
+    }
+}
+```
+
+---
+
+### 5️⃣ Validação com Pipeline Behaviors
+
+```java
+// Definindo um validador
+public class CreateProductValidator implements Validator<CreateProductCommand> {
+    @Override
+    public ValidationResult validate(CreateProductCommand command) {
+        List<ValidationError> errors = new ArrayList<>();
+        
+        if (command.name() == null || command.name().isEmpty()) {
+            errors.add(new ValidationError("name", "Nome não pode ser vazio"));
+        }
+        
+        if (command.price() == null || command.price().compareTo(BigDecimal.ZERO) <= 0) {
+            errors.add(new ValidationError("price", "Preço deve ser maior que zero"));
+        }
+        
+        return errors.isEmpty() ? ValidationResult.success() : ValidationResult.failure(errors);
+    }
+}
+
+// Registrando o behavior de validação
+@Bean
+public ValidationBehavior<CreateProductCommand, CreateProductResponse> productValidationBehavior() {
+    return new ValidationBehavior<>(List.of(new CreateProductValidator()));
+}
+```
+
+---
+
 ## 🧩 Estrutura do Projeto
 
 ```
@@ -114,16 +192,9 @@ spring-courier/
 
 ## 🧱 Integração com Spring Boot
 
-Basta registrar o `Courier` como um Bean no contexto:
+O Spring Courier possui **auto-configuração** habilitada por padrão. Basta adicionar a dependência e todos os handlers serão automaticamente descobertos e registrados.
 
-```java
-@Bean
-public Courier courier(ApplicationContext context) {
-    return new Courier(context);
-}
-```
-
-E pronto — todos os `CommandHandler` e `QueryHandler` registrados serão automaticamente resolvidos via IoC do Spring.
+Todos os `CommandHandler`, `QueryHandler` e `NotificationHandler` anotados com `@Service` ou `@Component` são automaticamente registrados via IoC do Spring.
 
 ---
 

@@ -23,7 +23,7 @@ class CourierTest {
     void setUp() {
         handlerRegistry = mock(HandlerRegistry.class);
         pipelineExecutor = mock(PipelineExecutor.class);
-        courier = new Courier(handlerRegistry, pipelineExecutor);
+        courier = new Courier(handlerRegistry, new io.github.valossa515.spring_courier.core.support.NotificationRegistry(), pipelineExecutor);
     }
 
     @Test
@@ -51,7 +51,7 @@ class CourierTest {
     void sendInvokesHandlerDirectlyWhenUsingRealComponents() {
         HandlerRegistry realRegistry = new HandlerRegistry();
         PipelineExecutor realExecutor = new PipelineExecutor(new PipelineRegistry());
-        Courier realCourier = new Courier(realRegistry, realExecutor);
+        Courier realCourier = new Courier(realRegistry, new io.github.valossa515.spring_courier.core.support.NotificationRegistry(), realExecutor);
 
         RealRequest request = new RealRequest();
         realRegistry.registerHandler(RealRequest.class, new RealHandler());
@@ -65,7 +65,7 @@ class CourierTest {
     void sendReturnsErrorResponseWhenHandlerLacksHandleMethod() {
         HandlerRegistry realRegistry = new HandlerRegistry();
         PipelineExecutor realExecutor = new PipelineExecutor(new PipelineRegistry());
-        Courier realCourier = new Courier(realRegistry, realExecutor);
+        Courier realCourier = new Courier(realRegistry, new io.github.valossa515.spring_courier.core.support.NotificationRegistry(), realExecutor);
 
         realRegistry.registerHandler(SampleRequest.class, new Object());
 
@@ -79,7 +79,7 @@ class CourierTest {
     void sendReturnsErrorResponseWhenHandlerThrowsException() {
         HandlerRegistry realRegistry = new HandlerRegistry();
         PipelineExecutor realExecutor = new PipelineExecutor(new PipelineRegistry());
-        Courier realCourier = new Courier(realRegistry, realExecutor);
+        Courier realCourier = new Courier(realRegistry, new io.github.valossa515.spring_courier.core.support.NotificationRegistry(), realExecutor);
 
         realRegistry.registerHandler(RealRequest.class, new FailingHandler());
 
