@@ -1,0 +1,97 @@
+@startuml Spring Courier - Diagrama de Atividades
+!theme plain
+skinparam shadowing false
+skinparam backgroundColor white
+
+title Fluxo de Atividades: Processamento de Request no Spring Courier
+
+start
+
+:Cliente envia request\n(Command ou Query);
+
+:Controller recebe request;
+
+:Controller chama Courier.send(request);
+
+partition "Courier" {
+    :Buscar handler no HandlerRegistry;
+    
+    if (Handler encontrado?) then (não)
+        :Lançar HandlerNotFoundException;
+        stop
+    else (sim)
+        :Handler encontrado;
+    endif
+    
+    :Passar request para PipelineExecutor;
+}
+
+partition "PipelineExecutor" {
+    :Obter behaviors registrados\npara o tipo de request;
+    
+    if (Existem behaviors?) then (sim)
+        :Construir cadeia de\nresponsabilidade (Pipeline);
+        
+        partition "Pipeline Behaviors" {
+            repeat
+                :Executar próximo behavior;
+                
+                if (Behavior é ValidationBehavior?) then (sim)
+                    partition "Validação" {
+                        :Executar validators;
+                        
+                        if (Validação passou?) then (não)
+                            :Criar Response.error\ncom erros de validação;
+                            :Retornar erro ao Controller;
+                            stop
+                        else (sim)
+                            :Continuar para próximo behavior;
+                        endif
+                    }
+                else (não)
+                    :Executar lógica do behavior\n(ex: logging, transação);
+                endif
+                
+            repeat while (Mais behaviors?) is (sim)
+            ->não;
+        }
+    else (não)
+        :Pular pipeline;
+    endif
+    
+    :Invocar handler final;
+}
+
+partition "Handler Execution" {
+    :Encontrar método handle()\nou execute();
+    
+    if (Método encontrado?) then (não)
+        :Lançar RuntimeException;
+        stop
+    else (sim)
+        :Invocar handler.handle(request);
+    endif
+    
+    if (Handler é assíncrono?) then (sim)
+        :Aguardar CompletableFuture.join();
+    else (não)
+        :Obter resultado diretamente;
+    endif
+    
+    if (Handler lançou exceção?) then (sim)
+        :Capturar exceção;
+        :Criar Response.error;
+    else (não)
+        :Criar Response.success com resultado;
+    endif
+}
+
+:Retornar Response<T> ao Controller;
+
+:Controller serializa response;
+
+:Enviar HTTP Response ao cliente;
+
+stop
+
+@enduml

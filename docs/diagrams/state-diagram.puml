@@ -1,0 +1,146 @@
+@startuml Spring Courier - Diagrama de Estados
+!theme plain
+skinparam shadowing false
+skinparam backgroundColor white
+
+title Ciclo de Vida de um Request no Spring Courier
+
+[*] --> RequestCreated : Cliente cria request
+
+state RequestCreated {
+    [*] --> CommandCreated : ICommand<R>
+    [*] --> QueryCreated : IQuery<R>
+    CommandCreated : Command instance criado
+    QueryCreated : Query instance criado
+}
+
+RequestCreated --> RequestSent : Courier.send(request)
+
+state RequestSent {
+    [*] --> SearchingHandler
+    SearchingHandler : Buscar handler no registry
+    SearchingHandler --> HandlerFound : handler exists
+    SearchingHandler --> HandlerNotFound : handler not found
+    HandlerNotFound --> [*]
+}
+
+RequestSent --> HandlerResolved : Handler encontrado
+RequestSent --> ErrorState : Handler não encontrado
+
+state HandlerResolved {
+    [*] --> EnteringPipeline
+    EnteringPipeline : Iniciar execução do pipeline
+}
+
+HandlerResolved --> PipelineExecution
+
+state PipelineExecution {
+    [*] --> ValidationPhase
+    
+    state ValidationPhase {
+        [*] --> ExecutingValidators
+        ExecutingValidators : Executar validators
+        ExecutingValidators --> ValidationPassed : todas validações OK
+        ExecutingValidators --> ValidationFailed : validação falhou
+        ValidationFailed --> [*]
+    }
+    
+    ValidationPhase --> NextBehavior : validação passou
+    ValidationPhase --> ValidationError : validação falhou
+    
+    state NextBehavior {
+        [*] --> CheckMoreBehaviors
+        CheckMoreBehaviors : Verificar próximo behavior
+        CheckMoreBehaviors --> ExecutingBehavior : behavior existe
+        CheckMoreBehaviors --> InvokingHandler : sem mais behaviors
+        ExecutingBehavior : Executar behavior\n(logging, transaction, etc.)
+        ExecutingBehavior --> CheckMoreBehaviors : behavior completo
+    }
+    
+    NextBehavior --> HandlerInvocation
+    ValidationError --> [*]
+}
+
+PipelineExecution --> HandlerInvocation : pipeline completo
+PipelineExecution --> ErrorState : validação falhou
+
+state HandlerInvocation {
+    [*] --> FindingHandleMethod
+    FindingHandleMethod : Localizar método handle()
+    FindingHandleMethod --> InvokingHandleMethod : método encontrado
+    InvokingHandleMethod : Invocar handler.handle(request)
+    
+    state InvokingHandleMethod {
+        [*] --> SyncExecution
+        [*] --> AsyncExecution
+        
+        SyncExecution : Execução síncrona
+        AsyncExecution : CompletableFuture\n(async execution)
+        
+        AsyncExecution --> AwaitingCompletion : .join()
+        AwaitingCompletion --> SyncExecution : resultado obtido
+    }
+    
+    InvokingHandleMethod --> HandlerSuccess : sucesso
+    InvokingHandleMethod --> HandlerError : exceção lançada
+    
+    HandlerSuccess --> [*]
+    HandlerError --> [*]
+}
+
+HandlerInvocation --> ResponseCreation : handler executado
+
+state ResponseCreation {
+    [*] --> WrappingResponse
+    WrappingResponse : Criar Response<T>
+    WrappingResponse --> SuccessResponse : resultado obtido
+    WrappingResponse --> ErrorResponse : erro capturado
+    
+    state SuccessResponse {
+        isSuccess : true
+        statusCode : 200
+        data : T (result)
+    }
+    
+    state ErrorResponse {
+        isSuccess : false
+        statusCode : 400/500
+        errorMessage : String
+        data : null
+    }
+}
+
+ResponseCreation --> ResponseReturned
+
+state ResponseReturned {
+    [*] --> ControllerReceives
+    ControllerReceives : Controller recebe Response<T>
+    ControllerReceives --> SerializingResponse
+    SerializingResponse : Serializar para JSON
+    SerializingResponse --> HTTPResponse
+    HTTPResponse : Enviar HTTP Response
+}
+
+ResponseReturned --> [*] : Cliente recebe resposta
+
+ErrorState --> ResponseCreation : criar erro
+
+note right of ValidationPhase
+  Behaviors podem interromper
+  a execução e retornar erro
+  sem invocar o handler
+end note
+
+note right of HandlerInvocation
+  Handler implementa a
+  lógica de negócio específica
+  do command ou query
+end note
+
+note right of ResponseCreation
+  Todas as respostas são
+  encapsuladas em Response<T>
+  para tratamento uniforme
+end note
+
+@enduml
