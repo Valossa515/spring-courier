@@ -3,6 +3,10 @@
 skinparam shadowing false
 skinparam backgroundColor white
 
+' handwritten era antigo — agora basta não usar.
+' Se quiser deixar explícito a versão nova:
+!option handwritten false
+
 title Fluxo de Atividades: Processamento de Request no Spring Courier
 
 start

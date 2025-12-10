@@ -2,8 +2,10 @@
 !theme plain
 skinparam shadowing false
 skinparam backgroundColor white
-skinparam handwritten false
 
+' handwritten era antigo — agora basta não usar.
+' Se quiser deixar explícito a versão nova:
+!option handwritten false
 title Spring Courier - Visão Geral Simplificada
 
 skinparam rectangle {
