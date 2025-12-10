@@ -1,0 +1,158 @@
+@startuml Spring Courier - Diagrama de Componentes
+!theme plain
+skinparam shadowing false
+skinparam backgroundColor white
+
+title Arquitetura de Componentes: Spring Courier
+
+package "Spring Boot Application" {
+    
+    component [REST Controller] as Controller
+    component [Service Layer] as Service
+    
+    package "Domain Layer" {
+        component [Commands] as Commands
+        component [Queries] as Queries
+        component [Notifications] as Notifications
+        component [Command Handlers] as CmdHandlers
+        component [Query Handlers] as QryHandlers
+        component [Notification Handlers] as NotHandlers
+    }
+}
+
+package "Spring Courier Library" <<Rectangle>> {
+    
+    component [Courier] as Courier
+    
+    package "Core Components" {
+        component [Handler Registry] as HandlerRegistry
+        component [Notification Registry] as NotificationRegistry
+        component [Pipeline Executor] as PipelineExecutor
+        component [Pipeline Registry] as PipelineRegistry
+    }
+    
+    package "Discovery Components" {
+        component [Handler Discovery\nPostProcessor] as HandlerDiscovery
+        component [Notification Discovery\nPostProcessor] as NotificationDiscovery
+        component [Behavior Discovery\nPostProcessor] as BehaviorDiscovery
+    }
+    
+    package "Pipeline Behaviors" {
+        component [Validation Behavior] as ValidationBehavior
+        component [Logging Behavior] as LoggingBehavior
+        component [Transaction Behavior] as TransactionBehavior
+        component [Custom Behaviors] as CustomBehaviors
+    }
+    
+    package "Configuration" {
+        component [Auto Configuration] as AutoConfig
+    }
+}
+
+package "Spring Framework" {
+    component [Application Context] as AppContext
+    component [Bean Factory] as BeanFactory
+    component [Dependency Injection] as DI
+}
+
+package "External Systems" {
+    database "Database" as DB
+    component [Email Service] as Email
+    component [Cache Service] as Cache
+    component [Message Queue] as MQ
+}
+
+' ========== Relacionamentos Internos da Aplicação ==========
+Controller --> Courier : uses
+Service --> Courier : uses
+
+Controller ..> Commands : creates
+Controller ..> Queries : creates
+Service ..> Notifications : publishes
+
+CmdHandlers ..> Commands : handles
+QryHandlers ..> Queries : handles
+NotHandlers ..> Notifications : handles
+
+' ========== Relacionamentos Spring Courier Internos ==========
+Courier --> HandlerRegistry : uses
+Courier --> NotificationRegistry : uses
+Courier --> PipelineExecutor : uses
+
+PipelineExecutor --> PipelineRegistry : uses
+PipelineRegistry --> ValidationBehavior : contains
+PipelineRegistry --> LoggingBehavior : contains
+PipelineRegistry --> TransactionBehavior : contains
+PipelineRegistry --> CustomBehaviors : contains
+
+HandlerDiscovery --> HandlerRegistry : registers
+NotificationDiscovery --> NotificationRegistry : registers
+BehaviorDiscovery --> PipelineRegistry : registers
+
+AutoConfig ..> Courier : creates
+AutoConfig ..> HandlerRegistry : creates
+AutoConfig ..> NotificationRegistry : creates
+AutoConfig ..> PipelineRegistry : creates
+AutoConfig ..> PipelineExecutor : creates
+AutoConfig ..> HandlerDiscovery : creates
+AutoConfig ..> NotificationDiscovery : creates
+AutoConfig ..> BehaviorDiscovery : creates
+
+' ========== Relacionamentos com Spring Framework ==========
+AppContext --> AutoConfig : loads
+AppContext --> HandlerDiscovery : executes
+AppContext --> NotificationDiscovery : executes
+AppContext --> BehaviorDiscovery : executes
+
+BeanFactory --> CmdHandlers : instantiates
+BeanFactory --> QryHandlers : instantiates
+BeanFactory --> NotHandlers : instantiates
+
+DI --> Controller : injects Courier
+DI --> Service : injects Courier
+
+' ========== Relacionamentos com Sistemas Externos ==========
+CmdHandlers --> DB : writes
+QryHandlers --> DB : reads
+NotHandlers --> Email : sends
+NotHandlers --> Cache : updates
+NotHandlers --> MQ : publishes
+
+' ========== Notas ==========
+note top of Courier
+  Ponto central do Mediator Pattern.
+  Despacha requests e notificações.
+end note
+
+note right of HandlerDiscovery
+  Descobre automaticamente handlers
+  implementando CommandHandler,
+  QueryHandler ou NotificationHandler
+  e registra no Spring Context.
+end note
+
+note bottom of AutoConfig
+  @Configuration
+  Spring Boot Auto-Configuration
+  Configura todos os componentes
+  necessários automaticamente.
+end note
+
+note right of PipelineExecutor
+  Executa behaviors em cadeia
+  antes de invocar o handler final.
+  Implementa o Chain of Responsibility.
+end note
+
+note top of ValidationBehavior
+  Valida requests antes da execução.
+  Retorna erro se validação falhar.
+end note
+
+note bottom of DB
+  Handlers acessam recursos
+  externos para implementar
+  lógica de negócio.
+end note
+
+@enduml

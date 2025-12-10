@@ -1,0 +1,124 @@
+@startuml Spring Courier - Diagrama de Casos de Uso
+!theme plain
+skinparam shadowing false
+skinparam backgroundColor white
+
+left to right direction
+
+actor "Desenvolvedor\nSpring Boot" as Dev
+actor "Sistema\nExterno" as External
+
+rectangle "Spring Courier Library" {
+    
+    package "CQRS Operations" {
+        usecase (Enviar Command) as UC1
+        usecase (Enviar Query) as UC2
+        usecase (Publicar Notification) as UC3
+        usecase (Publicar Notification\nAssíncrona) as UC4
+    }
+    
+    package "Handler Management" {
+        usecase (Implementar\nCommandHandler) as UC5
+        usecase (Implementar\nQueryHandler) as UC6
+        usecase (Implementar\nNotificationHandler) as UC7
+        usecase (Registrar Handler\nautomaticamente) as UC8
+    }
+    
+    package "Pipeline Configuration" {
+        usecase (Adicionar\nValidationBehavior) as UC9
+        usecase (Criar Custom\nPipelineBehavior) as UC10
+        usecase (Adicionar Logging) as UC11
+        usecase (Adicionar Transaction\nManagement) as UC12
+    }
+    
+    package "Validation" {
+        usecase (Implementar\nValidator) as UC13
+        usecase (Validar Request\nautomaticamente) as UC14
+    }
+    
+    package "Spring Integration" {
+        usecase (Auto-configurar\nComponentes) as UC15
+        usecase (Descobrir Handlers\nvia Spring Context) as UC16
+        usecase (Injetar Courier\nvia DI) as UC17
+    }
+}
+
+' Relacionamentos - CQRS Operations
+Dev --> UC1
+Dev --> UC2
+Dev --> UC3
+Dev --> UC4
+
+External --> UC1 : via API
+External --> UC2 : via API
+
+' Relacionamentos - Handler Management
+Dev --> UC5
+Dev --> UC6
+Dev --> UC7
+
+UC5 ..> UC8 : <<include>>
+UC6 ..> UC8 : <<include>>
+UC7 ..> UC8 : <<include>>
+
+' Relacionamentos - Pipeline Configuration
+Dev --> UC9
+Dev --> UC10
+Dev --> UC11
+Dev --> UC12
+
+UC11 ..> UC10 : <<extend>>
+UC12 ..> UC10 : <<extend>>
+
+' Relacionamentos - Validation
+Dev --> UC13
+UC9 ..> UC13 : <<include>>
+UC1 ..> UC14 : <<include>>
+UC2 ..> UC14 : <<include>>
+
+' Relacionamentos - Spring Integration
+UC5 ..> UC16 : <<include>>
+UC6 ..> UC16 : <<include>>
+UC7 ..> UC16 : <<include>>
+UC10 ..> UC16 : <<include>>
+
+UC15 ..> UC16 : <<include>>
+UC15 ..> UC17 : <<include>>
+
+' Notes
+note right of UC1
+  Enviar comandos que modificam
+  o estado do sistema (write operations)
+end note
+
+note right of UC2
+  Enviar queries que consultam
+  dados (read operations)
+end note
+
+note right of UC3
+  Publicar eventos para múltiplos
+  handlers de forma síncrona
+end note
+
+note right of UC9
+  Configurar validação centralizada
+  usando ValidationBehavior
+end note
+
+note right of UC10
+  Criar behaviors customizados para
+  logging, audit, cache, etc.
+end note
+
+note right of UC15
+  Spring Boot auto-configura todos
+  os componentes necessários
+end note
+
+note right of UC16
+  Handlers são descobertos automaticamente
+  via BeanPostProcessor do Spring
+end note
+
+@enduml

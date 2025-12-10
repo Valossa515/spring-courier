@@ -1,0 +1,103 @@
+@startuml Spring Courier - Diagrama de Sequência: Execução de Command/Query
+!theme plain
+skinparam shadowing false
+skinparam backgroundColor white
+
+actor "Cliente" as Client
+participant "Controller" as Controller
+participant "Courier" as Courier
+participant "PipelineExecutor" as PipelineExecutor
+participant "ValidationBehavior" as ValidationBehavior
+participant "Validator" as Validator
+participant "HandlerRegistry" as HandlerRegistry
+participant "CommandHandler" as Handler
+database "Database" as DB
+
+title Fluxo de Execução de Command/Query com Validação
+
+== Envio do Command ==
+Client -> Controller: HTTP Request\n(POST /products)
+activate Controller
+
+Controller -> Courier: send(createProductCommand)
+activate Courier
+note right of Controller
+  CreateProductCommand contém
+  dados: name, price
+end note
+
+== Busca do Handler ==
+Courier -> HandlerRegistry: getHandler(CreateProductCommand.class)
+activate HandlerRegistry
+HandlerRegistry --> Courier: CommandHandler instance
+deactivate HandlerRegistry
+
+== Execução do Pipeline ==
+Courier -> PipelineExecutor: execute(request, handlerSupplier)
+activate PipelineExecutor
+
+PipelineExecutor -> ValidationBehavior: handle(request, next)
+activate ValidationBehavior
+note right of PipelineExecutor
+  Pipeline pode conter múltiplos
+  behaviors executados em cadeia
+end note
+
+== Validação ==
+ValidationBehavior -> Validator: validate(request)
+activate Validator
+Validator --> ValidationBehavior: ValidationResult
+deactivate Validator
+
+alt Validação falhou
+    ValidationBehavior --> PipelineExecutor: Response.error("Erros de validação")
+    PipelineExecutor --> Courier: Response.error
+    Courier --> Controller: Response<T> (error)
+    Controller --> Client: HTTP 400 Bad Request
+    note right of Client
+      Resposta contém lista
+      de erros de validação
+    end note
+else Validação passou
+    
+    == Execução do Handler ==
+    ValidationBehavior -> PipelineExecutor: next.invoke()
+    deactivate ValidationBehavior
+    
+    PipelineExecutor -> Courier: invokeHandler(handler, request)
+    Courier -> Handler: handle(command)
+    activate Handler
+    note right of Handler
+      Handler implementa lógica
+      de negócio específica
+    end note
+    
+    Handler -> DB: save(product)
+    activate DB
+    DB --> Handler: Product saved
+    deactivate DB
+    
+    Handler --> Courier: CreateProductResponse
+    deactivate Handler
+    
+    Courier -> Courier: wrap in Response.success()
+    Courier --> PipelineExecutor: Response<CreateProductResponse>
+    PipelineExecutor --> Courier: TResponse
+    deactivate PipelineExecutor
+    
+    == Retorno do Resultado ==
+    Courier --> Controller: Response<CreateProductResponse>
+    deactivate Courier
+    
+    Controller --> Client: HTTP 200 OK\n(response data)
+    deactivate Controller
+    
+    note right of Client
+      Resposta contém:
+      - isSuccess: true
+      - data: CreateProductResponse
+      - statusCode: 200
+    end note
+end
+
+@enduml

@@ -1,0 +1,227 @@
+@startuml Spring Courier - Diagrama de Classes
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam backgroundColor white
+
+' ========== Interfaces Base ==========
+package "Core Interfaces" <<Rectangle>> {
+    interface IRequest<R> {
+        {abstract}
+    }
+    
+    interface ICommand<R> {
+        {abstract}
+    }
+    
+    interface IQuery<R> {
+        {abstract}
+    }
+    
+    interface INotification {
+        {abstract}
+    }
+    
+    ICommand --|> IRequest : extends
+    IQuery --|> IRequest : extends
+}
+
+' ========== Handler Interfaces ==========
+package "Handler Interfaces" <<Rectangle>> {
+    interface "CommandHandler<C, R>" as CommandHandler {
+        {abstract} +handle(command: C): R
+    }
+    
+    interface "QueryHandler<Q, R>" as QueryHandler {
+        {abstract} +handle(query: Q): R
+    }
+    
+    interface "NotificationHandler<N>" as NotificationHandler {
+        {abstract} +handle(notification: N): void
+    }
+}
+
+' ========== Core Components ==========
+package "Core Components" <<Rectangle>> {
+    class Courier {
+        -handlerRegistry: HandlerRegistry
+        -notificationRegistry: NotificationRegistry
+        -pipelineExecutor: PipelineExecutor
+        +send(request: IRequest<R>): Response<R>
+        +publish(notification: INotification): void
+        +publishAsync(notification: INotification): CompletableFuture<Void>
+        -invokeHandler(handler: Object, request: IRequest<R>): Response<R>
+        -findHandleOrExecuteMethod(handlerClass: Class<?>): Method
+    }
+    
+    class "Response<T>" as Response {
+        -data: T
+        -isSuccess: boolean
+        -errorMessage: String
+        -statusCode: int
+        +success(data: T): Response<T>
+        +error(message: String): Response<T>
+        +error(message: String, statusCode: int): Response<T>
+        +getData(): T
+        +isSuccess(): boolean
+        +getErrorMessage(): String
+    }
+}
+
+' ========== Registry Components ==========
+package "Registry Components" <<Rectangle>> {
+    class HandlerRegistry {
+        -handlers: Map<Class<?>, Object>
+        +registerHandler(requestType: Class<?>, handler: Object): void
+        +getHandler(requestType: Class<T>): Object
+        +hasHandlerFor(requestType: Class<?>): boolean
+        +getHandlerCount(): int
+    }
+    
+    class NotificationRegistry {
+        -handlers: Map<Class<?>, List<Object>>
+        +registerHandler(notificationType: Class<?>, handler: Object): void
+        +getHandlers(notificationType: Class<?>): List<Object>
+        +hasHandlersFor(notificationType: Class<?>): boolean
+    }
+}
+
+' ========== Discovery Components ==========
+package "Discovery Components" <<Rectangle>> {
+    class HandlerDiscoveryPostProcessor {
+        -handlerRegistry: HandlerRegistry
+        +postProcessAfterInitialization(bean: Object, beanName: String): Object
+        -extractRequestType(handler: Object): Class<?>
+    }
+    
+    class NotificationDiscoveryPostProcessor {
+        -notificationRegistry: NotificationRegistry
+        +postProcessAfterInitialization(bean: Object, beanName: String): Object
+        -extractNotificationType(handler: Object): Class<?>
+    }
+    
+    class BehaviorDiscoveryPostProcessor {
+        -pipelineRegistry: PipelineRegistry
+        +postProcessAfterInitialization(bean: Object, beanName: String): Object
+        -extractRequestAndResponseTypes(behavior: Object): Pair<Class<?>, Class<?>>
+    }
+}
+
+' ========== Pipeline Components ==========
+package "Pipeline Components" <<Rectangle>> {
+    interface "PipelineBehavior<TRequest, TResponse>" as PipelineBehavior {
+        {abstract} +handle(request: TRequest, next: Next<TResponse>): TResponse
+    }
+    
+    interface "Next<TResponse>" as Next {
+        {abstract} +invoke(): TResponse
+    }
+    
+    class PipelineExecutor {
+        -pipelineRegistry: PipelineRegistry
+        +execute(request: IRequest<R>, handler: Supplier<Response<R>>): R
+        -buildPipeline(behaviors: List<PipelineBehavior>, handler: Supplier): Next
+    }
+    
+    class PipelineRegistry {
+        -behaviors: Map<Class<?>, List<PipelineBehavior>>
+        +registerBehavior(requestType: Class<?>, behavior: PipelineBehavior): void
+        +getBehaviors(requestType: Class<?>): List<PipelineBehavior>
+    }
+    
+    PipelineBehavior +-- Next
+}
+
+' ========== Validation Components ==========
+package "Validation Components" <<Rectangle>> {
+    class "ValidationBehavior<TRequest, TResponse>" as ValidationBehavior {
+        -validators: List<Validator<TRequest>>
+        +handle(request: TRequest, next: Next<TResponse>): TResponse
+        -createValidationErrorResponse(errors: List<ValidationError>): TResponse
+    }
+    
+    interface "Validator<T>" as Validator {
+        {abstract} +validate(request: T): ValidationResult
+    }
+    
+    class ValidationResult {
+        -isValid: boolean
+        -errors: List<ValidationError>
+        +success(): ValidationResult
+        +failure(errors: List<ValidationError>): ValidationResult
+        +isValid(): boolean
+        +getErrors(): List<ValidationError>
+    }
+    
+    class ValidationError {
+        -field: String
+        -message: String
+        +getField(): String
+        +getMessage(): String
+    }
+    
+    ValidationBehavior --|> PipelineBehavior
+    ValidationBehavior --> Validator
+    ValidationBehavior --> ValidationResult
+    ValidationResult --> ValidationError
+}
+
+' ========== Configuration ==========
+package "Configuration" <<Rectangle>> {
+    class CourierAutoConfiguration {
+        +courier(handlerRegistry: HandlerRegistry, ...): Courier
+        +handlerRegistry(): HandlerRegistry
+        +notificationRegistry(): NotificationRegistry
+        +pipelineRegistry(): PipelineRegistry
+        +pipelineExecutor(pipelineRegistry: PipelineRegistry): PipelineExecutor
+        +handlerDiscovery(handlerRegistry: HandlerRegistry): HandlerDiscoveryPostProcessor
+        +notificationDiscovery(notificationRegistry: NotificationRegistry): NotificationDiscoveryPostProcessor
+        +behaviorDiscovery(pipelineRegistry: PipelineRegistry): BehaviorDiscoveryPostProcessor
+    }
+}
+
+' ========== Relationships ==========
+Courier --> HandlerRegistry : uses
+Courier --> NotificationRegistry : uses
+Courier --> PipelineExecutor : uses
+Courier --> Response : returns
+
+HandlerDiscoveryPostProcessor --> HandlerRegistry : registers
+NotificationDiscoveryPostProcessor --> NotificationRegistry : registers
+BehaviorDiscoveryPostProcessor --> PipelineRegistry : registers
+
+PipelineExecutor --> PipelineRegistry : uses
+PipelineExecutor --> PipelineBehavior : executes
+
+CourierAutoConfiguration ..> Courier : creates
+CourierAutoConfiguration ..> HandlerRegistry : creates
+CourierAutoConfiguration ..> NotificationRegistry : creates
+CourierAutoConfiguration ..> PipelineRegistry : creates
+CourierAutoConfiguration ..> PipelineExecutor : creates
+CourierAutoConfiguration ..> HandlerDiscoveryPostProcessor : creates
+CourierAutoConfiguration ..> NotificationDiscoveryPostProcessor : creates
+CourierAutoConfiguration ..> BehaviorDiscoveryPostProcessor : creates
+
+CommandHandler ..> ICommand : handles
+QueryHandler ..> IQuery : handles
+NotificationHandler ..> INotification : handles
+
+note right of Courier
+  Ponto central do padrão Mediator.
+  Despacha comandos, queries e
+  notificações para seus handlers.
+end note
+
+note right of PipelineBehavior
+  Permite adicionar comportamentos
+  transversais como validação,
+  logging, transações, etc.
+end note
+
+note right of ValidationBehavior
+  Implementação de behavior para
+  validação de requests antes da
+  execução do handler.
+end note
+
+@enduml

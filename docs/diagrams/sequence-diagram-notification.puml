@@ -1,0 +1,111 @@
+@startuml Spring Courier - Diagrama de Sequência: Publicação de Notificações
+!theme plain
+skinparam shadowing false
+skinparam backgroundColor white
+
+participant "Service" as Service
+participant "Courier" as Courier
+participant "NotificationRegistry" as NotificationRegistry
+participant "EmailHandler" as EmailHandler
+participant "CacheHandler" as CacheHandler
+participant "LogHandler" as LogHandler
+participant "EmailService" as EmailService
+participant "CacheService" as CacheService
+participant "LogService" as LogService
+
+title Fluxo de Publicação de Notificações (Event Pattern)
+
+== Evento de Domínio ==
+Service -> Service: create product in database
+activate Service
+note right of Service
+  Após uma operação bem-sucedida,
+  o serviço publica um evento
+end note
+
+== Publicação Síncrona ==
+Service -> Courier: publish(ProductCreatedEvent)
+activate Courier
+
+Courier -> NotificationRegistry: getHandlers(ProductCreatedEvent.class)
+activate NotificationRegistry
+NotificationRegistry --> Courier: List<NotificationHandler>\n[EmailHandler, CacheHandler, LogHandler]
+deactivate NotificationRegistry
+
+note right of Courier
+  Todos os handlers registrados
+  para o evento são executados
+  sequencialmente
+end note
+
+== Execução do Handler 1 ==
+Courier -> EmailHandler: handle(ProductCreatedEvent)
+activate EmailHandler
+EmailHandler -> EmailService: sendEmail(event.productId, event.name)
+activate EmailService
+EmailService --> EmailHandler: email sent
+deactivate EmailService
+EmailHandler --> Courier: void
+deactivate EmailHandler
+
+note right of EmailHandler
+  Erros são capturados e logados,
+  mas não interrompem a execução
+  dos demais handlers
+end note
+
+== Execução do Handler 2 ==
+Courier -> CacheHandler: handle(ProductCreatedEvent)
+activate CacheHandler
+CacheHandler -> CacheService: updateCache(event.productId)
+activate CacheService
+CacheService --> CacheHandler: cache updated
+deactivate CacheService
+CacheHandler --> Courier: void
+deactivate CacheHandler
+
+== Execução do Handler 3 ==
+Courier -> LogHandler: handle(ProductCreatedEvent)
+activate LogHandler
+LogHandler -> LogService: logEvent(event)
+activate LogService
+LogService --> LogHandler: logged
+deactivate LogService
+LogHandler --> Courier: void
+deactivate LogHandler
+
+Courier --> Service: void
+deactivate Courier
+
+Service --> Service: continue workflow
+deactivate Service
+
+note right of Service
+  O método publish() é síncrono,
+  aguardando todos os handlers
+end note
+
+== Publicação Assíncrona (Alternativa) ==
+Service -> Courier: publishAsync(ProductCreatedEvent)
+activate Courier
+activate Service
+
+Courier -> Courier: CompletableFuture.runAsync(() -> publish(event))
+note right of Courier
+  Execução assíncrona permite
+  que o serviço continue sem
+  aguardar os handlers
+end note
+
+Courier --> Service: CompletableFuture<Void>
+deactivate Courier
+
+Service --> Service: continue immediately
+deactivate Service
+
+note right of Service
+  O serviço não aguarda a
+  conclusão dos handlers
+end note
+
+@enduml

@@ -1,0 +1,136 @@
+@startuml Spring Courier - Diagrama de Implantação
+!theme plain
+skinparam shadowing false
+skinparam backgroundColor white
+
+title Arquitetura de Implantação: Spring Courier
+
+node "Application Server" {
+    
+    artifact "Spring Boot\nApplication JAR" as AppJar {
+        
+        package "Application Code" {
+            component [Controllers]
+            component [Services]
+            component [Handlers]
+            component [Validators]
+            component [Domain Models]
+        }
+        
+        package "Spring Courier Library" {
+            component [Courier Core]
+            component [Pipeline Engine]
+            component [Handler Registry]
+            component [Auto Configuration]
+        }
+        
+        package "Spring Framework" {
+            component [Spring Boot]
+            component [Spring Context]
+            component [Spring Web MVC]
+        }
+        
+        package "Other Dependencies" {
+            component [Logging (SLF4J)]
+            component [Validation API]
+            component [JetBrains Annotations]
+        }
+    }
+    
+    node "JVM Runtime" {
+        component [Java 17+]
+    }
+    
+    AppJar ..> [Java 17+] : runs on
+}
+
+cloud "Maven Central" {
+    artifact "spring-courier\n(Maven Artifact)" as MavenArtifact
+}
+
+node "Developer Machine" {
+    artifact "pom.xml" as POM
+    artifact "Source Code" as SourceCode
+    
+    component [Maven Build Tool]
+}
+
+database "PostgreSQL/MySQL" as DB
+queue "Message Broker\n(RabbitMQ/Kafka)" as MQ
+cloud "External Services" {
+    component [Email Service (SMTP)]
+    component [Cache (Redis)]
+    component [Monitoring (Prometheus)]
+}
+
+actor "Client" as Client
+actor "Developer" as Dev
+
+' ========== Relacionamentos de Desenvolvimento ==========
+Dev --> POM : declares dependency
+Dev --> SourceCode : writes code
+
+POM --> MavenArtifact : downloads from
+MavenArtifact --> AppJar : included in
+
+[Maven Build Tool] --> POM : reads
+[Maven Build Tool] --> AppJar : builds
+
+' ========== Relacionamentos de Runtime ==========
+Client --> [Controllers] : HTTP Request
+[Controllers] --> [Courier Core] : send(command)
+[Courier Core] --> [Handler Registry] : find handler
+[Handler Registry] --> [Handlers] : invoke
+[Pipeline Engine] --> [Validators] : validate
+
+[Handlers] --> DB : read/write
+[Handlers] --> MQ : publish events
+[Handlers] --> [Email Service (SMTP)] : send email
+[Handlers] --> [Cache (Redis)] : cache data
+
+[Spring Boot] --> [Auto Configuration] : loads
+[Auto Configuration] --> [Courier Core] : configures
+[Spring Context] --> [Handlers] : manages beans
+
+[Application Server] --> [Monitoring (Prometheus)] : metrics
+
+' ========== Notas ==========
+note right of MavenArtifact
+  <dependency>
+    <groupId>io.github.valossa515</groupId>
+    <artifactId>spring-courier</artifactId>
+    <version>0.0.1</version>
+  </dependency>
+end note
+
+note right of [Auto Configuration]
+  Spring Boot detecta automaticamente
+  a biblioteca no classpath e
+  configura todos os componentes.
+  Zero configuração necessária!
+end note
+
+note bottom of AppJar
+  Aplicação empacotada como
+  executable JAR com todas
+  as dependências (fat JAR)
+end note
+
+note right of [Handlers]
+  Handlers são descobertos
+  automaticamente via
+  Spring Component Scanning
+end note
+
+note bottom of DB
+  Handlers acessam
+  recursos externos
+  conforme necessário
+end note
+
+note top of Client
+  Cliente envia requests
+  HTTP REST para a aplicação
+end note
+
+@enduml
