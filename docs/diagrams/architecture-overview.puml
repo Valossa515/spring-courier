@@ -1,0 +1,85 @@
+@startuml Spring Courier - Visão Geral da Arquitetura
+!theme plain
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam handwritten false
+
+title Spring Courier - Visão Geral Simplificada
+
+skinparam rectangle {
+    BackgroundColor<<client>> LightBlue
+    BackgroundColor<<controller>> LightGreen
+    BackgroundColor<<courier>> Gold
+    BackgroundColor<<pipeline>> Orange
+    BackgroundColor<<handler>> LightCoral
+    BackgroundColor<<storage>> LightGray
+}
+
+rectangle "Cliente\n(HTTP Request)" as Client <<client>>
+rectangle "REST Controller\n@RestController" as Controller <<controller>>
+
+rectangle "Spring Courier Library" {
+    rectangle "Courier\n(Mediator)" as Courier <<courier>>
+    
+    rectangle "Pipeline\n(Behaviors)" as Pipeline <<pipeline>> {
+        rectangle "Validation" as Val
+        rectangle "Logging" as Log
+        rectangle "Transaction" as Tx
+    }
+    
+    rectangle "Handler Registry" as Registry
+}
+
+rectangle "Domain Layer" {
+    rectangle "Command Handler\n@Service" as CmdHandler <<handler>>
+    rectangle "Query Handler\n@Service" as QryHandler <<handler>>
+    rectangle "Notification Handler\n@Service" as NotHandler <<handler>>
+}
+
+rectangle "Data Storage\n(Database)" as DB <<storage>>
+
+' Flow
+Client -down-> Controller : "1. HTTP POST"
+Controller -down-> Courier : "2. send(command)"
+Courier -right-> Pipeline : "3. execute pipeline"
+Pipeline -down-> Registry : "4. get handler"
+Registry -down-> CmdHandler : "5. invoke"
+CmdHandler -right-> DB : "6. persist"
+DB -up-> CmdHandler : "7. result"
+CmdHandler -up-> Registry : "8. response"
+Registry -up-> Pipeline : "9. response"
+Pipeline -up-> Courier : "10. response"
+Courier -up-> Controller : "11. Response<T>"
+Controller -up-> Client : "12. HTTP 200 OK"
+
+note right of Courier
+  **Ponto Central**
+  • Despacha Commands
+  • Despacha Queries
+  • Publica Notifications
+end note
+
+note right of Pipeline
+  **Comportamentos Transversais**
+  • Validação de entrada
+  • Logging de operações
+  • Gerenciamento de transações
+  • Behaviors customizados
+end note
+
+note right of CmdHandler
+  **Handlers**
+  • Implementam lógica de negócio
+  • Descobertos automaticamente
+  • Registrados no Spring Context
+  • Um handler por request type
+end note
+
+note bottom of Client
+  **CQRS Pattern**
+  • Commands: Modificam estado (Write)
+  • Queries: Consultam dados (Read)
+  • Notifications: Eventos assíncronos
+end note
+
+@enduml

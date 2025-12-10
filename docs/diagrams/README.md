@@ -4,6 +4,17 @@ Esta pasta contém os diagramas UML que representam a arquitetura e o funcioname
 
 ## 📋 Lista de Diagramas
 
+### 0. 🎯 Visão Geral da Arquitetura (`architecture-overview.puml`)
+
+Diagrama simplificado mostrando o fluxo básico da biblioteca:
+- Cliente → Controller → Courier → Pipeline → Handler → Storage
+- Fluxo numerado de 12 passos
+- Notas explicativas sobre cada componente
+
+**Quando usar**: Como ponto de partida para entender rapidamente como a biblioteca funciona.
+
+---
+
 ### 1. 🏗️ Diagrama de Classes (`class-diagram.puml`)
 
 Representa a estrutura de classes e interfaces da biblioteca, mostrando:
