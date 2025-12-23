@@ -142,7 +142,14 @@ jobs:
             echo "Nenhum arquivo para zipar"; exit 1
           fi
 
-          zip -r "spring-courier-${VERSION}-bundle.zip" "${files[@]}"
+          TMPDIR=$(mktemp -d)
+          for f in "${files[@]}"; do
+            cp "$f" "$TMPDIR/"
+          done
+
+          (cd "$TMPDIR" && zip -9 -j "spring-courier-${VERSION}-bundle.zip" ./*)
+          mv "$TMPDIR/spring-courier-${VERSION}-bundle.zip" .
+
           echo "Bundle criado: spring-courier-${VERSION}-bundle.zip"
           ls -lh "spring-courier-${VERSION}-bundle.zip"
           echo "Conteúdo do bundle:"
