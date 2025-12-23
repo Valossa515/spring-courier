@@ -35,11 +35,12 @@ jobs:
           mkdir -p ~/.gnupg
           chmod 700 ~/.gnupg
           printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --yes --import
-          # Se o secret estiver em base64, use a linha abaixo em vez da de cima:
+          # Se o secret estiver em base64, use:
           # printf '%s' "$GPG_PRIVATE_KEY" | base64 --decode | gpg --batch --yes --import
 
           echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
-          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          echo "pinentry-mode loopback"   >> ~/.gnupg/gpg.conf
+          echo "no-tty"                   >> ~/.gnupg/gpg.conf
           gpgconf --kill gpg-agent
           gpg --list-secret-keys
 
@@ -77,8 +78,8 @@ jobs:
             local file=$1
             [ -f "$file" ] || { echo "Arquivo não encontrado: $file"; return; }
             echo "Gerando checksums para: $file"
-            sha1sum "$file" | awk '{print $1}' > "${file}.sha1"
-            md5sum "$file" | awk '{print $1}' > "${file}.md5"
+            sha1sum   "$file" | awk '{print $1}' > "${file}.sha1"
+            md5sum    "$file" | awk '{print $1}' > "${file}.md5"
             sha256sum "$file" | awk '{print $1}' > "${file}.sha256"
             sha512sum "$file" | awk '{print $1}' > "${file}.sha512"
           }
