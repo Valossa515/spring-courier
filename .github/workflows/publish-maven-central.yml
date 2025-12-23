@@ -117,43 +117,36 @@ jobs:
         run: |
           VERSION=${{ steps.extract-version.outputs.VERSION }}
           cd target
-          
-          # Criar diretório para o bundle
-          BUNDLE_DIR="maven-central-bundle"
-          mkdir -p "$BUNDLE_DIR"
-          
-          # Lista de artefatos base
+
           ARTIFACTS=(
             "spring-courier-${VERSION}.jar"
             "spring-courier-${VERSION}-sources.jar"
             "spring-courier-${VERSION}-javadoc.jar"
             "spring-courier-${VERSION}.pom"
           )
-          
-          # Lista de extensões (incluindo arquivo base, assinatura e checksums)
           EXTENSIONS=("" ".asc" ".sha1" ".md5" ".sha256" ".sha512")
-          
-          # Copiar todos os artefatos e seus checksums/assinaturas
+
+          files=()
           for artifact in "${ARTIFACTS[@]}"; do
             for ext in "${EXTENSIONS[@]}"; do
               file="${artifact}${ext}"
               if [ -f "$file" ]; then
-                cp "$file" "$BUNDLE_DIR/"
-                echo "Copiado: $file"
+                files+=("$file")
               else
                 echo "Aviso: Arquivo não encontrado: $file"
               fi
             done
           done
-          
-          # Criar o arquivo ZIP do bundle
-          zip -r spring-courier-${VERSION}-bundle.zip "$BUNDLE_DIR"
-          
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "Nenhum arquivo para zipar"; exit 1
+          fi
+
+          zip -r "spring-courier-${VERSION}-bundle.zip" "${files[@]}"
           echo "Bundle criado: spring-courier-${VERSION}-bundle.zip"
-          ls -lh spring-courier-${VERSION}-bundle.zip
-          echo ""
+          ls -lh "spring-courier-${VERSION}-bundle.zip"
           echo "Conteúdo do bundle:"
-          unzip -l spring-courier-${VERSION}-bundle.zip
+          unzip -l "spring-courier-${VERSION}-bundle.zip"
 
       - name: Publish to Maven Central
         env:
