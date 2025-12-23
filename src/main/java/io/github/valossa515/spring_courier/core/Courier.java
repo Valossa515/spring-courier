@@ -98,7 +98,7 @@ public class Courier {
         for (Method method : handlerClass.getMethods()) {
             if ((method.getName().equals("handle") || method.getName().equals("execute"))
                     && method.getParameterCount() == 1) {
-                method.setAccessible(true); // Make method accessible
+                method.setAccessible(true);
                 return method;
             }
         }
