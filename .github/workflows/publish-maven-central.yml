@@ -116,44 +116,36 @@ jobs:
       - name: Create Bundle
         run: |
           VERSION=${{ steps.extract-version.outputs.VERSION }}
+          GROUP_ID=$(./mvnw help:evaluate -Dexpression=project.groupId -q -DforceStdout)
+          ARTIFACT_ID=$(./mvnw help:evaluate -Dexpression=project.artifactId -q -DforceStdout)
+          GROUP_PATH=$(echo "$GROUP_ID" | tr '.' '/')
+          BASE_DIR="${GROUP_PATH}/${ARTIFACT_ID}/${VERSION}"
+          mkdir -p "$BASE_DIR"
+      
           cd target
-
+          # lista de artefatos base
           ARTIFACTS=(
-            "spring-courier-${VERSION}.jar"
-            "spring-courier-${VERSION}-sources.jar"
-            "spring-courier-${VERSION}-javadoc.jar"
-            "spring-courier-${VERSION}.pom"
+            "${ARTIFACT_ID}-${VERSION}.jar"
+            "${ARTIFACT_ID}-${VERSION}-sources.jar"
+            "${ARTIFACT_ID}-${VERSION}-javadoc.jar"
+            "${ARTIFACT_ID}-${VERSION}.pom"
           )
           EXTENSIONS=("" ".asc" ".sha1" ".md5" ".sha256" ".sha512")
-
-          files=()
+      
           for artifact in "${ARTIFACTS[@]}"; do
             for ext in "${EXTENSIONS[@]}"; do
               file="${artifact}${ext}"
               if [ -f "$file" ]; then
-                files+=("$file")
-              else
-                echo "Aviso: Arquivo não encontrado: $file"
+                cp "$file" "../$BASE_DIR/"
               fi
             done
           done
-
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "Nenhum arquivo para zipar"; exit 1
-          fi
-
-          TMPDIR=$(mktemp -d)
-          for f in "${files[@]}"; do
-            cp "$f" "$TMPDIR/"
-          done
-
-          (cd "$TMPDIR" && zip -9 -j "spring-courier-${VERSION}-bundle.zip" ./*)
-          mv "$TMPDIR/spring-courier-${VERSION}-bundle.zip" .
-
-          echo "Bundle criado: spring-courier-${VERSION}-bundle.zip"
-          ls -lh "spring-courier-${VERSION}-bundle.zip"
-          echo "Conteúdo do bundle:"
-          unzip -l "spring-courier-${VERSION}-bundle.zip"
+      
+          cd ..
+          (cd "$GROUP_PATH" && zip -r -9 "spring-courier-${VERSION}-bundle.zip" .)
+          mv "$GROUP_PATH/spring-courier-${VERSION}-bundle.zip" target/
+      
+          echo "Bundle pronto: target/spring-courier-${VERSION}-bundle.zip"
 
       - name: Publish to Maven Central
         env:
