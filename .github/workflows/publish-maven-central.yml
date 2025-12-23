@@ -128,21 +128,25 @@ jobs:
 
       - name: Publish to Maven Central
         env:
-          SONATYPE_TOKEN: ${{ secrets.SONATYPE_TOKEN }}
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
         run: |
           VERSION=${{ steps.extract-version.outputs.VERSION }}
           BUNDLE_FILE="target/spring-courier-${VERSION}-bundle.zip"
           echo "Publicando bundle no Maven Central..."
+
           RESPONSE=$(curl -X POST \
             https://central.sonatype.com/api/v1/publisher/upload \
-            -H "Authorization: Bearer ${SONATYPE_TOKEN}" \
+            -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" \
             -F "bundle=@${BUNDLE_FILE}" \
             -w "\n%{http_code}" \
             -s)
+
           HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
           BODY=$(echo "$RESPONSE" | sed '$d')
           echo "HTTP Status: $HTTP_CODE"
           echo "Response: $BODY"
+
           if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
             echo "✅ Bundle publicado com sucesso!"
             echo "Verifique o status em: https://central.sonatype.com/publishing"
