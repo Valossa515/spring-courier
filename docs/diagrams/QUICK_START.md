@@ -39,7 +39,9 @@ Você pode visualizar os diagramas diretamente no GitHub usando o PlantUML Proxy
 ### Opção 2: IntelliJ IDEA
 
 1. Instale o plugin: **PlantUML Integration**
-   - `File` → `Settings` → `Plugins` → Busque "PlantUML"
+   - `File` → `Settings` → `Plugins` → Busque "plantuml4idea"
+   - instale o graphviz
+   - vá ate `Settings` → `Languages & Frameworks` → Clique em "PlantUML" → Cole o diretório onde o graphviz foi instalado.
 2. Abra qualquer arquivo `.puml`
 3. O preview aparecerá automaticamente no painel lateral
 
