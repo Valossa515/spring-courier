@@ -119,11 +119,13 @@ jobs:
           GROUP_ID=$(./mvnw help:evaluate -Dexpression=project.groupId -q -DforceStdout)
           ARTIFACT_ID=$(./mvnw help:evaluate -Dexpression=project.artifactId -q -DforceStdout)
           GROUP_PATH=$(echo "$GROUP_ID" | tr '.' '/')
-          BASE_DIR="${GROUP_PATH}/${ARTIFACT_ID}/${VERSION}"
-          mkdir -p "$BASE_DIR"
+      
+          # Diretório temporário isolado
+          TMPDIR=$(mktemp -d)
+          FULL_PATH="$TMPDIR/$GROUP_PATH/$ARTIFACT_ID/$VERSION"
+          mkdir -p "$FULL_PATH"
       
           cd target
-          # lista de artefatos base
           ARTIFACTS=(
             "${ARTIFACT_ID}-${VERSION}.jar"
             "${ARTIFACT_ID}-${VERSION}-sources.jar"
@@ -135,17 +137,16 @@ jobs:
           for artifact in "${ARTIFACTS[@]}"; do
             for ext in "${EXTENSIONS[@]}"; do
               file="${artifact}${ext}"
-              if [ -f "$file" ]; then
-                cp "$file" "../$BASE_DIR/"
-              fi
+              [ -f "$file" ] && cp "$file" "$FULL_PATH/"
             done
           done
-      
           cd ..
-          (cd "$GROUP_PATH" && zip -r -9 "spring-courier-${VERSION}-bundle.zip" .)
-          mv "$GROUP_PATH/spring-courier-${VERSION}-bundle.zip" target/
       
-          echo "Bundle pronto: target/spring-courier-${VERSION}-bundle.zip"
+          ZIPFILE="spring-courier-${VERSION}-bundle.zip"
+          (cd "$TMPDIR" && zip -r -9 "$ZIPFILE" "$GROUP_PATH")
+          mv "$TMPDIR/$ZIPFILE" target/
+      
+          echo "Bundle pronto: target/$ZIPFILE"
 
       - name: Publish to Maven Central
         env:
