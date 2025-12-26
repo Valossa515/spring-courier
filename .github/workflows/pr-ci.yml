@@ -1,6 +1,8 @@
-name: CI PR
+name: CI
 
 on:
+  push:
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -22,8 +24,14 @@ jobs:
       - run: mvn -B -ntp verify
 
   sonarcloud:
+    # Só roda em push ou em PRs internos (protege o token em forks)
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     needs: build-and-test
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_ORGANIZATION: valossa515
+      SONAR_PROJECT_KEY: Valossa515_spring-courier
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -32,11 +40,15 @@ jobs:
           distribution: temurin
           java-version: 17
           cache: maven
-      - run: mvn -B -ntp verify
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+      - name: Debug coverage file
+        run: |
+          ls -l target/site/jacoco || true
+          ls -l target/site/jacoco/jacoco.xml || true
       - name: SonarCloud Scan
-        uses: sonarsource/sonarcloud-github-action@v2
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
-          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+        run: |
+          mvn -B -ntp verify sonar:sonar \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.organization=${SONAR_ORGANIZATION} \
+            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+            -Dsonar.token=${SONAR_TOKEN}
