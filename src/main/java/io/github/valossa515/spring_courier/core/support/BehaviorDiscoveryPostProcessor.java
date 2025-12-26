@@ -11,6 +11,9 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 
 /**
  * {@link BeanPostProcessor} that discovers {@link PipelineBehavior} beans and
@@ -21,6 +24,9 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
 
     private final PipelineRegistry pipelineRegistry;
 
+    private final Set<PipelineBehavior<?, ?>> processedBehaviors =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
     public BehaviorDiscoveryPostProcessor(PipelineRegistry pipelineRegistry) {
         this.pipelineRegistry = pipelineRegistry;
     }
@@ -28,10 +34,14 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
     @Override
     public Object postProcessAfterInitialization(@NotNull Object bean, @NotNull String beanName) throws BeansException {
         if (bean instanceof PipelineBehavior<?, ?> behavior) {
+            // evita duplo registro do mesmo bean
+            if (!processedBehaviors.add(behavior)) {
+                return bean;
+            }
+
             Class<?> targetClass = AopUtils.getTargetClass(bean);
             if (targetClass == null) {
-                logger.warn("Não foi possível determinar a classe alvo para o behavior: {}", beanName);
-                return bean;
+                targetClass = bean.getClass(); // fallback seguro
             }
 
             logger.debug("🔍 Pipeline behavior detectado: {}", targetClass.getSimpleName());

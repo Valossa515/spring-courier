@@ -29,7 +29,7 @@ public class NotificationDiscoveryPostProcessor implements BeanPostProcessor {
     public Object postProcessAfterInitialization(@NotNull Object bean, @NotNull String beanName) throws BeansException {
         Class<?> targetClass = AopUtils.getTargetClass(bean);
         if (targetClass == null) {
-            return bean;
+            targetClass = bean.getClass();
         }
 
         if (isNotificationHandler(targetClass)) {

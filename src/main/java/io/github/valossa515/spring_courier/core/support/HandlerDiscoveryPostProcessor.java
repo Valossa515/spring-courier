@@ -36,7 +36,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
         Class<?> targetClass = AopUtils.getTargetClass(bean);
         if (targetClass == null) {
             logger.warn("Não foi possível determinar a classe alvo do bean: {}", beanName);
-            return bean;
+            targetClass = bean.getClass();
         }
 
         if (shouldProcessBean(targetClass)) {
