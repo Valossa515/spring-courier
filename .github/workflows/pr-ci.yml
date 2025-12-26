@@ -22,6 +22,7 @@ jobs:
       - run: mvn -B -ntp verify
 
   sonarcloud:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     needs: build-and-test
     steps:
@@ -32,11 +33,9 @@ jobs:
           distribution: temurin
           java-version: 17
           cache: maven
-      - run: mvn -B -ntp verify
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
       - name: SonarCloud Scan
-        uses: sonarsource/sonarcloud-github-action@v2
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
-          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+        run: |
+          mvn -B -ntp verify sonar:sonar \
+            -Dsonar.token=${{ secrets.SONAR_TOKEN }} \
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }} \
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
