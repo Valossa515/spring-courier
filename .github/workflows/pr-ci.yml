@@ -1,6 +1,8 @@
-name: CI PR
+name: CI
 
 on:
+  push:
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -22,7 +24,8 @@ jobs:
       - run: mvn -B -ntp verify
 
   sonarcloud:
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    # Só roda em push ou em PRs internos (protege o token em forks)
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     needs: build-and-test
     env:
@@ -37,15 +40,15 @@ jobs:
           distribution: temurin
           java-version: 17
           cache: maven
-      - name: Debug vars
+      - name: Debug coverage file
         run: |
-          echo "ORG=${SONAR_ORGANIZATION}"
-          echo "KEY=${SONAR_PROJECT_KEY}"
-          echo "TOKEN_SET=$([ -n "$SONAR_TOKEN" ] && echo yes || echo no)"
+          ls -l target/site/jacoco || true
+          ls -l target/site/jacoco/jacoco.xml || true
       - name: SonarCloud Scan
         run: |
           mvn -B -ntp verify sonar:sonar \
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.organization=${SONAR_ORGANIZATION} \
             -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
             -Dsonar.token=${SONAR_TOKEN}
