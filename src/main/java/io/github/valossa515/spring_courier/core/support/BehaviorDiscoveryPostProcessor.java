@@ -13,6 +13,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -34,15 +35,10 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
     @Override
     public Object postProcessAfterInitialization(@NotNull Object bean, @NotNull String beanName) throws BeansException {
         if (bean instanceof PipelineBehavior<?, ?> behavior) {
-            // evita duplo registro do mesmo bean
-            if (!processedBehaviors.add(behavior)) {
-                return bean;
-            }
-
-            Class<?> targetClass = AopUtils.getTargetClass(bean);
-            if (targetClass == null) {
-                targetClass = bean.getClass();
-            }
+            Class<?> targetClass = Objects.requireNonNullElseGet(
+                    AopUtils.getTargetClass(bean),
+                    bean::getClass // fallback seguro
+            );
 
             logger.debug("🔍 Pipeline behavior detectado: {}", targetClass.getSimpleName());
             registerPipelineBehavior(behavior, targetClass);

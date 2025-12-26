@@ -11,6 +11,7 @@ import org.springframework.context.ApplicationContext;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Objects;
 
 /**
  * {@link BeanPostProcessor} that detects notification handler beans and registers 
@@ -27,16 +28,13 @@ public class NotificationDiscoveryPostProcessor implements BeanPostProcessor {
 
     @Override
     public Object postProcessAfterInitialization(@NotNull Object bean, @NotNull String beanName) throws BeansException {
-        Class<?> targetClass = AopUtils.getTargetClass(bean);
-        if (targetClass == null) {
-            targetClass = bean.getClass();
-        }
+        Class<?> targetClass = Objects.requireNonNullElseGet(AopUtils.getTargetClass(bean), bean::getClass);
 
         if (isNotificationHandler(targetClass)) {
             try {
                 discoverAndRegisterNotificationHandler(bean, targetClass);
             } catch (Exception e) {
-                logger.error("Erro ao processar notification handler {}: {}", 
+                logger.error("Erro ao processar notification handler {}: {}",
                         targetClass.getName(), e.getMessage(), e);
             }
         }

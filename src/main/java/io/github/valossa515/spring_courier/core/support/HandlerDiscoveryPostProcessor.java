@@ -16,6 +16,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -33,11 +34,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
 
     @Override
     public Object postProcessAfterInitialization(@NotNull Object bean, @NotNull String beanName) throws BeansException {
-        Class<?> targetClass = AopUtils.getTargetClass(bean);
-        if (targetClass == null) {
-            logger.warn("Não foi possível determinar a classe alvo do bean: {}", beanName);
-            targetClass = bean.getClass();
-        }
+        Class<?> targetClass = Objects.requireNonNullElseGet(AopUtils.getTargetClass(bean), bean::getClass);
 
         if (shouldProcessBean(targetClass)) {
             try {
