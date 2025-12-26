@@ -41,7 +41,7 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
 
             Class<?> targetClass = AopUtils.getTargetClass(bean);
             if (targetClass == null) {
-                targetClass = bean.getClass(); // fallback seguro
+                targetClass = bean.getClass();
             }
 
             logger.debug("🔍 Pipeline behavior detectado: {}", targetClass.getSimpleName());
