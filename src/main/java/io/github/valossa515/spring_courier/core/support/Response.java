@@ -114,25 +114,24 @@ public class Response<T> {
     }
 
     /**
-     * Throws a generic exception when the response represents an error.
+     * Throws a specific exception when the response represents an error.
      */
     @JsonIgnore
     public T getDataOrThrow() {
         if (!success) {
-            throw new RuntimeException("Response contains error: " + error);
+            throw new ResponseException(error, statusCode);
         }
         return data;
     }
 
     /**
-     * Throws the provided exception when the response represents an error.
+     * Throws the provided specific exception when the response represents an error.
      */
     @JsonIgnore
-    public T getDataOrThrow(RuntimeException exception) {
+    public void getDataOrThrow(ResponseException exception) {
         if (!success) {
             throw exception;
         }
-        return data;
     }
 
     @JsonIgnore
@@ -207,5 +206,21 @@ public class Response<T> {
     @Contract(value = " -> new", pure = true)
     public static <T> @NotNull Builder<T> builder() {
         return new Builder<>();
+    }
+
+    /**
+     * Specific exception for error responses.
+     */
+    public static class ResponseException extends RuntimeException {
+        private final int statusCode;
+
+        public ResponseException(String message, int statusCode) {
+            super(message);
+            this.statusCode = statusCode;
+        }
+
+        public int getStatusCode() {
+            return statusCode;
+        }
     }
 }

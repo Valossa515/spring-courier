@@ -86,16 +86,7 @@ class NotificationIntegrationTest {
     }
 
     // Test classes
-    static class TestNotification implements INotification {
-        private final String message;
-
-        TestNotification(String message) {
-            this.message = message;
-        }
-
-        public String getMessage() {
-            return message;
-        }
+        record TestNotification(String message) implements INotification {
     }
 
     static class TestNotificationHandler1 implements NotificationHandler<TestNotification> {

@@ -62,21 +62,13 @@ class PipelineExecutorTest {
     private static class TestRequest implements IRequest<String> { }
 
     // ✅ O behavior agora trabalha com o tipo de retorno "puro", e não Response<>
-    private static class RecordingBehavior implements PipelineBehavior<TestRequest, String> {
-        private final String name;
-        private final List<String> executionOrder;
-
-        private RecordingBehavior(String name, List<String> executionOrder) {
-            this.name = name;
-            this.executionOrder = executionOrder;
-        }
+    private record RecordingBehavior(String name, List<String> executionOrder)
+            implements PipelineBehavior<TestRequest, String> {
 
         @Override
         public String handle(TestRequest request, Next<String> next) {
             executionOrder.add(name);
-            Response<String> nextResponse = Response.success(next.invoke());
-            String chained = nextResponse.getData() + " -> " + name;
-            return chained;
+            return Response.success(next.invoke()).getData() + " -> " + name;
         }
     }
 }

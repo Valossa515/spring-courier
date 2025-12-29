@@ -1,7 +1,6 @@
 package io.github.valossa515.spring_courier.core.pipelines;
 
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
-import org.slf4j.Logger;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 
@@ -12,7 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class PipelineRegistry {
     private final Map<Class<?>, List<PipelineBehavior<?, ?>>> behaviorRegistry = new ConcurrentHashMap<>();
-    private static final Logger logger = org.slf4j.LoggerFactory.getLogger(PipelineRegistry.class);
 
     public void registerBehavior(Class<?> requestType, PipelineBehavior<?, ?> behavior) {
         behaviorRegistry.computeIfAbsent(requestType, k -> new ArrayList<>()).add(behavior);
@@ -55,31 +53,28 @@ public class PipelineRegistry {
     }
 
     @SuppressWarnings("unchecked")
-    public <TRequest extends IRequest<TResponse>, TResponse> List<PipelineBehavior<TRequest, TResponse>> getBehaviors(Class<TRequest> requestType) {
+    public <R extends IRequest<S>, S> List<PipelineBehavior<R, S>> getBehaviors(Class<R> requestType) {
         List<PipelineBehavior<?, ?>> behaviors = behaviorRegistry.get(requestType);
         if (behaviors == null) {
             return Collections.emptyList();
         }
 
-        // Include only behaviors compatible with the request type
-        List<PipelineBehavior<TRequest, TResponse>> compatibleBehaviors = new ArrayList<>();
+        List<PipelineBehavior<R, S>> compatibleBehaviors = new ArrayList<>();
 
         for (PipelineBehavior<?, ?> behavior : behaviors) {
             if (isBehaviorCompatible(behavior, requestType)) {
-                compatibleBehaviors.add((PipelineBehavior<TRequest, TResponse>) behavior);
+                compatibleBehaviors.add((PipelineBehavior<R, S>) behavior);
             }
         }
 
         return compatibleBehaviors;
     }
 
-    private <TRequest extends IRequest<TResponse>, TResponse> boolean isBehaviorCompatible(
-            PipelineBehavior<?, ?> behavior, Class<TRequest> requestType) {
+    private <R extends IRequest<S>, S> boolean isBehaviorCompatible(
+            PipelineBehavior<?, ?> behavior, Class<R> requestType) {
 
-        // Extract the request type expected by the behavior
         Class<?> behaviorRequestType = extractRequestTypeFromBehavior(behavior.getClass());
 
-        // Check compatibility
         return behaviorRequestType != null && behaviorRequestType.isAssignableFrom(requestType);
     }
 

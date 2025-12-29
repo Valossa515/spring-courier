@@ -51,12 +51,14 @@ class ResponseTest {
         assertEquals("ok", success.getDataOrThrow());
 
         Response<String> error = Response.error("problem");
-        RuntimeException thrown = assertThrows(RuntimeException.class, error::getDataOrThrow);
+        Response.ResponseException thrown =
+                assertThrows(Response.ResponseException.class, error::getDataOrThrow);
         assertTrue(thrown.getMessage().contains("problem"));
 
-        RuntimeException custom = new IllegalArgumentException("custom");
+        Response.ResponseException custom = new Response.ResponseException("custom", 499);
         Response<String> errorResponse = Response.error("another");
-        RuntimeException customThrown = assertThrows(RuntimeException.class, () -> errorResponse.getDataOrThrow(custom));
+        Response.ResponseException customThrown =
+                assertThrows(Response.ResponseException.class, () -> errorResponse.getDataOrThrow(custom));
         assertSame(custom, customThrown);
     }
 

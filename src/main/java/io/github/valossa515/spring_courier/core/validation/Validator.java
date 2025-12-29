@@ -3,9 +3,9 @@ package io.github.valossa515.spring_courier.core.validation;
 /**
  * Contract for validators that check request validity.
  *
- * @param <TRequest> request type to validate
+ * @param <R> request type to validate
  */
-public interface Validator<TRequest> {
+public interface Validator<R> {
     
     /**
      * Validates the request and returns the result.
@@ -13,5 +13,5 @@ public interface Validator<TRequest> {
      * @param request the request to validate
      * @return validation result
      */
-    ValidationResult validate(TRequest request);
+    ValidationResult validate(R request);
 }

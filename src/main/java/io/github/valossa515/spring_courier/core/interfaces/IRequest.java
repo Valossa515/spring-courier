@@ -5,5 +5,6 @@ package io.github.valossa515.spring_courier.core.interfaces;
  *
  * @param <R> response type
  */
+@SuppressWarnings("java:S2326")
 public interface IRequest<R> {
 }

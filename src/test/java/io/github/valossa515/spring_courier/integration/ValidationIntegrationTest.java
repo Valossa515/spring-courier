@@ -59,8 +59,8 @@ class ValidationIntegrationTest {
 
         assertFalse(result.isValid());
         assertEquals(1, result.getErrors().size());
-        assertEquals("field", result.getErrors().get(0).getField());
-        assertEquals("error message", result.getErrors().get(0).getMessage());
+        assertEquals("field", result.getErrors().get(0).field());
+        assertEquals("error message", result.getErrors().get(0).message());
     }
 
     @Test

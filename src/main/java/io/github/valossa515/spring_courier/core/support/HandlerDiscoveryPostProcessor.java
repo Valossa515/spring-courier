@@ -2,7 +2,6 @@ package io.github.valossa515.spring_courier.core.support;
 
 import io.github.valossa515.spring_courier.annotations.ExposeHandler;
 import io.github.valossa515.spring_courier.core.interfaces.CommandHandler;
-import io.github.valossa515.spring_courier.core.interfaces.IRequest;
 import io.github.valossa515.spring_courier.core.interfaces.QueryHandler;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -27,20 +26,23 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
     private static final Logger logger = LoggerFactory.getLogger(HandlerDiscoveryPostProcessor.class);
     private final Map<Class<?>, Boolean> handlerInterfaceCache = new ConcurrentHashMap<>();
     private final HandlerRegistry handlerRegistry;
+    private final ApplicationContext applicationContext;
 
     public HandlerDiscoveryPostProcessor(HandlerRegistry handlerRegistry, ApplicationContext applicationContext) {
         this.handlerRegistry = handlerRegistry;
+        this.applicationContext = Objects.requireNonNull(applicationContext, "applicationContext");
     }
 
     @Override
     public Object postProcessAfterInitialization(@NotNull Object bean, @NotNull String beanName) throws BeansException {
+        logger.trace("Context {} inspecting bean {}", applicationContext.getId(), beanName);
         Class<?> targetClass = Objects.requireNonNullElseGet(AopUtils.getTargetClass(bean), bean::getClass);
 
         if (shouldProcessBean(targetClass)) {
             try {
                 discoverAndRegisterHandler(bean, targetClass);
             } catch (Exception e) {
-                logger.error("Erro ao processar handler {}: {}", targetClass.getName(), e.getMessage(), e);
+                logger.error("Error while processing handler {}: {}", targetClass.getName(), e.getMessage(), e);
             }
         }
 
@@ -52,8 +54,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
      */
     private boolean shouldProcessBean(@NotNull Class<?> beanClass) {
         return beanClass.isAnnotationPresent(ExposeHandler.class)
-                || isHandlerInterface(beanClass)
-                || isRequestHandlerBase(beanClass);
+                || isHandlerInterface(beanClass);
     }
 
     private boolean isHandlerInterface(@NotNull Class<?> beanClass) {
@@ -68,20 +69,17 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
     private boolean checkIfHandlerInterface(Class<?> interfaceType) {
         if (CommandHandler.class.isAssignableFrom(interfaceType) ||
                 QueryHandler.class.isAssignableFrom(interfaceType)) {
-            logger.debug("Interface identificada como handler padrão: {}", interfaceType.getSimpleName());
+            logger.debug("Handler interface detected: {}", interfaceType.getSimpleName());
             return true;
         }
 
         for (Type genericInterface : interfaceType.getGenericInterfaces()) {
-            if (genericInterface instanceof ParameterizedType) {
-                ParameterizedType parameterizedType = (ParameterizedType) genericInterface;
+            if (genericInterface instanceof ParameterizedType parameterizedType) {
                 Type rawType = parameterizedType.getRawType();
-                if (rawType instanceof Class<?>) {
-                    Class<?> rawClass = (Class<?>) rawType;
-                    if (io.github.valossa515.spring_courier.core.interfaces.IRequest.class.isAssignableFrom(rawClass)) {
-                        logger.debug("Interface personalizada detectada como IRequest: {}", interfaceType.getSimpleName());
-                        return true;
-                    }
+                if (rawType instanceof Class<?> rawClass &&
+                        io.github.valossa515.spring_courier.core.interfaces.IRequest.class.isAssignableFrom(rawClass)) {
+                    logger.debug("Custom interface detected as IRequest: {}", interfaceType.getSimpleName());
+                    return true;
                 }
             }
         }
@@ -92,11 +90,11 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
     private boolean hasValidHandleMethod(@NotNull Class<?> interfaceType) {
         try {
             return Arrays.stream(interfaceType.getMethods())
-                    .anyMatch(m -> ("handle".equals(m.getName()) || "execute".equals(m.getName())) // 👈 agora também detecta execute()
+                    .anyMatch(m -> ("handle".equals(m.getName()) || "execute".equals(m.getName()))
                             && m.getParameterCount() == 1
                             && m.getReturnType() != Void.TYPE);
         } catch (SecurityException e) {
-            logger.warn("Erro de segurança ao analisar interface {}: {}", interfaceType.getSimpleName(), e.getMessage());
+            logger.warn("Security error while analyzing interface {}: {}", interfaceType.getSimpleName(), e.getMessage());
             return false;
         }
     }
@@ -105,7 +103,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
      * Registers handlers based on their declared generic types.
      */
     private void discoverAndRegisterHandler(Object bean, @NotNull Class<?> beanClass) {
-        logger.debug("Processando handler candidate: {}", beanClass.getName());
+        logger.debug("Processing handler candidate: {}", beanClass.getName());
 
         boolean registered = false;
         Type[] genericInterfaces = beanClass.getGenericInterfaces();
@@ -114,39 +112,29 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
             registered |= registerHandlerFromType(bean, genericInterface);
         }
 
-        // ✅ covers RequestHandlerBase
         Type genericSuperclass = beanClass.getGenericSuperclass();
-        if (genericSuperclass instanceof ParameterizedType) {
-            ParameterizedType parameterizedType = (ParameterizedType) genericSuperclass;
+        if (genericSuperclass instanceof ParameterizedType parameterizedType) {
             registered |= registerHandlerFromType(bean, parameterizedType);
         }
 
         String requestType = extractRequestTypeFromHandler(beanClass);
         if (registered) {
-            logger.info("✅ Handler registrado: {} -> {}", requestType, beanClass.getSimpleName());
+            logger.info("Handler registered: {} -> {}", requestType, beanClass.getSimpleName());
         } else {
-            logger.warn("⚠️ Handler descoberto mas não registrado (tipo não resolvido): {}", beanClass.getSimpleName());
+            logger.warn("Handler discovered but not registered (unresolved type): {}", beanClass.getSimpleName());
         }
     }
 
     private boolean registerHandlerFromType(Object bean, Type type) {
-        if (type instanceof ParameterizedType) {
-            ParameterizedType parameterizedType = (ParameterizedType) type;
+        if (type instanceof ParameterizedType parameterizedType) {
             Type rawType = parameterizedType.getRawType();
 
-            if (rawType instanceof Class<?>) {
-                Class<?> rawClass = (Class<?>) rawType;
-                // cobre tanto CommandHandler/QueryHandler quanto RequestHandlerBase
-                if (isHandlerInterfaceType(rawClass) ||
-                        rawClass.getSimpleName().equals("RequestHandlerBase")) {
-
-                    Type[] typeArguments = parameterizedType.getActualTypeArguments();
-                    if (typeArguments.length >= 1 && typeArguments[0] instanceof Class<?>) {
-                        Class<?> requestType = (Class<?>) typeArguments[0];
-                        handlerRegistry.registerHandler(requestType, bean);
-                        logger.debug("Handler registrado para request type: {}", requestType.getSimpleName());
-                        return true;
-                    }
+            if (rawType instanceof Class<?> rawClass && isHandlerInterfaceType(rawClass)) {
+                Type[] typeArguments = parameterizedType.getActualTypeArguments();
+                if (typeArguments.length >= 1 && typeArguments[0] instanceof Class<?> requestType) {
+                    handlerRegistry.registerHandler(requestType, bean);
+                    logger.debug("Handler registered for request type: {}", requestType.getSimpleName());
+                    return true;
                 }
             }
         }
@@ -156,8 +144,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
     private String extractRequestTypeFromHandler(Class<?> handlerClass) {
         try {
             for (Type genericInterface : handlerClass.getGenericInterfaces()) {
-                if (genericInterface instanceof ParameterizedType) {
-                    ParameterizedType parameterizedType = (ParameterizedType) genericInterface;
+                if (genericInterface instanceof ParameterizedType parameterizedType) {
                     Type[] typeArguments = parameterizedType.getActualTypeArguments();
                     if (typeArguments.length > 0) {
                         return typeArguments[0].getTypeName();
@@ -165,32 +152,16 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
                 }
             }
 
-            // If it is RequestHandlerBase, extract from the supertype
             Type superType = handlerClass.getGenericSuperclass();
-            if (superType instanceof ParameterizedType) {
-                ParameterizedType parameterizedType = (ParameterizedType) superType;
+            if (superType instanceof ParameterizedType parameterizedType) {
                 Type[] args = parameterizedType.getActualTypeArguments();
                 if (args.length > 0) {
                     return args[0].getTypeName();
                 }
             }
         } catch (Exception e) {
-            logger.warn("Não foi possível extrair request type do handler: {}", e.getMessage());
+            logger.warn("Could not extract request type from handler: {}", e.getMessage());
         }
         return "Unknown";
-    }
-
-    /**
-     * Detects handlers that extend {@code RequestHandlerBase}.
-     */
-    private boolean isRequestHandlerBase(Class<?> beanClass) {
-        Class<?> superclass = beanClass.getSuperclass();
-        while (superclass != null) {
-            if (superclass.getSimpleName().equals("RequestHandlerBase")) {
-                return true;
-            }
-            superclass = superclass.getSuperclass();
-        }
-        return false;
     }
 }

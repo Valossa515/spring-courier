@@ -8,11 +8,11 @@ import io.github.valossa515.spring_courier.core.interfaces.IRequest;
  * element in the chain, enabling cross-cutting features such as logging,
  * validation, or auditing.
  *
- * @param <TRequest>  request type, which must implement {@link IRequest} for the
- *                    corresponding response type.
- * @param <TResponse> response type expected for the handled request.
+ * @param <R> request type, which must implement {@link IRequest} for the
+ *            corresponding response type.
+ * @param <S> response type expected for the handled request.
  */
-public interface PipelineBehavior<TRequest extends IRequest<TResponse>, TResponse> {
+public interface PipelineBehavior<R extends IRequest<S>, S> {
 
     /**
      * Handles the current request and decides when (or if) the execution should
@@ -23,17 +23,17 @@ public interface PipelineBehavior<TRequest extends IRequest<TResponse>, TRespons
      *                final handler.
      * @return response produced by the pipeline.
      */
-    TResponse handle(TRequest request, Next<TResponse> next);
+    S handle(R request, Next<S> next);
 
     /**
      * Contract that encapsulates the invocation of the next registered
      * behavior or the final handler. It is used to compose the pipeline
      * execution chain.
      *
-     * @param <TResponse> type of the response expected after invoking the next
-     *                    behavior.
+     * @param <S> type of the response expected after invoking the next
+     *            behavior.
      */
-    interface Next<TResponse> {
+    interface Next<S> {
 
         /**
          * Executes the next registered behavior or the final handler in the
@@ -41,6 +41,6 @@ public interface PipelineBehavior<TRequest extends IRequest<TResponse>, TRespons
          *
          * @return response produced by the continuation of the chain.
          */
-        TResponse invoke();
+        S invoke();
     }
 }

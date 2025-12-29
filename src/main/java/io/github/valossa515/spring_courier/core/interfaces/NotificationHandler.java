@@ -5,14 +5,14 @@ package io.github.valossa515.spring_courier.core.interfaces;
  * Multiple handlers can be registered for the same notification type,
  * and all will be executed when the notification is published.
  *
- * @param <TNotification> notification type to handle
+ * @param <N> notification type to handle
  */
-public interface NotificationHandler<TNotification extends INotification> {
-    
+public interface NotificationHandler<N extends INotification> {
+
     /**
      * Handles the notification/event.
      *
      * @param notification the notification to handle
      */
-    void handle(TNotification notification);
+    void handle(N notification);
 }

@@ -5,12 +5,11 @@
 
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>0.0.2</version>
+    <version>0.0.3</version>
     <name>Spring Courier</name>
     <description>Lib CQRS leve para Spring Boot, inspirada no MediatR (.NET)</description>
     <url>https://github.com/valossa515/spring-courier</url>
 
-    <!-- ✅ Metadados exigidos pelo Maven Central -->
     <licenses>
         <license>
             <name>MIT License</name>
@@ -41,7 +40,6 @@
         <url>https://github.com/valossa515/spring-courier</url>
     </scm>
 
-    <!-- ✅ Maven Central Portal (novo fluxo) -->
     <distributionManagement>
         <repository>
             <id>central</id>
@@ -70,21 +68,18 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- Spring Core -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
             <scope>provided</scope>
         </dependency>
 
-        <!-- Auto-configuração -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
             <scope>provided</scope>
         </dependency>
 
-        <!-- Anotações opcionais -->
         <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
@@ -92,28 +87,24 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>2.0.17</version>
         </dependency>
 
-        <!-- JSON -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
             <version>2.19.2</version>
         </dependency>
 
-        <!-- Web (para testes e exemplos) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
             <scope>provided</scope>
         </dependency>
 
-        <!-- Testes -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -123,7 +114,6 @@
 
     <build>
         <plugins>
-            <!-- Compilador -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -134,7 +124,6 @@
                 </configuration>
             </plugin>
 
-            <!-- JaCoCo: gera XML para o Sonar -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
@@ -157,13 +146,11 @@
                                 <format>HTML</format>
                             </formats>
                             <outputDirectory>${project.build.directory}/site/jacoco</outputDirectory>
-                            <!-- opcional: <dataFile>${project.build.directory}/jacoco.exec</dataFile> -->
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
 
-            <!-- Sonar Maven plugin (fixa versão) -->
             <plugin>
                 <groupId>org.sonarsource.scanner.maven</groupId>
                 <artifactId>sonar-maven-plugin</artifactId>
@@ -173,12 +160,10 @@
     </build>
 
     <profiles>
-        <!-- Profile para release no Maven Central -->
         <profile>
             <id>release</id>
             <build>
                 <plugins>
-                    <!-- Source JAR -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
@@ -193,7 +178,6 @@
                         </executions>
                     </plugin>
 
-                    <!-- Javadoc JAR -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
@@ -208,14 +192,12 @@
                         </executions>
                     </plugin>
 
-                    <!-- Deploy para Central Portal -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-deploy-plugin</artifactId>
                         <version>3.1.2</version>
                     </plugin>
 
-                    <!-- Assinatura GPG -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>

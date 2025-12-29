@@ -13,11 +13,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Auto-configuration that wires the core Spring Courier beans required for the
+ * Autoconfiguration that wires the core Spring Courier beans required for the
  * CQRS pipeline and notification support.
  */
 @Configuration
-public class CourierAutoConfiguration{
+public class CourierAutoConfiguration {
 
     @Bean
     public HandlerRegistry handlerRegistry() {
@@ -40,27 +40,26 @@ public class CourierAutoConfiguration{
     }
 
     @Bean
-    public Courier courier(HandlerRegistry handlerRegistry, 
-                          NotificationRegistry notificationRegistry,
-                          PipelineExecutor pipelineExecutor) {
+    public Courier courier(HandlerRegistry handlerRegistry,
+                           NotificationRegistry notificationRegistry,
+                           PipelineExecutor pipelineExecutor) {
         return new Courier(handlerRegistry, notificationRegistry, pipelineExecutor);
     }
 
     @Bean
-    public HandlerDiscoveryPostProcessor handlerDiscoveryPostProcessor(
-            HandlerRegistry handlerRegistry, ApplicationContext applicationContext) {
+    public HandlerDiscoveryPostProcessor handlerDiscoveryPostProcessor(HandlerRegistry handlerRegistry,
+                                                                       ApplicationContext applicationContext) {
         return new HandlerDiscoveryPostProcessor(handlerRegistry, applicationContext);
     }
 
     @Bean
-    public NotificationDiscoveryPostProcessor notificationDiscoveryPostProcessor(
-            NotificationRegistry notificationRegistry, ApplicationContext applicationContext) {
+    public NotificationDiscoveryPostProcessor notificationDiscoveryPostProcessor(NotificationRegistry notificationRegistry,
+                                                                                 ApplicationContext applicationContext) {
         return new NotificationDiscoveryPostProcessor(notificationRegistry, applicationContext);
     }
 
     @Bean
-    public BehaviorDiscoveryPostProcessor behaviorDiscoveryPostProcessor(
-            PipelineRegistry pipelineRegistry) {
+    public BehaviorDiscoveryPostProcessor behaviorDiscoveryPostProcessor(PipelineRegistry pipelineRegistry) {
         return new BehaviorDiscoveryPostProcessor(pipelineRegistry);
     }
 }
