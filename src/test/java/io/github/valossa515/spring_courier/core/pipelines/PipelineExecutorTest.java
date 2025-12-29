@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PipelineExecutorTest {
 
@@ -58,25 +60,30 @@ class PipelineExecutorTest {
         assertEquals(List.of("first", "second", "third", "handler"), executionOrder);
     }
 
+    @Test
+    void executeReturnsResponseWhenHandlerReturnsResponseObject() {
+        TestRequest request = new TestRequest();
+
+        Response<String> handlerResponse = Response.success("wrapped");
+
+        var response = pipelineExecutor.execute(request, () -> handlerResponse);
+
+        assertSame(handlerResponse, response);
+        assertTrue(response.isSuccess());
+        assertEquals("wrapped", response.getData());
+    }
+
     // ✅ O request define apenas o tipo final (String), o executor normaliza pra Response<String>
     private static class TestRequest implements IRequest<String> { }
 
     // ✅ O behavior agora trabalha com o tipo de retorno "puro", e não Response<>
-    private static class RecordingBehavior implements PipelineBehavior<TestRequest, String> {
-        private final String name;
-        private final List<String> executionOrder;
-
-        private RecordingBehavior(String name, List<String> executionOrder) {
-            this.name = name;
-            this.executionOrder = executionOrder;
-        }
+    private record RecordingBehavior(String name, List<String> executionOrder)
+            implements PipelineBehavior<TestRequest, String> {
 
         @Override
         public String handle(TestRequest request, Next<String> next) {
             executionOrder.add(name);
-            Response<String> nextResponse = Response.success(next.invoke());
-            String chained = nextResponse.getData() + " -> " + name;
-            return chained;
+            return Response.success(next.invoke()).getData() + " -> " + name;
         }
     }
 }

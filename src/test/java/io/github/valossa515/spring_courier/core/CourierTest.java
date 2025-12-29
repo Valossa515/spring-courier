@@ -8,6 +8,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.util.Objects;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -34,6 +36,7 @@ class CourierTest {
         when(handlerRegistry.getHandler(SampleRequest.class)).thenReturn(handler);
         when(pipelineExecutor.execute(eq(request), any())).thenAnswer(invocation -> {
             PipelineExecutor.HandlerInvoker<SampleRequest, String> invoker = invocation.getArgument(1);
+            // Retorna exatamente o que o executor real retornaria (Response<String>)
             return invoker.invoke();
         });
 
@@ -41,8 +44,9 @@ class CourierTest {
 
         assertEquals("handled", response.getData());
         verify(handlerRegistry).getHandler(SampleRequest.class);
+        @SuppressWarnings("unchecked")
         ArgumentCaptor<PipelineExecutor.HandlerInvoker<SampleRequest, String>> invokerCaptor =
-                ArgumentCaptor.forClass(PipelineExecutor.HandlerInvoker.class);
+                (ArgumentCaptor<PipelineExecutor.HandlerInvoker<SampleRequest, String>>) (ArgumentCaptor<?>) ArgumentCaptor.forClass(PipelineExecutor.HandlerInvoker.class);
         verify(pipelineExecutor).execute(eq(request), invokerCaptor.capture());
         assertNotNull(invokerCaptor.getValue());
     }
@@ -92,8 +96,10 @@ class CourierTest {
     private static class SampleRequest implements IRequest<String> {
     }
 
+    @SuppressWarnings("unused")
     private static class SampleHandler {
         public String handle(SampleRequest request) {
+            Objects.requireNonNull(request);
             return "handled";
         }
     }
@@ -101,14 +107,18 @@ class CourierTest {
     private static class RealRequest implements IRequest<String> {
     }
 
+    @SuppressWarnings("unused")
     private static class RealHandler {
         public String handle(RealRequest request) {
+            Objects.requireNonNull(request);
             return "real-response";
         }
     }
 
+    @SuppressWarnings("unused")
     private static class FailingHandler {
         public String handle(RealRequest request) {
+            Objects.requireNonNull(request);
             throw new IllegalStateException("boom");
         }
     }

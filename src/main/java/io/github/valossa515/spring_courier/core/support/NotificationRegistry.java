@@ -25,14 +25,14 @@ public class NotificationRegistry {
      */
     public void registerHandler(Class<?> notificationType, Object handler) {
         handlers.computeIfAbsent(notificationType, k -> new ArrayList<>()).add(handler);
-        logger.debug("Notification handler registrado para: {}", notificationType.getSimpleName());
+        logger.debug("Notification handler registered para: {}", notificationType.getSimpleName());
     }
 
     /**
      * Gets all handlers for a notification type.
      *
      * @param notificationType the notification type
-     * @return list of handlers (may be empty)
+     * @return list of handlers (maybe empty)
      */
     public List<Object> getHandlers(Class<?> notificationType) {
         return new ArrayList<>(handlers.getOrDefault(notificationType, new ArrayList<>()));
@@ -47,14 +47,5 @@ public class NotificationRegistry {
     public boolean hasHandlersFor(Class<?> notificationType) {
         List<Object> handlerList = handlers.get(notificationType);
         return handlerList != null && !handlerList.isEmpty();
-    }
-
-    /**
-     * Returns the total number of notification handlers registered.
-     *
-     * @return total handler count across all notification types
-     */
-    public int getHandlerCount() {
-        return handlers.values().stream().mapToInt(List::size).sum();
     }
 }

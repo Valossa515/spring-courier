@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Import;
 import java.lang.annotation.*;
 
 /**
- * Enables the Spring Courier auto-configuration in a Spring Boot application
+ * Enables the Spring Courier autoconfiguration in a Spring Boot application
  * by importing {@link io.github.valossa515.spring_courier.config.CourierAutoConfiguration}.
  */
 @Target(ElementType.TYPE)

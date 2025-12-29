@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 @Component
 public class Courier {
     private static final Logger logger = LoggerFactory.getLogger(Courier.class);
-    private final HandlerRegistry handlerRegistry;
+    final HandlerRegistry handlerRegistry;
     private final NotificationRegistry notificationRegistry;
     private final PipelineExecutor pipelineExecutor;
 
@@ -34,25 +34,24 @@ public class Courier {
         this.handlerRegistry = handlerRegistry;
         this.notificationRegistry = notificationRegistry;
         this.pipelineExecutor = pipelineExecutor;
-        logger.info("Courier inicializado com {} handlers registrados", handlerRegistry.getHandlerCount());
+        logger.info("Courier initialized with {} registered handlers", handlerRegistry.getHandlerCount());
     }
 
     /**
      * Sends a request and returns a typed {@link Response}.
      */
-    @SuppressWarnings("unchecked")
-    public <TResponse> Response<TResponse> send(@NotNull IRequest<TResponse> request) {
-        logger.debug("Enviando request: {}", request.getClass().getSimpleName());
+    public <R> Response<R> send(@NotNull IRequest<R> request) {
+        logger.debug("Sending request: {}", request.getClass().getSimpleName());
 
         Object handler = handlerRegistry.getHandler(request.getClass());
 
-        var result = pipelineExecutor.execute(request, () -> invokeHandler(handler, request));
+        Response<R> result = pipelineExecutor.execute(request, () -> invokeHandler(handler, request));
 
-        if(result instanceof Response<?>) {
-            return (Response<TResponse>) result;
+        if (result == null) {
+            return Response.success(null);
         }
 
-        return Response.success((TResponse) result);
+        return result;
     }
 
     /**
@@ -67,33 +66,37 @@ public class Courier {
 
             Object result = method.invoke(handler, request);
 
-            if (result instanceof CompletableFuture<?> future)
+            if (result instanceof CompletableFuture<?> future) {
                 result = future.join();
+            }
 
             long duration = System.currentTimeMillis() - start;
-            logger.debug("Handler executado em {}ms: {} -> {}", duration,
+            logger.debug("Handler executed in {}ms: {} -> {}", duration,
                     request.getClass().getSimpleName(), handler.getClass().getSimpleName());
 
-            if (result instanceof Response<?>) {
-                return (Response<R>) result;
+            if (result == null) {
+                return Response.success(null);
+            }
+            if (result instanceof Response<?> response) {
+                return (Response<R>) response;
             }
 
             return Response.success((R) result);
 
         } catch (InvocationTargetException e) {
             Throwable target = e.getTargetException();
-            logger.error("Erro no handler: {}", target.getMessage(), target);
-            return Response.error(target.getMessage());
+            logger.error("Handler error: {}", target.getMessage(), target);
+            return Response.error(target);
         } catch (RuntimeException e) {
-            // 🔥 Ensure the test expectations continue to pass
-            logger.error("Erro no Courier: {}", e.getMessage());
-            return Response.error(e.getMessage());
+            logger.error("Courier runtime error: {}", e.getMessage(), e);
+            return Response.error(e);
         } catch (Exception e) {
-            logger.error("Falha ao invocar handler: {}", e.getMessage(), e);
-            return Response.error("Erro interno: " + e.getMessage());
+            logger.error("Failed to invoke handler: {}", e.getMessage(), e);
+            return Response.error(e);
         }
     }
 
+    @SuppressWarnings("java:S3011")
     private @NotNull Method findHandleOrExecuteMethod(@NotNull Class<?> handlerClass) {
         for (Method method : handlerClass.getMethods()) {
             if ((method.getName().equals("handle") || method.getName().equals("execute"))
@@ -102,7 +105,7 @@ public class Courier {
                 return method;
             }
         }
-        throw new RuntimeException("No handle method found in handler: " + handlerClass.getName());
+        throw new HandlerMethodNotFoundException(handlerClass.getName(), "handle/execute");
     }
 
     /**
@@ -112,24 +115,23 @@ public class Courier {
      * @param notification the notification to publish
      */
     public void publish(@NotNull INotification notification) {
-        logger.debug("Publicando notification: {}", notification.getClass().getSimpleName());
+        logger.debug("Publishing notification: {}", notification.getClass().getSimpleName());
 
         List<Object> handlers = notificationRegistry.getHandlers(notification.getClass());
-        
+
         if (handlers.isEmpty()) {
-            logger.warn("Nenhum handler registrado para notification: {}", notification.getClass().getSimpleName());
+            logger.warn("No handler registered for notification: {}", notification.getClass().getSimpleName());
             return;
         }
 
         for (Object handler : handlers) {
             try {
                 Method method = findHandleMethod(handler.getClass());
-                method.setAccessible(true); // Make method accessible for test inner classes
                 method.invoke(handler, notification);
-                logger.debug("Notification handler executado: {} -> {}", 
+                logger.debug("Notification handler executed: {} -> {}",
                         notification.getClass().getSimpleName(), handler.getClass().getSimpleName());
             } catch (Exception e) {
-                logger.error("Erro ao executar notification handler {}: {}", 
+                logger.error("Error executing notification handler {}: {}",
                         handler.getClass().getSimpleName(), e.getMessage(), e);
             }
         }
@@ -145,19 +147,23 @@ public class Courier {
         return CompletableFuture.runAsync(() -> publish(notification));
     }
 
+    @SuppressWarnings("java:S3011")
     private @NotNull Method findHandleMethod(@NotNull Class<?> handlerClass) {
         for (Method method : handlerClass.getMethods()) {
             if (method.getName().equals("handle") && method.getParameterCount() == 1) {
+                method.setAccessible(true);
                 return method;
             }
         }
-        throw new RuntimeException("No handle method found in handler: " + handlerClass.getName());
+        throw new HandlerMethodNotFoundException(handlerClass.getName(), "handle");
     }
 
     /**
-     * Returns the number of registered handlers.
+     * Exception for missing handler methods.
      */
-    public int getRegisteredHandlersCount() {
-        return handlerRegistry.getHandlerCount();
+    public static class HandlerMethodNotFoundException extends RuntimeException {
+        public HandlerMethodNotFoundException(String handlerClassName, String expectedMethod) {
+            super("No handle method (" + expectedMethod + ") found in handler: " + handlerClassName);
+        }
     }
 }

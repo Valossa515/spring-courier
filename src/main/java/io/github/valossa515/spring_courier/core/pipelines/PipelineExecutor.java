@@ -23,29 +23,27 @@ public class PipelineExecutor {
      * Executes the request through the behavior chain and normalizes the
      * outcome as a {@link Response}.
      *
-     * @param <TRequest>     request type passed to the pipeline
-     * @param <TResponse>    response type expected from the handler
+     * @param <R>            request type passed to the pipeline
+     * @param <S>            response type expected from the handler
      * @param request        request instance to process
      * @param handlerInvoker callback that invokes the underlying handler
      * @return normalized response produced by the handler or behaviors
      */
     @SuppressWarnings("unchecked")
-    public <TRequest extends IRequest<TResponse>, TResponse> Response<TResponse> execute(
-            TRequest request,
-            HandlerInvoker<TRequest, TResponse> handlerInvoker) {
+    public <R extends IRequest<S>, S> Response<S> execute(
+            R request,
+            HandlerInvoker<R, S> handlerInvoker) {
 
         String type = detectRequestCategory(request);
         logger.debug("Executando pipeline para {}: {}", type, request.getClass().getSimpleName());
 
-        List<PipelineBehavior<TRequest, TResponse>> behaviors =
-                pipelineRegistry.getBehaviors((Class<TRequest>) request.getClass());
+        List<PipelineBehavior<R, S>> behaviors =
+                pipelineRegistry.getBehaviors((Class<R>) request.getClass());
 
-        // 🔹 Execute the handler directly or via the behavior chain
         Object result = behaviors.isEmpty()
                 ? handlerInvoker.invoke()
                 : executeBehaviorChain(request, behaviors, 0, handlerInvoker);
 
-        // 🔹 Normalize the return value (Response<T> or raw value)
         return normalize(result);
     }
 
@@ -67,7 +65,8 @@ public class PipelineExecutor {
     }
 
     @FunctionalInterface
-    public interface HandlerInvoker<TRequest extends IRequest<TResponse>, TResponse> {
+    @SuppressWarnings("java:S2326")
+    public interface HandlerInvoker<R extends IRequest<S>, S> {
 
         /**
          * Invokes the handler associated with the request and returns either a
@@ -82,30 +81,30 @@ public class PipelineExecutor {
      * Executes the registered behaviors recursively.
      */
     @SuppressWarnings("unchecked")
-    private <TRequest extends IRequest<TResponse>, TResponse> Object executeBehaviorChain(
-            TRequest request,
-            List<PipelineBehavior<TRequest, TResponse>> behaviors,
+    private <R extends IRequest<S>, S> Object executeBehaviorChain(
+            R request,
+            List<PipelineBehavior<R, S>> behaviors,
             int currentIndex,
-            HandlerInvoker<TRequest, TResponse> handlerInvoker) {
+            HandlerInvoker<R, S> handlerInvoker) {
 
         if (currentIndex >= behaviors.size()) {
             return handlerInvoker.invoke();
         }
 
-        PipelineBehavior<TRequest, TResponse> current = behaviors.get(currentIndex);
+        PipelineBehavior<R, S> current = behaviors.get(currentIndex);
         return current.handle(request, () ->
-                (TResponse) executeBehaviorChain(request, behaviors, currentIndex + 1, handlerInvoker)
+                (S) executeBehaviorChain(request, behaviors, currentIndex + 1, handlerInvoker)
         );
     }
 
     /**
-     * Converts the handler output to {@code Response<TResponse>} when needed.
+     * Converts the handler output to {@code Response<S>} when needed.
      */
     @SuppressWarnings("unchecked")
-    private <TResponse> Response<TResponse> normalize(Object result) {
+    private <S> Response<S> normalize(Object result) {
         if (result instanceof Response<?>) {
-            return (Response<TResponse>) result;
+            return (Response<S>) result;
         }
-        return Response.success((TResponse) result);
+        return Response.success((S) result);
     }
 }

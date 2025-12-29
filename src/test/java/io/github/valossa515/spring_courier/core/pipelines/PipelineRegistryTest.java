@@ -60,6 +60,11 @@ class PipelineRegistryTest {
         assertEquals(2, pipelineRegistry.getBehaviorCount());
     }
 
+    @Test
+    void hasBehaviorsForReturnsFalseWhenNone() {
+        assertFalse(pipelineRegistry.hasBehaviorsFor(TestRequest.class));
+    }
+
     private static class TestRequest implements IRequest<String> {
     }
 

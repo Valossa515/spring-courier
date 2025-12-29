@@ -20,10 +20,9 @@ public class HandlerRegistry {
             logger.warn("Substituindo handler existente para request type: {}", requestType.getSimpleName());
         }
         handlers.put(requestType, handler);
-        logger.debug("Handler registrado para: {}", requestType.getSimpleName());
+        logger.debug("Handler registered para: {}", requestType.getSimpleName());
     }
 
-    @SuppressWarnings("unchecked")
     public <T> Object getHandler(Class<T> requestType) {
         Object handler = handlers.get(requestType);
         if (handler == null) {

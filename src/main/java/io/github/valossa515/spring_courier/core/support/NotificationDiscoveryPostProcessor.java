@@ -9,33 +9,36 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.ApplicationContext;
 
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.Objects;
 
 /**
- * {@link BeanPostProcessor} that detects notification handler beans and registers 
+ * {@link BeanPostProcessor} that detects notification handler beans and registers
  * them in the {@link NotificationRegistry} so they can receive published notifications.
  */
 public class NotificationDiscoveryPostProcessor implements BeanPostProcessor {
     private static final Logger logger = LoggerFactory.getLogger(NotificationDiscoveryPostProcessor.class);
     private final NotificationRegistry notificationRegistry;
+    private final ApplicationContext applicationContext;
 
-    public NotificationDiscoveryPostProcessor(NotificationRegistry notificationRegistry, 
-                                             ApplicationContext applicationContext) {
-        this.notificationRegistry = notificationRegistry;
+    public NotificationDiscoveryPostProcessor(NotificationRegistry notificationRegistry, ApplicationContext applicationContext) {
+        this.notificationRegistry = Objects.requireNonNull(notificationRegistry, "notificationRegistry");
+        this.applicationContext = Objects.requireNonNull(applicationContext, "applicationContext");
     }
 
     @Override
     public Object postProcessAfterInitialization(@NotNull Object bean, @NotNull String beanName) throws BeansException {
+        logger.trace("Context {} inspecting bean {}", applicationContext.getId(), beanName);
         Class<?> targetClass = Objects.requireNonNullElseGet(AopUtils.getTargetClass(bean), bean::getClass);
 
         if (isNotificationHandler(targetClass)) {
             try {
                 discoverAndRegisterNotificationHandler(bean, targetClass);
             } catch (Exception e) {
-                logger.error("Erro ao processar notification handler {}: {}",
-                        targetClass.getName(), e.getMessage(), e);
+                logger.error("Error while processing notification handler {}: {}", targetClass.getName(), e.getMessage(), e);
             }
         }
 
@@ -46,8 +49,8 @@ public class NotificationDiscoveryPostProcessor implements BeanPostProcessor {
      * Determines whether the bean is a notification handler.
      */
     private boolean isNotificationHandler(@NotNull Class<?> beanClass) {
-        for (Class<?> iface : beanClass.getInterfaces()) {
-            if (NotificationHandler.class.isAssignableFrom(iface)) {
+        for (Class<?> implementedInterface : beanClass.getInterfaces()) {
+            if (NotificationHandler.class.isAssignableFrom(implementedInterface)) {
                 return true;
             }
         }
@@ -58,35 +61,32 @@ public class NotificationDiscoveryPostProcessor implements BeanPostProcessor {
      * Registers the notification handler based on its declared generic type.
      */
     private void discoverAndRegisterNotificationHandler(Object bean, @NotNull Class<?> beanClass) {
-        logger.debug("Processando notification handler candidate: {}", beanClass.getName());
+        logger.debug("Processing notification handler candidate: {}", beanClass.getName());
 
         boolean registered = false;
-        Type[] genericInterfaces = beanClass.getGenericInterfaces();
 
-        for (Type genericInterface : genericInterfaces) {
-            if (genericInterface instanceof ParameterizedType) {
-                ParameterizedType parameterizedType = (ParameterizedType) genericInterface;
-                Type rawType = parameterizedType.getRawType();
+        for (Type genericInterface : beanClass.getGenericInterfaces()) {
+            if (genericInterface instanceof ParameterizedType parameterizedType
+                    && parameterizedType.getRawType() instanceof Class<?> rawClass
+                    && NotificationHandler.class.isAssignableFrom(rawClass)) {
 
-                if (rawType instanceof Class<?>) {
-                    Class<?> rawClass = (Class<?>) rawType;
-                    if (NotificationHandler.class.isAssignableFrom(rawClass)) {
-                        Type[] typeArguments = parameterizedType.getActualTypeArguments();
-                        if (typeArguments.length >= 1 && typeArguments[0] instanceof Class<?>) {
-                            Class<?> notificationType = (Class<?>) typeArguments[0];
-                            notificationRegistry.registerHandler(notificationType, bean);
-                            logger.info("✅ Notification handler registrado: {} -> {}", 
-                                    notificationType.getSimpleName(), beanClass.getSimpleName());
-                            registered = true;
-                        }
+                Type[] typeArguments = parameterizedType.getActualTypeArguments();
+                if (typeArguments.length >= 1 && typeArguments[0] instanceof Class<?> notificationType) {
+                    if (!notificationType.isInterface() && !Modifier.isAbstract(notificationType.getModifiers())) {
+                        notificationRegistry.registerHandler(notificationType, bean);
+                        logger.info("Notification handler registered: {} -> {}", notificationType.getSimpleName(), beanClass.getSimpleName());
+                        registered = true;
+                    } else {
+                        logger.warn("Notification handler discovered but not registered (non-concrete type): {}", beanClass.getSimpleName());
                     }
+                } else if (typeArguments.length >= 1 && typeArguments[0] instanceof TypeVariable<?>) {
+                    logger.warn("Notification handler discovered but not registered (unresolved generic type): {}", beanClass.getSimpleName());
                 }
             }
         }
 
         if (!registered) {
-            logger.warn("⚠️ Notification handler descoberto mas não registrado (tipo não resolvido): {}", 
-                    beanClass.getSimpleName());
+            logger.warn("Notification handler discovered but not registered (unresolved type): {}", beanClass.getSimpleName());
         }
     }
 }

@@ -42,6 +42,17 @@ class HandlerRegistryTest {
     }
 
     @Test
+    void registerHandlerLogsAndOverridesExisting() {
+        DummyHandler first = new DummyHandler();
+        DummyHandler second = new DummyHandler();
+
+        handlerRegistry.registerHandler(String.class, first);
+        handlerRegistry.registerHandler(String.class, second);
+
+        assertSame(second, handlerRegistry.getHandler(String.class));
+    }
+
+    @Test
     void getHandlerThrowsWhenHandlerMissing() {
         assertThrows(HandlerNotFoundException.class, () -> handlerRegistry.getHandler(Integer.class));
         assertFalse(handlerRegistry.hasHandlerFor(Integer.class));
@@ -58,6 +69,11 @@ class HandlerRegistryTest {
         assertTrue(exposedHandlers.isEmpty(), "Returned map should be modifiable copy");
         assertEquals(1, handlerRegistry.getHandlerCount(), "Internal registry must remain unchanged");
         assertSame(handler, handlerRegistry.getHandler(String.class));
+    }
+
+    @Test
+    void hasHandlerForReturnsFalseWhenNotRegistered() {
+        assertFalse(handlerRegistry.hasHandlerFor(Double.class));
     }
 
     private static class DummyHandler {

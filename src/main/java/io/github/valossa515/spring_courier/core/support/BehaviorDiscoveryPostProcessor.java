@@ -11,10 +11,7 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * {@link BeanPostProcessor} that discovers {@link PipelineBehavior} beans and
@@ -25,9 +22,6 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
 
     private final PipelineRegistry pipelineRegistry;
 
-    private final Set<PipelineBehavior<?, ?>> processedBehaviors =
-            Collections.newSetFromMap(new IdentityHashMap<>());
-
     public BehaviorDiscoveryPostProcessor(PipelineRegistry pipelineRegistry) {
         this.pipelineRegistry = pipelineRegistry;
     }
@@ -37,10 +31,10 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
         if (bean instanceof PipelineBehavior<?, ?> behavior) {
             Class<?> targetClass = Objects.requireNonNullElseGet(
                     AopUtils.getTargetClass(bean),
-                    bean::getClass // fallback seguro
+                    bean::getClass
             );
 
-            logger.debug("🔍 Pipeline behavior detectado: {}", targetClass.getSimpleName());
+            logger.debug("🔍 Pipeline behavior detected: {}", targetClass.getSimpleName());
             registerPipelineBehavior(behavior, targetClass);
         }
 
@@ -52,7 +46,7 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
 
         if (requestType != null) {
             pipelineRegistry.registerBehavior(requestType, behavior);
-            logger.info("✅ Pipeline behavior registrado: {} -> {}",
+            logger.info("✅ Pipeline behavior registration: {} -> {}",
                     requestType.getSimpleName(), behaviorClass.getSimpleName());
         } else {
             logger.warn("⚠️ Não foi possível determinar o tipo de request para behavior: {}",
@@ -61,7 +55,6 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
     }
 
     private Class<?> extractRequestTypeFromBehavior(Class<?> behaviorClass) {
-        // Check generic interfaces on the target class
         Type[] genericInterfaces = behaviorClass.getGenericInterfaces();
         for (Type genericInterface : genericInterfaces) {
             Class<?> requestType = extractRequestTypeFromParameterizedType(genericInterface);
@@ -70,7 +63,6 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
             }
         }
 
-        // Check the generic superclass
         Type genericSuperclass = behaviorClass.getGenericSuperclass();
         return extractRequestTypeFromParameterizedType(genericSuperclass);
     }
