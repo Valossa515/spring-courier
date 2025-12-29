@@ -99,8 +99,8 @@ class ResponseTest {
     void equalsHandlesNullAndDifferentTypes() {
         Response<String> base = Response.success("data");
 
-        assertNotEquals(base, null);
-        assertNotEquals(base, "other");
+        assertNotEquals(null, base);
+        assertNotEquals(new Object(), base);
     }
 
     @Test
@@ -115,6 +115,16 @@ class ResponseTest {
         assertNotEquals(base, differentStatus);
         assertNotEquals(base, differentSuccess);
         assertNotEquals(Response.success("data"), differentError);
+    }
+
+    @Test
+    void equalsIsReflexiveAndSymmetric() {
+        Response<String> base = Response.success("data", 201);
+        Response<String> same = Response.success("data", 201);
+
+        assertEquals(base, base);
+        assertEquals(base, same);
+        assertEquals(same, base);
     }
 
     @Test
