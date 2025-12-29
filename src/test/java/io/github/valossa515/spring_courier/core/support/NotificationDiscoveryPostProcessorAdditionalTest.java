@@ -7,8 +7,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationContext;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 class NotificationDiscoveryPostProcessorAdditionalTest {
     @Test
@@ -27,11 +26,30 @@ class NotificationDiscoveryPostProcessorAdditionalTest {
         assertSame(bean, handlerCaptor.getValue());
     }
 
+    @Test
+    void skipsRegistrationWhenGenericTypeNotResolvable() {
+        NotificationRegistry registry = mock(NotificationRegistry.class);
+        ApplicationContext ctx = mock(ApplicationContext.class);
+        NotificationDiscoveryPostProcessor pp = new NotificationDiscoveryPostProcessor(registry, ctx);
+
+        NoGenericHandler bean = new NoGenericHandler();
+        pp.postProcessAfterInitialization(bean, "noGeneric");
+
+        verify(registry, never()).registerHandler(any(), any());
+    }
+
     static class TestNotification implements INotification {}
 
     static class TestNotificationHandler implements NotificationHandler<TestNotification> {
         @Override
         public void handle(TestNotification notification) {
+            // no-op
+        }
+    }
+
+    static class NoGenericHandler implements NotificationHandler<INotification> {
+        @Override
+        public void handle(INotification notification) {
             // no-op
         }
     }

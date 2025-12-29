@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PipelineExecutorTest {
 
@@ -56,6 +58,19 @@ class PipelineExecutorTest {
 
         assertEquals("result -> third -> second -> first", response.getData());
         assertEquals(List.of("first", "second", "third", "handler"), executionOrder);
+    }
+
+    @Test
+    void executeReturnsResponseWhenHandlerReturnsResponseObject() {
+        TestRequest request = new TestRequest();
+
+        Response<String> handlerResponse = Response.success("wrapped");
+
+        var response = pipelineExecutor.execute(request, () -> handlerResponse);
+
+        assertSame(handlerResponse, response);
+        assertTrue(response.isSuccess());
+        assertEquals("wrapped", response.getData());
     }
 
     // ✅ O request define apenas o tipo final (String), o executor normaliza pra Response<String>

@@ -128,6 +128,12 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.11</version>
+                <configuration>
+                    <excludes>
+                        <exclude>com/sun/tools/attach/**</exclude>
+                        <exclude>net/bytebuddy/**</exclude>
+                    </excludes>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>

@@ -9,8 +9,10 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.ApplicationContext;
 
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.Objects;
 
 /**
@@ -70,9 +72,15 @@ public class NotificationDiscoveryPostProcessor implements BeanPostProcessor {
 
                 Type[] typeArguments = parameterizedType.getActualTypeArguments();
                 if (typeArguments.length >= 1 && typeArguments[0] instanceof Class<?> notificationType) {
-                    notificationRegistry.registerHandler(notificationType, bean);
-                    logger.info("Notification handler registered: {} -> {}", notificationType.getSimpleName(), beanClass.getSimpleName());
-                    registered = true;
+                    if (!notificationType.isInterface() && !Modifier.isAbstract(notificationType.getModifiers())) {
+                        notificationRegistry.registerHandler(notificationType, bean);
+                        logger.info("Notification handler registered: {} -> {}", notificationType.getSimpleName(), beanClass.getSimpleName());
+                        registered = true;
+                    } else {
+                        logger.warn("Notification handler discovered but not registered (non-concrete type): {}", beanClass.getSimpleName());
+                    }
+                } else if (typeArguments.length >= 1 && typeArguments[0] instanceof TypeVariable<?>) {
+                    logger.warn("Notification handler discovered but not registered (unresolved generic type): {}", beanClass.getSimpleName());
                 }
             }
         }

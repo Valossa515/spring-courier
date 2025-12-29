@@ -22,4 +22,19 @@ class ValidationExceptionTest {
         assertEquals("only-msg", ex.getMessage());
         assertNull(ex.getCause());
     }
+
+    @Test
+    void buildsWithNullCauseAndMessage() {
+        ValidationException ex = new ValidationException("msg", (String) null);
+        assertEquals("msg", ex.getMessage());
+        assertNull(ex.getCause());
+    }
+
+    @Test
+    void buildsWithDefaultCtrLikeMessageOnly() {
+        // Cobre construtor já existente (mensagem), reforçando linhas de novo código
+        ValidationException ex = new ValidationException("only");
+        assertEquals("only", ex.getMessage());
+        assertNull(ex.getCause());
+    }
 }

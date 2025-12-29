@@ -1,5 +1,7 @@
 package io.github.valossa515.spring_courier.core.interfaces;
 
+import java.lang.reflect.Type;
+
 /**
  * Functional interface for handling CQRS commands.
  *
@@ -7,7 +9,7 @@ package io.github.valossa515.spring_courier.core.interfaces;
  * @param <R> response type returned by the handler
  */
 @FunctionalInterface
-public interface CommandHandler<C extends IRequest<R>, R>{
+public interface CommandHandler<C extends IRequest<R>, R> {
     /**
      * Handles the received command and returns the resulting response.
      *

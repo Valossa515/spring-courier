@@ -86,4 +86,40 @@ class ResponseTest {
         assertEquals(built, identical);
         assertEquals(built.hashCode(), identical.hashCode());
     }
+
+    @Test
+    void toEntityBuildsResponseEntity() {
+        Response<String> resp = Response.success("ok", 201);
+        var entity = resp.toEntity();
+        assertEquals(201, entity.getStatusCode().value());
+        assertSame(resp, entity.getBody());
+    }
+
+    @Test
+    void equalsHandlesNullAndDifferentTypes() {
+        Response<String> base = Response.success("data");
+
+        assertNotEquals(base, null);
+        assertNotEquals(base, "other");
+    }
+
+    @Test
+    void equalsDetectsFieldDifferences() {
+        Response<String> base = Response.success("data", 201);
+        Response<String> differentData = Response.success("other", 201);
+        Response<String> differentStatus = Response.success("data", 202);
+        Response<String> differentSuccess = Response.error("err", 201);
+        Response<String> differentError = Response.error("different");
+
+        assertNotEquals(base, differentData);
+        assertNotEquals(base, differentStatus);
+        assertNotEquals(base, differentSuccess);
+        assertNotEquals(Response.success("data"), differentError);
+    }
+
+    @Test
+    void responseExceptionExposesStatusCode() {
+        Response.ResponseException ex = new Response.ResponseException("boom", 418);
+        assertEquals(418, ex.getStatusCode());
+    }
 }

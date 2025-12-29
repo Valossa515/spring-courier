@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 @Component
 public class Courier {
     private static final Logger logger = LoggerFactory.getLogger(Courier.class);
-    private final HandlerRegistry handlerRegistry;
+    final HandlerRegistry handlerRegistry;
     private final NotificationRegistry notificationRegistry;
     private final PipelineExecutor pipelineExecutor;
 

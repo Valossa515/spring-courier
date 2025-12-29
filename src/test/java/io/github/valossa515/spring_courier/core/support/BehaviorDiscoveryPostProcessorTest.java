@@ -42,6 +42,15 @@ class BehaviorDiscoveryPostProcessorTest {
         verify(pipelineRegistry, never()).registerBehavior(any(), any());
     }
 
+    @Test
+    void logsWarningWhenRequestTypeCannotBeResolved() {
+        PipelineBehavior<?, ?> behavior = new BehaviorWithoutGeneric();
+
+        postProcessor.postProcessAfterInitialization(behavior, "noTypeBehavior");
+
+        verify(pipelineRegistry, never()).registerBehavior(any(), any());
+    }
+
     private static class SampleRequest implements IRequest<String> {
     }
 
@@ -53,5 +62,12 @@ class BehaviorDiscoveryPostProcessorTest {
     }
 
     private abstract static class GenericBehavior implements PipelineBehavior<IRequest<String>, String> {
+    }
+
+    private static class BehaviorWithoutGeneric implements PipelineBehavior<IRequest<Object>, Object> {
+        @Override
+        public Object handle(IRequest<Object> request, Next<Object> next) {
+            return next.invoke();
+        }
     }
 }
