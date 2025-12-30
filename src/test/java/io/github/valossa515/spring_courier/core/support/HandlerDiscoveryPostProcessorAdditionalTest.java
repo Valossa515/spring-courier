@@ -12,7 +12,9 @@ import java.security.Permission;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 class HandlerDiscoveryPostProcessorAdditionalTest {
@@ -40,6 +42,22 @@ class HandlerDiscoveryPostProcessorAdditionalTest {
 
         DerivedHandler bean = new DerivedHandler();
         pp.postProcessAfterInitialization(bean, "derivedHandler");
+
+        verify(registry).registerHandler(SampleRequest.class, bean);
+    }
+
+    @Test
+    void handlesRegistrationFailuresGracefully() {
+        HandlerRegistry registry = mock(HandlerRegistry.class);
+        ApplicationContext ctx = mock(ApplicationContext.class);
+        HandlerDiscoveryPostProcessor pp = new HandlerDiscoveryPostProcessor(registry, ctx);
+
+        AnnotatedHandler bean = new AnnotatedHandler();
+        doThrow(new RuntimeException("boom"))
+                .when(registry)
+                .registerHandler(SampleRequest.class, bean);
+
+        assertDoesNotThrow(() -> pp.postProcessAfterInitialization(bean, "annotatedHandler"));
 
         verify(registry).registerHandler(SampleRequest.class, bean);
     }
