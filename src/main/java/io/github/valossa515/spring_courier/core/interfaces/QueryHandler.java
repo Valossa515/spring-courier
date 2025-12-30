@@ -7,7 +7,7 @@ package io.github.valossa515.spring_courier.core.interfaces;
  * @param <R> response type returned by the handler
  */
 @FunctionalInterface
-public interface QueryHandler<Q extends IRequest<R>, R>{
+public interface QueryHandler<Q extends IRequest<R>, R> {
     /**
      * Handles the received query and returns the resulting response.
      *

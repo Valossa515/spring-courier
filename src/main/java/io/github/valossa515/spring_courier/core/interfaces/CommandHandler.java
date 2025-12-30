@@ -1,7 +1,5 @@
 package io.github.valossa515.spring_courier.core.interfaces;
 
-import java.lang.reflect.Type;
-
 /**
  * Functional interface for handling CQRS commands.
  *

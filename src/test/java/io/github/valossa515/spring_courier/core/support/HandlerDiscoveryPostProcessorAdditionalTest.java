@@ -7,8 +7,14 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationContext;
 
+import java.lang.reflect.Method;
+import java.security.Permission;
+
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 class HandlerDiscoveryPostProcessorAdditionalTest {
@@ -40,6 +46,51 @@ class HandlerDiscoveryPostProcessorAdditionalTest {
         verify(registry).registerHandler(SampleRequest.class, bean);
     }
 
+    @Test
+    void handlesRegistrationFailuresGracefully() {
+        HandlerRegistry registry = mock(HandlerRegistry.class);
+        ApplicationContext ctx = mock(ApplicationContext.class);
+        HandlerDiscoveryPostProcessor pp = new HandlerDiscoveryPostProcessor(registry, ctx);
+
+        AnnotatedHandler bean = new AnnotatedHandler();
+        doThrow(new RuntimeException("boom"))
+                .when(registry)
+                .registerHandler(SampleRequest.class, bean);
+
+        assertDoesNotThrow(() -> pp.postProcessAfterInitialization(bean, "annotatedHandler"));
+
+        verify(registry).registerHandler(SampleRequest.class, bean);
+    }
+
+    @Test
+    @SuppressWarnings("removal")
+    void handlesSecurityExceptionWhenInspectingMethods() throws Exception {
+        HandlerRegistry registry = mock(HandlerRegistry.class);
+        ApplicationContext ctx = mock(ApplicationContext.class);
+        HandlerDiscoveryPostProcessor pp = new HandlerDiscoveryPostProcessor(registry, ctx);
+
+        SecurityManager original = System.getSecurityManager();
+        System.setSecurityManager(new SecurityManager() {
+            @Override
+            public void checkPermission(Permission perm) {
+                if (perm instanceof RuntimePermission
+                        && "accessDeclaredMembers".equals(perm.getName())) {
+                    throw new SecurityException("denied");
+                }
+            }
+        });
+
+        try {
+            Method method = HandlerDiscoveryPostProcessor.class
+                    .getDeclaredMethod("hasValidHandleMethod", Class.class);
+            method.setAccessible(true);
+            boolean result = (boolean) method.invoke(pp, SensitiveInterface.class);
+            assertFalse(result);
+        } finally {
+            System.setSecurityManager(original);
+        }
+    }
+
     static class SampleRequest implements IRequest<String> {}
 
     @ExposeHandler
@@ -57,5 +108,9 @@ class HandlerDiscoveryPostProcessorAdditionalTest {
         public String handle(SampleRequest request) {
             return "derived";
         }
+    }
+
+    interface SensitiveInterface {
+        void handle(SampleRequest request);
     }
 }
