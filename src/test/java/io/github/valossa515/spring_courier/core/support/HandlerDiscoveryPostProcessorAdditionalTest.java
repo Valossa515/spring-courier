@@ -54,13 +54,11 @@ class HandlerDiscoveryPostProcessorAdditionalTest {
         SecurityManager original = System.getSecurityManager();
         System.setSecurityManager(new SecurityManager() {
             @Override
-            public void checkMemberAccess(Class<?> clazz, int which) {
-                throw new SecurityException("denied");
-            }
-
-            @Override
             public void checkPermission(Permission perm) {
-                // allow
+                if (perm instanceof RuntimePermission
+                        && "accessDeclaredMembers".equals(perm.getName())) {
+                    throw new SecurityException("denied");
+                }
             }
         });
 
