@@ -49,14 +49,20 @@ public class PipelineExecutor {
 
     private String detectRequestCategory(Object request) {
         Class<?> clazz = request.getClass();
-        if (implementsInterface(clazz, "ICommand")) return "🟢 Command";
-        if (implementsInterface(clazz, "IQuery")) return "🔵 Query";
+        if (implementsInterface(clazz, "ICommand")) {
+            return "🟢 Command";
+        }
+        if (implementsInterface(clazz, "IQuery")) {
+            return "🔵 Query";
+        }
         return "⚪ Generic IRequest";
     }
 
     private boolean implementsInterface(Class<?> clazz, String interfaceNamePart) {
         for (Class<?> iface : clazz.getInterfaces()) {
-            if (iface.getSimpleName().contains(interfaceNamePart)) return true;
+            if (iface.getSimpleName().contains(interfaceNamePart)) {
+                return true;
+            }
         }
         if (clazz.getSuperclass() != null) {
             return implementsInterface(clazz.getSuperclass(), interfaceNamePart);

@@ -24,7 +24,8 @@ public class NotificationDiscoveryPostProcessor implements BeanPostProcessor {
     private final NotificationRegistry notificationRegistry;
     private final ApplicationContext applicationContext;
 
-    public NotificationDiscoveryPostProcessor(NotificationRegistry notificationRegistry, ApplicationContext applicationContext) {
+    public NotificationDiscoveryPostProcessor(NotificationRegistry notificationRegistry,
+                                              ApplicationContext applicationContext) {
         this.notificationRegistry = Objects.requireNonNull(notificationRegistry, "notificationRegistry");
         this.applicationContext = Objects.requireNonNull(applicationContext, "applicationContext");
     }
@@ -38,7 +39,12 @@ public class NotificationDiscoveryPostProcessor implements BeanPostProcessor {
             try {
                 discoverAndRegisterNotificationHandler(bean, targetClass);
             } catch (Exception e) {
-                logger.error("Error while processing notification handler {}: {}", targetClass.getName(), e.getMessage(), e);
+                logger.error(
+                        "Error while processing notification handler {}: {}",
+                        targetClass.getName(),
+                        e.getMessage(),
+                        e
+                );
             }
         }
 
@@ -74,19 +80,32 @@ public class NotificationDiscoveryPostProcessor implements BeanPostProcessor {
                 if (typeArguments.length >= 1 && typeArguments[0] instanceof Class<?> notificationType) {
                     if (!notificationType.isInterface() && !Modifier.isAbstract(notificationType.getModifiers())) {
                         notificationRegistry.registerHandler(notificationType, bean);
-                        logger.info("Notification handler registered: {} -> {}", notificationType.getSimpleName(), beanClass.getSimpleName());
+                        logger.info(
+                                "Notification handler registered: {} -> {}",
+                                notificationType.getSimpleName(),
+                                beanClass.getSimpleName()
+                        );
                         registered = true;
                     } else {
-                        logger.warn("Notification handler discovered but not registered (non-concrete type): {}", beanClass.getSimpleName());
+                        logger.warn(
+                                "Notification handler discovered but not registered (non-concrete type): {}",
+                                beanClass.getSimpleName()
+                        );
                     }
                 } else if (typeArguments.length >= 1 && typeArguments[0] instanceof TypeVariable<?>) {
-                    logger.warn("Notification handler discovered but not registered (unresolved generic type): {}", beanClass.getSimpleName());
+                    logger.warn(
+                            "Notification handler discovered but not registered (unresolved generic type): {}",
+                            beanClass.getSimpleName()
+                    );
                 }
             }
         }
 
         if (!registered) {
-            logger.warn("Notification handler discovered but not registered (unresolved type): {}", beanClass.getSimpleName());
+            logger.warn(
+                    "Notification handler discovered but not registered (unresolved type): {}",
+                    beanClass.getSimpleName()
+            );
         }
     }
 }

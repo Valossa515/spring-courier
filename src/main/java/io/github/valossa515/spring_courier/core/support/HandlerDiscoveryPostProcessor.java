@@ -94,7 +94,11 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
                             && m.getParameterCount() == 1
                             && m.getReturnType() != Void.TYPE);
         } catch (SecurityException e) {
-            logger.warn("Security error while analyzing interface {}: {}", interfaceType.getSimpleName(), e.getMessage());
+            logger.warn(
+                    "Security error while analyzing interface {}: {}",
+                    interfaceType.getSimpleName(),
+                    e.getMessage()
+            );
             return false;
         }
     }

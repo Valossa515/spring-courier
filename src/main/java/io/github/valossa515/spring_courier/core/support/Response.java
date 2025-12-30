@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.http.ResponseEntity;
 
 import java.util.Objects;
+
 /**
  * Immutable value object that represents the result of an operation, including
  * optional data, an error message, the success flag, and an HTTP status code.
@@ -142,8 +143,12 @@ public class Response<T> {
     // equals, hashCode, and toString for easier debugging
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         Response<?> response = (Response<?>) o;
         return success == response.success &&
                 statusCode == response.statusCode &&

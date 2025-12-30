@@ -53,8 +53,9 @@ public class CourierAutoConfiguration {
     }
 
     @Bean
-    public NotificationDiscoveryPostProcessor notificationDiscoveryPostProcessor(NotificationRegistry notificationRegistry,
-                                                                                 ApplicationContext applicationContext) {
+    public NotificationDiscoveryPostProcessor notificationDiscoveryPostProcessor(
+            NotificationRegistry notificationRegistry,
+            ApplicationContext applicationContext) {
         return new NotificationDiscoveryPostProcessor(notificationRegistry, applicationContext);
     }
 
