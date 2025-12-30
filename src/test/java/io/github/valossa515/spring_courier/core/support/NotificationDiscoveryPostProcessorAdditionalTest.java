@@ -38,6 +38,22 @@ class NotificationDiscoveryPostProcessorAdditionalTest {
         verify(registry, never()).registerHandler(any(), any());
     }
 
+    @Test
+    void handlesRegistrationErrorsGracefully() {
+        NotificationRegistry registry = mock(NotificationRegistry.class);
+        ApplicationContext ctx = mock(ApplicationContext.class);
+        NotificationDiscoveryPostProcessor pp = new NotificationDiscoveryPostProcessor(registry, ctx);
+
+        TestNotificationHandler bean = new TestNotificationHandler();
+        doThrow(new RuntimeException("boom"))
+                .when(registry)
+                .registerHandler(TestNotification.class, bean);
+
+        pp.postProcessAfterInitialization(bean, "explodingHandler");
+
+        verify(registry).registerHandler(TestNotification.class, bean);
+    }
+
     static class TestNotification implements INotification {}
 
     static class TestNotificationHandler implements NotificationHandler<TestNotification> {
