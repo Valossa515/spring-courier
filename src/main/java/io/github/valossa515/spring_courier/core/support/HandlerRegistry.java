@@ -17,10 +17,10 @@ public class HandlerRegistry {
 
     public void registerHandler(Class<?> requestType, Object handler) {
         if (handlers.containsKey(requestType)) {
-            logger.warn("Substituindo handler existente para request type: {}", requestType.getSimpleName());
+            logger.warn("Replacing existing handler for request type: {}", requestType.getSimpleName());
         }
         handlers.put(requestType, handler);
-        logger.debug("Handler registered para: {}", requestType.getSimpleName());
+        logger.debug("Handler registered for: {}", requestType.getSimpleName());
     }
 
     public <T> Object getHandler(Class<T> requestType) {
@@ -30,7 +30,7 @@ public class HandlerRegistry {
             logger.error(errorMsg);
             throw new HandlerNotFoundException(errorMsg);
         }
-        logger.debug("Handler encontrado para: {}", requestType.getSimpleName());
+        logger.debug("Handler found for: {}", requestType.getSimpleName());
         return handler;
     }
 

@@ -28,7 +28,7 @@ public class ValidationBehavior<T extends IRequest<R>, R>
 
     @Override
     public R handle(T request, Next<R> next) {
-        logger.debug("Validando request: {}", request.getClass().getSimpleName());
+        logger.debug("Validating request: {}", request.getClass().getSimpleName());
 
         List<ValidationError> errors = new ArrayList<>();
 
@@ -39,14 +39,14 @@ public class ValidationBehavior<T extends IRequest<R>, R>
                     errors.addAll(result.getErrors());
                 }
             } catch (Exception e) {
-                logger.error("Erro durante validação: {}", e.getMessage(), e);
+                logger.error("Error during validation: {}", e.getMessage(), e);
                 errors.add(new ValidationError("validation_error",
-                        "Erro interno durante validação: " + e.getMessage()));
+                        "Internal error during validation: " + e.getMessage()));
             }
         }
 
         if (!errors.isEmpty()) {
-            logger.warn("Validação falhou para {}: {} erros encontrados",
+            logger.warn("Validation failed for {}: {} errors found",
                     request.getClass().getSimpleName(), errors.size());
             return createValidationErrorResponse(errors);
         }
@@ -56,7 +56,7 @@ public class ValidationBehavior<T extends IRequest<R>, R>
 
     @SuppressWarnings("unchecked")
     private R createValidationErrorResponse(List<ValidationError> errors) {
-        StringBuilder errorMessage = new StringBuilder("Erros de validação: ");
+        StringBuilder errorMessage = new StringBuilder("Validation erros: ");
         for (ValidationError error : errors) {
             errorMessage.append(error.field())
                     .append(": ")

@@ -35,7 +35,7 @@ public class PipelineExecutor {
             HandlerInvoker<R, S> handlerInvoker) {
 
         String type = detectRequestCategory(request);
-        logger.debug("Executando pipeline para {}: {}", type, request.getClass().getSimpleName());
+        logger.debug("Executing pipeline for {}: {}", type, request.getClass().getSimpleName());
 
         List<PipelineBehavior<R, S>> behaviors =
                 pipelineRegistry.getBehaviors((Class<R>) request.getClass());

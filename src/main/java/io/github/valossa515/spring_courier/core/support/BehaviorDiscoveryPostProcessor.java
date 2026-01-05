@@ -49,7 +49,7 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
             logger.info("✅ Pipeline behavior registration: {} -> {}",
                     requestType.getSimpleName(), behaviorClass.getSimpleName());
         } else {
-            logger.warn("⚠️ Não foi possível determinar o tipo de request para behavior: {}",
+            logger.warn("⚠️ It was not possible to determine the request type for behavior: {}",
                     behaviorClass.getSimpleName());
         }
     }
