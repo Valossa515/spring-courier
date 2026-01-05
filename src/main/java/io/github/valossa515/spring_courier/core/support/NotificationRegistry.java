@@ -25,7 +25,7 @@ public class NotificationRegistry {
      */
     public void registerHandler(Class<?> notificationType, Object handler) {
         handlers.computeIfAbsent(notificationType, k -> new ArrayList<>()).add(handler);
-        logger.debug("Notification handler registered para: {}", notificationType.getSimpleName());
+        logger.debug("Notification handler registered for: {}", notificationType.getSimpleName());
     }
 
     /**

@@ -72,32 +72,15 @@ public class NotificationDiscoveryPostProcessor implements BeanPostProcessor {
         boolean registered = false;
 
         for (Type genericInterface : beanClass.getGenericInterfaces()) {
-            if (genericInterface instanceof ParameterizedType parameterizedType
-                    && parameterizedType.getRawType() instanceof Class<?> rawClass
-                    && NotificationHandler.class.isAssignableFrom(rawClass)) {
+            if (!isNotificationHandlerParameterizedInterface(genericInterface)) {
+                continue;
+            }
 
-                Type[] typeArguments = parameterizedType.getActualTypeArguments();
-                if (typeArguments.length >= 1 && typeArguments[0] instanceof Class<?> notificationType) {
-                    if (!notificationType.isInterface() && !Modifier.isAbstract(notificationType.getModifiers())) {
-                        notificationRegistry.registerHandler(notificationType, bean);
-                        logger.info(
-                                "Notification handler registered: {} -> {}",
-                                notificationType.getSimpleName(),
-                                beanClass.getSimpleName()
-                        );
-                        registered = true;
-                    } else {
-                        logger.warn(
-                                "Notification handler discovered but not registered (non-concrete type): {}",
-                                beanClass.getSimpleName()
-                        );
-                    }
-                } else if (typeArguments.length >= 1 && typeArguments[0] instanceof TypeVariable<?>) {
-                    logger.warn(
-                            "Notification handler discovered but not registered (unresolved generic type): {}",
-                            beanClass.getSimpleName()
-                    );
-                }
+            ParameterizedType parameterizedType = (ParameterizedType) genericInterface;
+            Type notificationArg = parameterizedType.getActualTypeArguments()[0];
+
+            if (tryRegisterConcreteNotification(bean, beanClass, notificationArg)) {
+                registered = true;
             }
         }
 
@@ -107,5 +90,50 @@ public class NotificationDiscoveryPostProcessor implements BeanPostProcessor {
                     beanClass.getSimpleName()
             );
         }
+    }
+
+    private boolean isNotificationHandlerParameterizedInterface(Type genericInterface) {
+        if (!(genericInterface instanceof ParameterizedType parameterizedType)) {
+            return false;
+        }
+        if (!(parameterizedType.getRawType() instanceof Class<?> rawClass)) {
+            return false;
+        }
+        return NotificationHandler.class.isAssignableFrom(rawClass)
+                && parameterizedType.getActualTypeArguments().length >= 1;
+    }
+
+    private boolean tryRegisterConcreteNotification(Object bean, Class<?> beanClass, Type notificationArg) {
+        if (notificationArg instanceof TypeVariable<?>) {
+            logger.warn(
+                    "Notification handler discovered but not registered (unresolved generic type): {}",
+                    beanClass.getSimpleName()
+            );
+            return false;
+        }
+
+        if (!(notificationArg instanceof Class<?> notificationType)) {
+            return false;
+        }
+
+        if (!isConcrete(notificationType)) {
+            logger.warn(
+                    "Notification handler discovered but not registered (non-concrete type): {}",
+                    beanClass.getSimpleName()
+            );
+            return false;
+        }
+
+        notificationRegistry.registerHandler(notificationType, bean);
+        logger.info(
+                "Notification handler registered: {} -> {}",
+                notificationType.getSimpleName(),
+                beanClass.getSimpleName()
+        );
+        return true;
+    }
+
+    private boolean isConcrete(Class<?> type) {
+        return !type.isInterface() && !Modifier.isAbstract(type.getModifiers());
     }
 }

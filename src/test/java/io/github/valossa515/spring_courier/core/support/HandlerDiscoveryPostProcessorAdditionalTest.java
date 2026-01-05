@@ -3,6 +3,7 @@ package io.github.valossa515.spring_courier.core.support;
 import io.github.valossa515.spring_courier.annotations.ExposeHandler;
 import io.github.valossa515.spring_courier.core.interfaces.CommandHandler;
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationContext;
@@ -70,15 +71,20 @@ class HandlerDiscoveryPostProcessorAdditionalTest {
         HandlerDiscoveryPostProcessor pp = new HandlerDiscoveryPostProcessor(registry, ctx);
 
         SecurityManager original = System.getSecurityManager();
-        System.setSecurityManager(new SecurityManager() {
-            @Override
-            public void checkPermission(Permission perm) {
-                if (perm instanceof RuntimePermission
-                        && "accessDeclaredMembers".equals(perm.getName())) {
-                    throw new SecurityException("denied");
+        try {
+            System.setSecurityManager(new SecurityManager() {
+                @Override
+                public void checkPermission(Permission perm) {
+                    if (perm instanceof RuntimePermission
+                            && "accessDeclaredMembers".equals(perm.getName())) {
+                        throw new SecurityException("denied");
+                    }
                 }
-            }
-        });
+            });
+        } catch (UnsupportedOperationException ex) {
+            Assumptions.abort("Security manager not supported on this JVM");
+            return;
+        }
 
         try {
             Method method = HandlerDiscoveryPostProcessor.class
