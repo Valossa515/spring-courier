@@ -32,7 +32,7 @@ Ela fornece uma infraestrutura para desacoplar comandos, consultas e eventos —
 
 ## ⚙️ Instalação
 
-Adicione a dependência no seu `pom.xml`:
+Adicione a dependência no seu `pom.xml` ou `build.gradle`:
 
 ```xml
 <dependency>
@@ -42,7 +42,11 @@ Adicione a dependência no seu `pom.xml`:
 </dependency>
 ```
 
-> 🔧 É necessário ter o **Java 17+** e **Spring Boot 3.x**.
+```groovy
+implementation("io.github.valossa515:spring-courier:0.0.8")
+```
+
+> 🔧 É necessário ter o **Java 17+** e **Spring Boot 3.x+**.
 
 ---
 
