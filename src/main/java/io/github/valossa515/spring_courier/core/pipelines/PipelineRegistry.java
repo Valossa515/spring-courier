@@ -12,12 +12,13 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class PipelineRegistry {
     private final Map<Class<?>, List<PipelineBehavior<?, ?>>> behaviorRegistry = new ConcurrentHashMap<>();
 
     public void registerBehavior(Class<?> requestType, PipelineBehavior<?, ?> behavior) {
-        behaviorRegistry.computeIfAbsent(requestType, k -> new ArrayList<>()).add(behavior);
+        behaviorRegistry.computeIfAbsent(requestType, k -> new CopyOnWriteArrayList<>()).add(behavior);
         // Reorder behaviors whenever a new one is added
         sortBehaviors(requestType);
     }

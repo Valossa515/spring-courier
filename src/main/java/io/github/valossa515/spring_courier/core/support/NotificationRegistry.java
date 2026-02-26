@@ -3,10 +3,11 @@ package io.github.valossa515.spring_courier.core.support;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Thread-safe registry that maps notification types to their handlers.
@@ -24,7 +25,7 @@ public class NotificationRegistry {
      * @param handler          the handler instance
      */
     public void registerHandler(Class<?> notificationType, Object handler) {
-        handlers.computeIfAbsent(notificationType, k -> new ArrayList<>()).add(handler);
+        handlers.computeIfAbsent(notificationType, k -> new CopyOnWriteArrayList<>()).add(handler);
         logger.debug("Notification handler registered for: {}", notificationType.getSimpleName());
     }
 
@@ -35,7 +36,7 @@ public class NotificationRegistry {
      * @return list of handlers (maybe empty)
      */
     public List<Object> getHandlers(Class<?> notificationType) {
-        return new ArrayList<>(handlers.getOrDefault(notificationType, new ArrayList<>()));
+        return Collections.unmodifiableList(handlers.getOrDefault(notificationType, Collections.emptyList()));
     }
 
     /**

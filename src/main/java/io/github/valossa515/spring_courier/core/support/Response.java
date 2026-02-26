@@ -72,7 +72,8 @@ public class Response<T> {
      */
     @Contract("_ -> new")
     public static <T> @NotNull Response<T> error(@NotNull Throwable throwable) {
-        return new Response<>(null, throwable.getMessage(), false, 500);
+        String message = throwable.getMessage() != null ? throwable.getMessage() : throwable.getClass().getName();
+        return new Response<>(null, message, false, 500);
     }
 
     /**
@@ -80,7 +81,8 @@ public class Response<T> {
      */
     @Contract("_, _ -> new")
     public static <T> @NotNull Response<T> error(@NotNull Throwable throwable, int statusCode) {
-        return new Response<>(null, throwable.getMessage(), false, statusCode);
+        String message = throwable.getMessage() != null ? throwable.getMessage() : throwable.getClass().getName();
+        return new Response<>(null, message, false, statusCode);
     }
 
     // Getters
@@ -126,13 +128,14 @@ public class Response<T> {
     }
 
     /**
-     * Throws the provided specific exception when the response represents an error.
+     * Returns the data if successful, or throws the provided exception when the response represents an error.
      */
     @JsonIgnore
-    public void getDataOrThrow(ResponseException exception) {
+    public T getDataOrThrow(ResponseException exception) {
         if (!success) {
             throw exception;
         }
+        return data;
     }
 
     @JsonIgnore

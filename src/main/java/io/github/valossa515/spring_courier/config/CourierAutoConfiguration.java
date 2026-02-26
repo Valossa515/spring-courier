@@ -8,6 +8,7 @@ import io.github.valossa515.spring_courier.core.support.HandlerDiscoveryPostProc
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.NotificationDiscoveryPostProcessor;
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,26 +21,31 @@ import org.springframework.context.annotation.Configuration;
 public class CourierAutoConfiguration {
 
     @Bean
+    @ConditionalOnMissingBean
     public HandlerRegistry handlerRegistry() {
         return new HandlerRegistry();
     }
 
     @Bean
+    @ConditionalOnMissingBean
     public NotificationRegistry notificationRegistry() {
         return new NotificationRegistry();
     }
 
     @Bean
+    @ConditionalOnMissingBean
     public PipelineRegistry pipelineRegistry() {
         return new PipelineRegistry();
     }
 
     @Bean
+    @ConditionalOnMissingBean
     public PipelineExecutor pipelineExecutor(PipelineRegistry pipelineRegistry) {
         return new PipelineExecutor(pipelineRegistry);
     }
 
     @Bean
+    @ConditionalOnMissingBean
     public Courier courier(HandlerRegistry handlerRegistry,
                            NotificationRegistry notificationRegistry,
                            PipelineExecutor pipelineExecutor) {
@@ -47,12 +53,14 @@ public class CourierAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean
     public HandlerDiscoveryPostProcessor handlerDiscoveryPostProcessor(HandlerRegistry handlerRegistry,
                                                                        ApplicationContext applicationContext) {
         return new HandlerDiscoveryPostProcessor(handlerRegistry, applicationContext);
     }
 
     @Bean
+    @ConditionalOnMissingBean
     public NotificationDiscoveryPostProcessor notificationDiscoveryPostProcessor(
             NotificationRegistry notificationRegistry,
             ApplicationContext applicationContext) {
@@ -60,6 +68,7 @@ public class CourierAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean
     public BehaviorDiscoveryPostProcessor behaviorDiscoveryPostProcessor(PipelineRegistry pipelineRegistry) {
         return new BehaviorDiscoveryPostProcessor(pipelineRegistry);
     }

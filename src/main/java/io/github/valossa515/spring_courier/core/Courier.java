@@ -14,7 +14,11 @@ import org.springframework.stereotype.Component;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Dispatches requests through the CQRS pipeline, invoking synchronous or
@@ -24,16 +28,18 @@ import java.util.concurrent.CompletableFuture;
 @Component
 public class Courier {
     private static final Logger logger = LoggerFactory.getLogger(Courier.class);
-    final HandlerRegistry handlerRegistry;
+    private final HandlerRegistry handlerRegistry;
     private final NotificationRegistry notificationRegistry;
     private final PipelineExecutor pipelineExecutor;
+    private final Map<Class<?>, Method> handleOrExecuteMethodCache = new ConcurrentHashMap<>();
+    private final Map<Class<?>, Method> handleMethodCache = new ConcurrentHashMap<>();
 
     public Courier(@NotNull HandlerRegistry handlerRegistry,
                    @NotNull NotificationRegistry notificationRegistry,
                    @NotNull PipelineExecutor pipelineExecutor) {
-        this.handlerRegistry = handlerRegistry;
-        this.notificationRegistry = notificationRegistry;
-        this.pipelineExecutor = pipelineExecutor;
+        this.handlerRegistry = Objects.requireNonNull(handlerRegistry, "handlerRegistry must not be null");
+        this.notificationRegistry = Objects.requireNonNull(notificationRegistry, "notificationRegistry must not be null");
+        this.pipelineExecutor = Objects.requireNonNull(pipelineExecutor, "pipelineExecutor must not be null");
         logger.info("Courier initialized with {} registered handlers", handlerRegistry.getHandlerCount());
     }
 
@@ -61,8 +67,8 @@ public class Courier {
     @SuppressWarnings("unchecked")
     private <R> Response<R> invokeHandler(Object handler, IRequest<R> request) {
         try {
-            Method method = findHandleOrExecuteMethod(handler.getClass());
-            long start = System.currentTimeMillis();
+            Method method = resolveHandleOrExecuteMethod(handler.getClass());
+            long startNanos = System.nanoTime();
 
             Object result = method.invoke(handler, request);
 
@@ -70,8 +76,8 @@ public class Courier {
                 result = future.join();
             }
 
-            long duration = System.currentTimeMillis() - start;
-            logger.debug("Handler executed in {}ms: {} -> {}", duration,
+            long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+            logger.debug("Handler executed in {}ms: {} -> {}", durationMs,
                     request.getClass().getSimpleName(), handler.getClass().getSimpleName());
 
             if (result == null) {
@@ -94,6 +100,10 @@ public class Courier {
             logger.error("Failed to invoke handler: {}", e.getMessage(), e);
             return Response.error(e);
         }
+    }
+
+    private Method resolveHandleOrExecuteMethod(Class<?> handlerClass) {
+        return handleOrExecuteMethodCache.computeIfAbsent(handlerClass, this::findHandleOrExecuteMethod);
     }
 
     @SuppressWarnings("java:S3011")
@@ -126,7 +136,7 @@ public class Courier {
 
         for (Object handler : handlers) {
             try {
-                Method method = findHandleMethod(handler.getClass());
+                Method method = resolveHandleMethod(handler.getClass());
                 method.invoke(handler, notification);
                 logger.debug("Notification handler executed: {} -> {}",
                         notification.getClass().getSimpleName(), handler.getClass().getSimpleName());
@@ -145,6 +155,10 @@ public class Courier {
      */
     public CompletableFuture<Void> publishAsync(@NotNull INotification notification) {
         return CompletableFuture.runAsync(() -> publish(notification));
+    }
+
+    private Method resolveHandleMethod(Class<?> handlerClass) {
+        return handleMethodCache.computeIfAbsent(handlerClass, this::findHandleMethod);
     }
 
     @SuppressWarnings("java:S3011")
