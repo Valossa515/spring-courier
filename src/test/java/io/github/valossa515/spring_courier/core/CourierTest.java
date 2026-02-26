@@ -53,27 +53,23 @@ class CourierTest {
 
     @Test
     void sendInvokesHandlerDirectlyWhenUsingRealComponents() {
-        HandlerRegistry realRegistry = new HandlerRegistry();
-        PipelineExecutor realExecutor = new PipelineExecutor(new PipelineRegistry());
-        Courier realCourier = new Courier(realRegistry, new io.github.valossa515.spring_courier.core.support.NotificationRegistry(), realExecutor);
+        CourierTestFixture fixture = CourierTestFixture.create();
 
         RealRequest request = new RealRequest();
-        realRegistry.registerHandler(RealRequest.class, new RealHandler());
+        fixture.handlerRegistry().registerHandler(RealRequest.class, new RealHandler());
 
-        var response = realCourier.send(request);
+        var response = fixture.courier().send(request);
 
         assertEquals("real-response", response.getData());
     }
 
     @Test
     void sendReturnsErrorResponseWhenHandlerLacksHandleMethod() {
-        HandlerRegistry realRegistry = new HandlerRegistry();
-        PipelineExecutor realExecutor = new PipelineExecutor(new PipelineRegistry());
-        Courier realCourier = new Courier(realRegistry, new io.github.valossa515.spring_courier.core.support.NotificationRegistry(), realExecutor);
+        CourierTestFixture fixture = CourierTestFixture.create();
 
-        realRegistry.registerHandler(SampleRequest.class, new Object());
+        fixture.handlerRegistry().registerHandler(SampleRequest.class, new Object());
 
-        var response = realCourier.send(new SampleRequest());
+        var response = fixture.courier().send(new SampleRequest());
 
         assertFalse(response.isSuccess());
         assertTrue(response.getError().contains("No handle method"));
@@ -81,13 +77,11 @@ class CourierTest {
 
     @Test
     void sendReturnsErrorResponseWhenHandlerThrowsException() {
-        HandlerRegistry realRegistry = new HandlerRegistry();
-        PipelineExecutor realExecutor = new PipelineExecutor(new PipelineRegistry());
-        Courier realCourier = new Courier(realRegistry, new io.github.valossa515.spring_courier.core.support.NotificationRegistry(), realExecutor);
+        CourierTestFixture fixture = CourierTestFixture.create();
 
-        realRegistry.registerHandler(RealRequest.class, new FailingHandler());
+        fixture.handlerRegistry().registerHandler(RealRequest.class, new FailingHandler());
 
-        var response = realCourier.send(new RealRequest());
+        var response = fixture.courier().send(new RealRequest());
 
         assertFalse(response.isSuccess());
         assertTrue(response.getError().contains("boom"));

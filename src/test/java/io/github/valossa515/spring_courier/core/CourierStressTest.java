@@ -1,9 +1,6 @@
 package io.github.valossa515.spring_courier.core;
 
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
-import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
-import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
-import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,16 +20,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CourierStressTest {
 
-    private Courier courier;
+    private CourierTestFixture fixture;
     private CountingStressHandler handler;
 
     @BeforeEach
     void setUp() {
-        HandlerRegistry handlerRegistry = new HandlerRegistry();
-        PipelineExecutor pipelineExecutor = new PipelineExecutor(new PipelineRegistry());
-        courier = new Courier(handlerRegistry, new io.github.valossa515.spring_courier.core.support.NotificationRegistry(), pipelineExecutor);
+        fixture = CourierTestFixture.create();
         handler = new CountingStressHandler();
-        handlerRegistry.registerHandler(StressRequest.class, handler);
+        fixture.handlerRegistry().registerHandler(StressRequest.class, handler);
     }
 
     @Test
@@ -41,7 +36,7 @@ class CourierStressTest {
 
         IntStream.range(0, totalRequests)
                 .mapToObj(StressRequest::new)
-                .map(courier::send)
+                .map(fixture.courier()::send)
                 .forEach(response -> {
                     assertTrue(response.isSuccess());
                     assertTrue(response.getData().startsWith("ok-"));
@@ -57,7 +52,7 @@ class CourierStressTest {
         ExecutorService executor = Executors.newFixedThreadPool(16);
 
         List<Callable<Response<String>>> tasks = IntStream.range(0, totalRequests)
-                .mapToObj(id -> (Callable<Response<String>>) () -> courier.send(new StressRequest(id)))
+                .mapToObj(id -> (Callable<Response<String>>) () -> fixture.courier().send(new StressRequest(id)))
                 .toList();
 
         List<Future<Response<String>>> futures = executor.invokeAll(tasks);

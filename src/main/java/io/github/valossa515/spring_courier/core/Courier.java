@@ -28,28 +28,48 @@ import java.util.concurrent.TimeoutException;
 public class Courier {
     private static final Logger logger = LoggerFactory.getLogger(Courier.class);
     private static final long DEFAULT_ASYNC_TIMEOUT_MS = 30_000;
-    private static final ConcurrentHashMap<Class<?>, Method> METHOD_CACHE = new ConcurrentHashMap<>();
+
+    /**
+     * Cache for request handler methods (accepts "handle" or "execute").
+     */
+    private static final ConcurrentHashMap<Class<?>, Method> REQUEST_METHOD_CACHE = new ConcurrentHashMap<>();
+
+    /**
+     * Cache for notification handler methods (accepts only "handle").
+     */
+    private static final ConcurrentHashMap<Class<?>, Method> NOTIFICATION_METHOD_CACHE = new ConcurrentHashMap<>();
 
     private final HandlerRegistry handlerRegistry;
     private final NotificationRegistry notificationRegistry;
     private final PipelineExecutor pipelineExecutor;
     private final Executor asyncExecutor;
+    private final long asyncTimeoutMs;
 
     public Courier(@NotNull HandlerRegistry handlerRegistry,
                    @NotNull NotificationRegistry notificationRegistry,
                    @NotNull PipelineExecutor pipelineExecutor) {
-        this(handlerRegistry, notificationRegistry, pipelineExecutor, null);
+        this(handlerRegistry, notificationRegistry, pipelineExecutor, null, DEFAULT_ASYNC_TIMEOUT_MS);
     }
 
     public Courier(@NotNull HandlerRegistry handlerRegistry,
                    @NotNull NotificationRegistry notificationRegistry,
                    @NotNull PipelineExecutor pipelineExecutor,
                    Executor asyncExecutor) {
+        this(handlerRegistry, notificationRegistry, pipelineExecutor, asyncExecutor, DEFAULT_ASYNC_TIMEOUT_MS);
+    }
+
+    public Courier(@NotNull HandlerRegistry handlerRegistry,
+                   @NotNull NotificationRegistry notificationRegistry,
+                   @NotNull PipelineExecutor pipelineExecutor,
+                   Executor asyncExecutor,
+                   long asyncTimeoutMs) {
         this.handlerRegistry = Objects.requireNonNull(handlerRegistry, "handlerRegistry must not be null");
         this.notificationRegistry = Objects.requireNonNull(notificationRegistry, "notificationRegistry must not be null");
         this.pipelineExecutor = Objects.requireNonNull(pipelineExecutor, "pipelineExecutor must not be null");
         this.asyncExecutor = asyncExecutor;
-        logger.info("Courier initialized with {} registered handlers", handlerRegistry.getHandlerCount());
+        this.asyncTimeoutMs = asyncTimeoutMs > 0 ? asyncTimeoutMs : DEFAULT_ASYNC_TIMEOUT_MS;
+        logger.info("Courier initialized with {} registered handlers (asyncTimeoutMs={})",
+                handlerRegistry.getHandlerCount(), this.asyncTimeoutMs);
     }
 
     /**
@@ -83,11 +103,11 @@ public class Courier {
 
             if (result instanceof CompletableFuture<?> future) {
                 try {
-                    result = future.get(DEFAULT_ASYNC_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+                    result = future.get(asyncTimeoutMs, TimeUnit.MILLISECONDS);
                 } catch (TimeoutException e) {
-                    logger.error("Handler timed out after {}ms: {}", DEFAULT_ASYNC_TIMEOUT_MS,
+                    logger.error("Handler timed out after {}ms: {}", asyncTimeoutMs,
                             handler.getClass().getSimpleName());
-                    return Response.error("Handler timed out after " + DEFAULT_ASYNC_TIMEOUT_MS + "ms", 504);
+                    return Response.error("Handler timed out after " + asyncTimeoutMs + "ms", 504);
                 }
             }
 
@@ -128,7 +148,7 @@ public class Courier {
      */
     @SuppressWarnings("java:S3011")
     private @NotNull Method getCachedMethod(@NotNull Class<?> handlerClass) {
-        return METHOD_CACHE.computeIfAbsent(handlerClass, clazz -> {
+        return REQUEST_METHOD_CACHE.computeIfAbsent(handlerClass, clazz -> {
             for (Method method : clazz.getMethods()) {
                 if ((method.getName().equals("handle") || method.getName().equals("execute"))
                         && method.getParameterCount() == 1) {
@@ -142,9 +162,17 @@ public class Courier {
 
     /**
      * Publishes a notification to all registered handlers.
-     * All handlers will be invoked, and any exceptions will be logged but not propagated.
+     *
+     * <p><strong>Execution model:</strong> handlers are invoked <em>sequentially</em>
+     * in the order they were registered. If a handler throws an exception,
+     * it will be logged at {@code ERROR} level but <strong>not propagated</strong>,
+     * so subsequent handlers are still executed.
+     *
+     * <p>If no handler is registered for the given notification type, a {@code WARN}
+     * message is logged and the method returns immediately.
      *
      * @param notification the notification to publish
+     * @see #publishAsync(INotification) for non-blocking variant
      */
     public void publish(@NotNull INotification notification) {
         logger.debug("Publishing notification: {}", notification.getClass().getSimpleName());
@@ -184,7 +212,7 @@ public class Courier {
 
     @SuppressWarnings("java:S3011")
     private @NotNull Method getCachedHandleMethod(@NotNull Class<?> handlerClass) {
-        return METHOD_CACHE.computeIfAbsent(handlerClass, clazz -> {
+        return NOTIFICATION_METHOD_CACHE.computeIfAbsent(handlerClass, clazz -> {
             for (Method method : clazz.getMethods()) {
                 if (method.getName().equals("handle") && method.getParameterCount() == 1) {
                     method.setAccessible(true);

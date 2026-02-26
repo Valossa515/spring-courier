@@ -37,5 +37,36 @@ class ValidationBehaviorTest {
         assertTrue(result.getError().contains("validator failed"));
     }
 
+    @Test
+    void proceedsToNextWhenNoValidationErrors() {
+        Validator<TestCommand> validator = request -> ValidationResult.success();
+        ValidationBehavior<TestCommand, Response<String>> behavior = new ValidationBehavior<>(List.of(validator));
+
+        Response<String> result = behavior.handle(new TestCommand("value"), () -> Response.success("ok"));
+
+        assertTrue(result.isSuccess());
+        assertEquals("ok", result.getData());
+    }
+
+    @Test
+    void proceedsToNextWhenValidatorsListIsNull() {
+        ValidationBehavior<TestCommand, Response<String>> behavior = new ValidationBehavior<>(null);
+
+        Response<String> result = behavior.handle(new TestCommand("value"), () -> Response.success("ok"));
+
+        assertTrue(result.isSuccess());
+        assertEquals("ok", result.getData());
+    }
+
+    @Test
+    void proceedsToNextWhenValidatorsListIsEmpty() {
+        ValidationBehavior<TestCommand, Response<String>> behavior = new ValidationBehavior<>(List.of());
+
+        Response<String> result = behavior.handle(new TestCommand("value"), () -> Response.success("ok"));
+
+        assertTrue(result.isSuccess());
+        assertEquals("ok", result.getData());
+    }
+
     private record TestCommand(String value) implements ICommand<Response<String>> { }
 }
