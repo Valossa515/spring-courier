@@ -15,8 +15,9 @@ class CourierInvokeTest {
 
     @Test
     void returnsErrorWhenHandlerMethodMissing() {
-        Courier courier = new Courier(new HandlerRegistry(), new NotificationRegistry(), new PipelineExecutor(new PipelineRegistry()));
-        courier.handlerRegistry.registerHandler(DummyRequest.class, new Object());
+        HandlerRegistry registry = new HandlerRegistry();
+        Courier courier = new Courier(registry, new NotificationRegistry(), new PipelineExecutor(new PipelineRegistry()));
+        registry.registerHandler(DummyRequest.class, new Object());
 
         var response = courier.send(new DummyRequest());
 
@@ -39,7 +40,7 @@ class CourierInvokeTest {
     @Test
     void wrapsRuntimeExceptionInReflectionSetup() throws Exception {
         Courier courier = new Courier(new HandlerRegistry(), new NotificationRegistry(), new PipelineExecutor(new PipelineRegistry()));
-        var method = Courier.class.getDeclaredMethod("findHandleOrExecuteMethod", Class.class);
+        var method = Courier.class.getDeclaredMethod("getCachedMethod", Class.class);
         method.setAccessible(true);
 
         InvocationTargetException thrown = assertThrows(InvocationTargetException.class,

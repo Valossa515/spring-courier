@@ -9,31 +9,46 @@ import io.github.valossa515.spring_courier.core.support.Response;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Dispatches requests through the CQRS pipeline, invoking synchronous or
  * asynchronous handlers as needed. Also supports publishing notifications
  * to multiple handlers.
  */
-@Component
 public class Courier {
     private static final Logger logger = LoggerFactory.getLogger(Courier.class);
-    final HandlerRegistry handlerRegistry;
+    private static final long DEFAULT_ASYNC_TIMEOUT_MS = 30_000;
+    private static final ConcurrentHashMap<Class<?>, Method> METHOD_CACHE = new ConcurrentHashMap<>();
+
+    private final HandlerRegistry handlerRegistry;
     private final NotificationRegistry notificationRegistry;
     private final PipelineExecutor pipelineExecutor;
+    private final Executor asyncExecutor;
 
     public Courier(@NotNull HandlerRegistry handlerRegistry,
                    @NotNull NotificationRegistry notificationRegistry,
                    @NotNull PipelineExecutor pipelineExecutor) {
-        this.handlerRegistry = handlerRegistry;
-        this.notificationRegistry = notificationRegistry;
-        this.pipelineExecutor = pipelineExecutor;
+        this(handlerRegistry, notificationRegistry, pipelineExecutor, null);
+    }
+
+    public Courier(@NotNull HandlerRegistry handlerRegistry,
+                   @NotNull NotificationRegistry notificationRegistry,
+                   @NotNull PipelineExecutor pipelineExecutor,
+                   Executor asyncExecutor) {
+        this.handlerRegistry = Objects.requireNonNull(handlerRegistry, "handlerRegistry must not be null");
+        this.notificationRegistry = Objects.requireNonNull(notificationRegistry, "notificationRegistry must not be null");
+        this.pipelineExecutor = Objects.requireNonNull(pipelineExecutor, "pipelineExecutor must not be null");
+        this.asyncExecutor = asyncExecutor;
         logger.info("Courier initialized with {} registered handlers", handlerRegistry.getHandlerCount());
     }
 
@@ -61,17 +76,23 @@ public class Courier {
     @SuppressWarnings("unchecked")
     private <R> Response<R> invokeHandler(Object handler, IRequest<R> request) {
         try {
-            Method method = findHandleOrExecuteMethod(handler.getClass());
-            long start = System.currentTimeMillis();
+            Method method = getCachedMethod(handler.getClass());
+            long start = System.nanoTime();
 
             Object result = method.invoke(handler, request);
 
             if (result instanceof CompletableFuture<?> future) {
-                result = future.join();
+                try {
+                    result = future.get(DEFAULT_ASYNC_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+                } catch (TimeoutException e) {
+                    logger.error("Handler timed out after {}ms: {}", DEFAULT_ASYNC_TIMEOUT_MS,
+                            handler.getClass().getSimpleName());
+                    return Response.error("Handler timed out after " + DEFAULT_ASYNC_TIMEOUT_MS + "ms", 504);
+                }
             }
 
-            long duration = System.currentTimeMillis() - start;
-            logger.debug("Handler executed in {}ms: {} -> {}", duration,
+            long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+            logger.debug("Handler executed in {}ms: {} -> {}", durationMs,
                     request.getClass().getSimpleName(), handler.getClass().getSimpleName());
 
             if (result == null) {
@@ -90,22 +111,33 @@ public class Courier {
         } catch (RuntimeException e) {
             logger.error("Courier runtime error: {}", e.getMessage(), e);
             return Response.error(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.error("Handler interrupted: {}", e.getMessage(), e);
+            return Response.error(e);
         } catch (Exception e) {
             logger.error("Failed to invoke handler: {}", e.getMessage(), e);
             return Response.error(e);
         }
     }
 
+    /**
+     * Returns a cached Method for the given handler class, resolving and caching
+     * on first access. The method is made accessible once during caching, which
+     * avoids repeated setAccessible calls on concurrent invocations.
+     */
     @SuppressWarnings("java:S3011")
-    private @NotNull Method findHandleOrExecuteMethod(@NotNull Class<?> handlerClass) {
-        for (Method method : handlerClass.getMethods()) {
-            if ((method.getName().equals("handle") || method.getName().equals("execute"))
-                    && method.getParameterCount() == 1) {
-                method.setAccessible(true);
-                return method;
+    private @NotNull Method getCachedMethod(@NotNull Class<?> handlerClass) {
+        return METHOD_CACHE.computeIfAbsent(handlerClass, clazz -> {
+            for (Method method : clazz.getMethods()) {
+                if ((method.getName().equals("handle") || method.getName().equals("execute"))
+                        && method.getParameterCount() == 1) {
+                    method.setAccessible(true);
+                    return method;
+                }
             }
-        }
-        throw new HandlerMethodNotFoundException(handlerClass.getName(), "handle/execute");
+            throw new HandlerMethodNotFoundException(clazz.getName(), "handle/execute");
+        });
     }
 
     /**
@@ -126,7 +158,7 @@ public class Courier {
 
         for (Object handler : handlers) {
             try {
-                Method method = findHandleMethod(handler.getClass());
+                Method method = getCachedHandleMethod(handler.getClass());
                 method.invoke(handler, notification);
                 logger.debug("Notification handler executed: {} -> {}",
                         notification.getClass().getSimpleName(), handler.getClass().getSimpleName());
@@ -144,18 +176,23 @@ public class Courier {
      * @return CompletableFuture that completes when all handlers finish
      */
     public CompletableFuture<Void> publishAsync(@NotNull INotification notification) {
+        if (asyncExecutor != null) {
+            return CompletableFuture.runAsync(() -> publish(notification), asyncExecutor);
+        }
         return CompletableFuture.runAsync(() -> publish(notification));
     }
 
     @SuppressWarnings("java:S3011")
-    private @NotNull Method findHandleMethod(@NotNull Class<?> handlerClass) {
-        for (Method method : handlerClass.getMethods()) {
-            if (method.getName().equals("handle") && method.getParameterCount() == 1) {
-                method.setAccessible(true);
-                return method;
+    private @NotNull Method getCachedHandleMethod(@NotNull Class<?> handlerClass) {
+        return METHOD_CACHE.computeIfAbsent(handlerClass, clazz -> {
+            for (Method method : clazz.getMethods()) {
+                if (method.getName().equals("handle") && method.getParameterCount() == 1) {
+                    method.setAccessible(true);
+                    return method;
+                }
             }
-        }
-        throw new HandlerMethodNotFoundException(handlerClass.getName(), "handle");
+            throw new HandlerMethodNotFoundException(clazz.getName(), "handle");
+        });
     }
 
     /**

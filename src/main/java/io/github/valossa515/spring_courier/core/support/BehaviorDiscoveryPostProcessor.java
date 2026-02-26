@@ -34,7 +34,7 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
                     bean::getClass
             );
 
-            logger.debug("🔍 Pipeline behavior detected: {}", targetClass.getSimpleName());
+            logger.debug("Pipeline behavior detected: {}", targetClass.getSimpleName());
             registerPipelineBehavior(behavior, targetClass);
         }
 
@@ -46,10 +46,10 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
 
         if (requestType != null) {
             pipelineRegistry.registerBehavior(requestType, behavior);
-            logger.info("✅ Pipeline behavior registration: {} -> {}",
+            logger.info("Pipeline behavior registered: {} -> {}",
                     requestType.getSimpleName(), behaviorClass.getSimpleName());
         } else {
-            logger.warn("⚠️ It was not possible to determine the request type for behavior: {}",
+            logger.warn("Could not determine the request type for behavior: {}",
                     behaviorClass.getSimpleName());
         }
     }
