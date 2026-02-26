@@ -12,7 +12,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.task.TaskExecutor;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
@@ -48,8 +47,8 @@ public class CourierAutoConfiguration {
     public Courier courier(HandlerRegistry handlerRegistry,
                            NotificationRegistry notificationRegistry,
                            PipelineExecutor pipelineExecutor,
-                           ObjectProvider<TaskExecutor> taskExecutorProvider) {
-        Executor asyncExecutor = taskExecutorProvider.getIfAvailable(() -> ForkJoinPool.commonPool());
+                           ObjectProvider<Executor> executorProvider) {
+        Executor asyncExecutor = executorProvider.getIfAvailable(ForkJoinPool::commonPool);
         return new Courier(handlerRegistry, notificationRegistry, pipelineExecutor, asyncExecutor);
     }
 
