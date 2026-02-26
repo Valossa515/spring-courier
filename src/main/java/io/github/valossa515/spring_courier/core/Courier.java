@@ -111,6 +111,10 @@ public class Courier {
         } catch (RuntimeException e) {
             logger.error("Courier runtime error: {}", e.getMessage(), e);
             return Response.error(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.error("Handler interrupted: {}", e.getMessage(), e);
+            return Response.error(e);
         } catch (Exception e) {
             logger.error("Failed to invoke handler: {}", e.getMessage(), e);
             return Response.error(e);
