@@ -59,14 +59,12 @@ class HandlerRegistryTest {
     }
 
     @Test
-    void getHandlersReturnsCopyOfInternalMap() {
+    void getHandlersReturnsReadOnlyView() {
         DummyHandler handler = new DummyHandler();
         handlerRegistry.registerHandler(String.class, handler);
 
         Map<Class<?>, Object> exposedHandlers = handlerRegistry.getHandlers();
-        exposedHandlers.clear();
-
-        assertTrue(exposedHandlers.isEmpty(), "Returned map should be modifiable copy");
+        assertThrows(UnsupportedOperationException.class, exposedHandlers::clear);
         assertEquals(1, handlerRegistry.getHandlerCount(), "Internal registry must remain unchanged");
         assertSame(handler, handlerRegistry.getHandler(String.class));
     }

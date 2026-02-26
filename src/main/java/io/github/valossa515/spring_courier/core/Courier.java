@@ -9,12 +9,19 @@ import io.github.valossa515.spring_courier.core.support.Response;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Dispatches requests through the CQRS pipeline, invoking synchronous or
@@ -24,16 +31,36 @@ import java.util.concurrent.CompletableFuture;
 @Component
 public class Courier {
     private static final Logger logger = LoggerFactory.getLogger(Courier.class);
-    final HandlerRegistry handlerRegistry;
+    private static final long HANDLER_TIMEOUT_SECONDS = 30;
+
+    private final HandlerRegistry handlerRegistry;
     private final NotificationRegistry notificationRegistry;
     private final PipelineExecutor pipelineExecutor;
+    private final Executor asyncExecutor;
+    private final ConcurrentMap<Class<?>, Method> handleOrExecuteMethodCache = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Class<?>, Method> handleMethodCache = new ConcurrentHashMap<>();
 
     public Courier(@NotNull HandlerRegistry handlerRegistry,
                    @NotNull NotificationRegistry notificationRegistry,
                    @NotNull PipelineExecutor pipelineExecutor) {
-        this.handlerRegistry = handlerRegistry;
-        this.notificationRegistry = notificationRegistry;
-        this.pipelineExecutor = pipelineExecutor;
+        this(handlerRegistry, notificationRegistry, pipelineExecutor, ForkJoinPool.commonPool());
+    }
+
+    public Courier(@NotNull HandlerRegistry handlerRegistry,
+                   @NotNull NotificationRegistry notificationRegistry,
+                   @NotNull PipelineExecutor pipelineExecutor,
+                   @NotNull TaskExecutor asyncExecutor) {
+        this(handlerRegistry, notificationRegistry, pipelineExecutor, (Executor) asyncExecutor);
+    }
+
+    public Courier(@NotNull HandlerRegistry handlerRegistry,
+                   @NotNull NotificationRegistry notificationRegistry,
+                   @NotNull PipelineExecutor pipelineExecutor,
+                   @NotNull Executor asyncExecutor) {
+        this.handlerRegistry = Objects.requireNonNull(handlerRegistry, "handlerRegistry");
+        this.notificationRegistry = Objects.requireNonNull(notificationRegistry, "notificationRegistry");
+        this.pipelineExecutor = Objects.requireNonNull(pipelineExecutor, "pipelineExecutor");
+        this.asyncExecutor = Objects.requireNonNull(asyncExecutor, "asyncExecutor");
         logger.info("Courier initialized with {} registered handlers", handlerRegistry.getHandlerCount());
     }
 
@@ -62,16 +89,16 @@ public class Courier {
     private <R> Response<R> invokeHandler(Object handler, IRequest<R> request) {
         try {
             Method method = findHandleOrExecuteMethod(handler.getClass());
-            long start = System.currentTimeMillis();
+            long start = System.nanoTime();
 
             Object result = method.invoke(handler, request);
 
             if (result instanceof CompletableFuture<?> future) {
-                result = future.join();
+                result = future.orTimeout(HANDLER_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
             }
 
-            long duration = System.currentTimeMillis() - start;
-            logger.debug("Handler executed in {}ms: {} -> {}", duration,
+            long durationInMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+            logger.debug("Handler executed in {}ms: {} -> {}", durationInMs,
                     request.getClass().getSimpleName(), handler.getClass().getSimpleName());
 
             if (result == null) {
@@ -96,12 +123,15 @@ public class Courier {
         }
     }
 
-    @SuppressWarnings("java:S3011")
     private @NotNull Method findHandleOrExecuteMethod(@NotNull Class<?> handlerClass) {
+        Method method = handleOrExecuteMethodCache.computeIfAbsent(handlerClass, this::resolveHandleOrExecuteMethod);
+        return Objects.requireNonNull(method, "method");
+    }
+
+    private Method resolveHandleOrExecuteMethod(@NotNull Class<?> handlerClass) {
         for (Method method : handlerClass.getMethods()) {
             if ((method.getName().equals("handle") || method.getName().equals("execute"))
                     && method.getParameterCount() == 1) {
-                method.setAccessible(true);
                 return method;
             }
         }
@@ -144,14 +174,17 @@ public class Courier {
      * @return CompletableFuture that completes when all handlers finish
      */
     public CompletableFuture<Void> publishAsync(@NotNull INotification notification) {
-        return CompletableFuture.runAsync(() -> publish(notification));
+        return CompletableFuture.runAsync(() -> publish(notification), asyncExecutor);
     }
 
-    @SuppressWarnings("java:S3011")
     private @NotNull Method findHandleMethod(@NotNull Class<?> handlerClass) {
+        Method method = handleMethodCache.computeIfAbsent(handlerClass, this::resolveHandleMethod);
+        return Objects.requireNonNull(method, "method");
+    }
+
+    private Method resolveHandleMethod(@NotNull Class<?> handlerClass) {
         for (Method method : handlerClass.getMethods()) {
             if (method.getName().equals("handle") && method.getParameterCount() == 1) {
-                method.setAccessible(true);
                 return method;
             }
         }

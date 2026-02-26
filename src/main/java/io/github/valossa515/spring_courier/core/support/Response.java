@@ -72,7 +72,7 @@ public class Response<T> {
      */
     @Contract("_ -> new")
     public static <T> @NotNull Response<T> error(@NotNull Throwable throwable) {
-        return new Response<>(null, throwable.getMessage(), false, 500);
+        return new Response<>(null, resolveThrowableMessage(throwable), false, 500);
     }
 
     /**
@@ -80,7 +80,15 @@ public class Response<T> {
      */
     @Contract("_, _ -> new")
     public static <T> @NotNull Response<T> error(@NotNull Throwable throwable, int statusCode) {
-        return new Response<>(null, throwable.getMessage(), false, statusCode);
+        return new Response<>(null, resolveThrowableMessage(throwable), false, statusCode);
+    }
+
+
+    private static String resolveThrowableMessage(@NotNull Throwable throwable) {
+        if (throwable.getMessage() != null && !throwable.getMessage().isBlank()) {
+            return throwable.getMessage();
+        }
+        return throwable.getClass().getSimpleName();
     }
 
     // Getters

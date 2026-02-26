@@ -8,9 +8,14 @@ import io.github.valossa515.spring_courier.core.support.HandlerDiscoveryPostProc
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.NotificationDiscoveryPostProcessor;
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskExecutor;
+
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 
 /**
  * Autoconfiguration that wires the core Spring Courier beans required for the
@@ -42,8 +47,10 @@ public class CourierAutoConfiguration {
     @Bean
     public Courier courier(HandlerRegistry handlerRegistry,
                            NotificationRegistry notificationRegistry,
-                           PipelineExecutor pipelineExecutor) {
-        return new Courier(handlerRegistry, notificationRegistry, pipelineExecutor);
+                           PipelineExecutor pipelineExecutor,
+                           ObjectProvider<TaskExecutor> taskExecutorProvider) {
+        Executor asyncExecutor = taskExecutorProvider.getIfAvailable(() -> ForkJoinPool.commonPool());
+        return new Courier(handlerRegistry, notificationRegistry, pipelineExecutor, asyncExecutor);
     }
 
     @Bean

@@ -56,7 +56,7 @@ public class ValidationBehavior<T extends IRequest<R>, R>
 
     @SuppressWarnings("unchecked")
     private R createValidationErrorResponse(List<ValidationError> errors) {
-        StringBuilder errorMessage = new StringBuilder("Validation erros: ");
+        StringBuilder errorMessage = new StringBuilder("Validation errors: ");
         for (ValidationError error : errors) {
             errorMessage.append(error.field())
                     .append(": ")

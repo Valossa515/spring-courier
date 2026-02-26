@@ -12,14 +12,20 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class PipelineRegistry {
     private final Map<Class<?>, List<PipelineBehavior<?, ?>>> behaviorRegistry = new ConcurrentHashMap<>();
 
     public void registerBehavior(Class<?> requestType, PipelineBehavior<?, ?> behavior) {
-        behaviorRegistry.computeIfAbsent(requestType, k -> new ArrayList<>()).add(behavior);
-        // Reorder behaviors whenever a new one is added
-        sortBehaviors(requestType);
+        List<PipelineBehavior<?, ?>> behaviors =
+                behaviorRegistry.computeIfAbsent(requestType, k -> new CopyOnWriteArrayList<>());
+
+        synchronized (behaviors) {
+            behaviors.add(behavior);
+            // Reorder behaviors whenever a new one is added
+            sortBehaviors(behaviors);
+        }
     }
 
     /**
@@ -49,11 +55,8 @@ public class PipelineRegistry {
         return Ordered.LOWEST_PRECEDENCE;
     }
 
-    private void sortBehaviors(Class<?> requestType) {
-        List<PipelineBehavior<?, ?>> behaviors = behaviorRegistry.get(requestType);
-        if (behaviors != null) {
-            behaviors.sort(Comparator.comparingInt(this::getBehaviorOrder));
-        }
+    private void sortBehaviors(List<PipelineBehavior<?, ?>> behaviors) {
+        behaviors.sort(Comparator.comparingInt(this::getBehaviorOrder));
     }
 
     @SuppressWarnings("unchecked")
