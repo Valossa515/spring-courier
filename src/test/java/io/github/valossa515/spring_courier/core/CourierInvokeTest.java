@@ -1,10 +1,7 @@
 package io.github.valossa515.spring_courier.core;
 
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
-import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
-import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
-import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
-import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.InvocationTargetException;
@@ -13,13 +10,18 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class CourierInvokeTest {
 
+    private CourierTestFixture fixture;
+
+    @BeforeEach
+    void setUp() {
+        fixture = CourierTestFixture.create();
+    }
+
     @Test
     void returnsErrorWhenHandlerMethodMissing() {
-        HandlerRegistry registry = new HandlerRegistry();
-        Courier courier = new Courier(registry, new NotificationRegistry(), new PipelineExecutor(new PipelineRegistry()));
-        registry.registerHandler(DummyRequest.class, new Object());
+        fixture.handlerRegistry().registerHandler(DummyRequest.class, new Object());
 
-        var response = courier.send(new DummyRequest());
+        var response = fixture.courier().send(new DummyRequest());
 
         assertFalse(response.isSuccess());
         assertTrue(response.getError().contains("No handle method"));
@@ -27,11 +29,9 @@ class CourierInvokeTest {
 
     @Test
     void wrapsInvocationTargetExceptionFromHandler() {
-        HandlerRegistry registry = new HandlerRegistry();
-        Courier courier = new Courier(registry, new NotificationRegistry(), new PipelineExecutor(new PipelineRegistry()));
-        registry.registerHandler(DummyRequest.class, new ThrowingHandler());
+        fixture.handlerRegistry().registerHandler(DummyRequest.class, new ThrowingHandler());
 
-        var response = courier.send(new DummyRequest());
+        var response = fixture.courier().send(new DummyRequest());
 
         assertFalse(response.isSuccess());
         assertTrue(response.getError().contains("handler boom"));
@@ -39,22 +39,19 @@ class CourierInvokeTest {
 
     @Test
     void wrapsRuntimeExceptionInReflectionSetup() throws Exception {
-        Courier courier = new Courier(new HandlerRegistry(), new NotificationRegistry(), new PipelineExecutor(new PipelineRegistry()));
         var method = Courier.class.getDeclaredMethod("getCachedMethod", Class.class);
         method.setAccessible(true);
 
         InvocationTargetException thrown = assertThrows(InvocationTargetException.class,
-                () -> method.invoke(courier, NoHandleMethod.class));
+                () -> method.invoke(fixture.courier(), NoHandleMethod.class));
         assertTrue(thrown.getCause() instanceof Courier.HandlerMethodNotFoundException);
     }
 
     @Test
     void wrapsRuntimeExceptionWhenHandlerSignatureMismatch() {
-        HandlerRegistry registry = new HandlerRegistry();
-        Courier courier = new Courier(registry, new NotificationRegistry(), new PipelineExecutor(new PipelineRegistry()));
-        registry.registerHandler(DummyRequest.class, new MismatchedHandler());
+        fixture.handlerRegistry().registerHandler(DummyRequest.class, new MismatchedHandler());
 
-        var response = courier.send(new DummyRequest());
+        var response = fixture.courier().send(new DummyRequest());
 
         assertFalse(response.isSuccess());
         assertNotNull(response.getError());

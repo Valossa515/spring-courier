@@ -21,12 +21,10 @@ public class PipelineRegistry {
     public void registerBehavior(Class<?> requestType, PipelineBehavior<?, ?> behavior) {
         Objects.requireNonNull(requestType, "requestType must not be null");
         Objects.requireNonNull(behavior, "behavior must not be null");
-        behaviorRegistry.compute(requestType, (key, existing) -> {
-            List<PipelineBehavior<?, ?>> list = existing != null ? new CopyOnWriteArrayList<>(existing) : new CopyOnWriteArrayList<>();
-            list.add(behavior);
-            list.sort(Comparator.comparingInt(this::getBehaviorOrder));
-            return list;
-        });
+        List<PipelineBehavior<?, ?>> list = behaviorRegistry.computeIfAbsent(
+                requestType, k -> new CopyOnWriteArrayList<>());
+        list.add(behavior);
+        list.sort(Comparator.comparingInt(this::getBehaviorOrder));
     }
 
     /**
@@ -54,14 +52,6 @@ public class PipelineRegistry {
 
         // Default order (low priority)
         return Ordered.LOWEST_PRECEDENCE;
-    }
-
-    private void sortBehaviors(Class<?> requestType) {
-        behaviorRegistry.computeIfPresent(requestType, (key, behaviors) -> {
-            List<PipelineBehavior<?, ?>> sorted = new CopyOnWriteArrayList<>(behaviors);
-            sorted.sort(Comparator.comparingInt(this::getBehaviorOrder));
-            return sorted;
-        });
     }
 
     @SuppressWarnings("unchecked")

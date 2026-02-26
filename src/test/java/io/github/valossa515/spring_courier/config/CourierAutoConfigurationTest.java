@@ -19,12 +19,13 @@ class CourierAutoConfigurationTest {
     @Test
     void buildsCoreBeans() {
         CourierAutoConfiguration configuration = new CourierAutoConfiguration();
+        CourierProperties properties = new CourierProperties();
 
         HandlerRegistry handlerRegistry = configuration.handlerRegistry();
         NotificationRegistry notificationRegistry = configuration.notificationRegistry();
         PipelineRegistry pipelineRegistry = configuration.pipelineRegistry();
         PipelineExecutor pipelineExecutor = configuration.pipelineExecutor(pipelineRegistry);
-        Courier courier = configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor);
+        Courier courier = configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, properties);
 
         assertNotNull(handlerRegistry);
         assertNotNull(notificationRegistry);

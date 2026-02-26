@@ -1,11 +1,8 @@
 package io.github.valossa515.spring_courier.core;
 
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
-import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
-import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
-import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
-import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
 import io.github.valossa515.spring_courier.core.support.Response;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Objects;
@@ -15,30 +12,27 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class CourierBranchTest {
 
+    private CourierTestFixture fixture;
+
+    @BeforeEach
+    void setUp() {
+        fixture = CourierTestFixture.create();
+    }
+
     @Test
     void sendReturnsResponseWhenPipelineAlreadyReturnsResponse() {
-        HandlerRegistry registry = new HandlerRegistry();
-        NotificationRegistry notificationRegistry = new NotificationRegistry();
-        PipelineExecutor exec = new PipelineExecutor(new PipelineRegistry());
-        Courier courier = new Courier(registry, notificationRegistry, exec);
+        fixture.handlerRegistry().registerHandler(SimpleReq.class, new SimpleHandler());
 
-        registry.registerHandler(SimpleReq.class, new SimpleHandler());
-
-        Response<String> resp = courier.send(new SimpleReq());
+        Response<String> resp = fixture.courier().send(new SimpleReq());
         assertTrue(resp.isSuccess());
         assertEquals("direct", resp.getData());
     }
 
     @Test
     void sendHandlesNullFromPipeline() {
-        HandlerRegistry registry = new HandlerRegistry();
-        NotificationRegistry notificationRegistry = new NotificationRegistry();
-        PipelineExecutor exec = new PipelineExecutor(new PipelineRegistry());
-        Courier courier = new Courier(registry, notificationRegistry, exec);
+        fixture.handlerRegistry().registerHandler(NullReq.class, new NullRespHandler());
 
-        registry.registerHandler(NullReq.class, new NullRespHandler());
-
-        Response<String> resp = courier.send(new NullReq());
+        Response<String> resp = fixture.courier().send(new NullReq());
         assertTrue(resp.isSuccess());
         assertNull(resp.getData());
     }
