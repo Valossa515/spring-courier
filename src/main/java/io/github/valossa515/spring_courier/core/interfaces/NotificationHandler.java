@@ -7,6 +7,7 @@ package io.github.valossa515.spring_courier.core.interfaces;
  *
  * @param <N> notification type to handle
  */
+@FunctionalInterface
 public interface NotificationHandler<N extends INotification> {
 
     /**

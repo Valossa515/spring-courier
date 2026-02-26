@@ -49,25 +49,17 @@ public class PipelineExecutor {
 
     private String detectRequestCategory(Object request) {
         Class<?> clazz = request.getClass();
-        if (implementsInterface(clazz, "ICommand")) {
-            return "🟢 Command";
+        if (implementsInterface(clazz, io.github.valossa515.spring_courier.core.interfaces.ICommand.class)) {
+            return "Command";
         }
-        if (implementsInterface(clazz, "IQuery")) {
-            return "🔵 Query";
+        if (implementsInterface(clazz, io.github.valossa515.spring_courier.core.interfaces.IQuery.class)) {
+            return "Query";
         }
-        return "⚪ Generic IRequest";
+        return "Generic IRequest";
     }
 
-    private boolean implementsInterface(Class<?> clazz, String interfaceNamePart) {
-        for (Class<?> iface : clazz.getInterfaces()) {
-            if (iface.getSimpleName().contains(interfaceNamePart)) {
-                return true;
-            }
-        }
-        if (clazz.getSuperclass() != null) {
-            return implementsInterface(clazz.getSuperclass(), interfaceNamePart);
-        }
-        return false;
+    private boolean implementsInterface(Class<?> clazz, Class<?> targetInterface) {
+        return targetInterface.isAssignableFrom(clazz);
     }
 
     @FunctionalInterface

@@ -4,7 +4,9 @@ import io.github.valossa515.spring_courier.core.exceptions.HandlerNotFoundExcept
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -16,10 +18,12 @@ public class HandlerRegistry {
     private final Map<Class<?>, Object> handlers = new ConcurrentHashMap<>();
 
     public void registerHandler(Class<?> requestType, Object handler) {
-        if (handlers.containsKey(requestType)) {
+        Objects.requireNonNull(requestType, "requestType must not be null");
+        Objects.requireNonNull(handler, "handler must not be null");
+        Object previous = handlers.put(requestType, handler);
+        if (previous != null) {
             logger.warn("Replacing existing handler for request type: {}", requestType.getSimpleName());
         }
-        handlers.put(requestType, handler);
         logger.debug("Handler registered for: {}", requestType.getSimpleName());
     }
 
@@ -43,6 +47,6 @@ public class HandlerRegistry {
     }
 
     public Map<Class<?>, Object> getHandlers() {
-        return new ConcurrentHashMap<>(handlers);
+        return Collections.unmodifiableMap(handlers);
     }
 }

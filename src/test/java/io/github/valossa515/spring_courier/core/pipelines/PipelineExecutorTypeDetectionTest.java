@@ -13,21 +13,21 @@ class PipelineExecutorTypeDetectionTest {
     void detectsCommandInterfacesIncludingSuperclasses() {
         PipelineExecutor executor = new PipelineExecutor(new PipelineRegistry());
         String category = invokeDetect(executor, new ChildCommand());
-        assertEquals("🟢 Command", category);
+        assertEquals("Command", category);
     }
 
     @Test
     void detectsQueryInterface() {
         PipelineExecutor executor = new PipelineExecutor(new PipelineRegistry());
         String category = invokeDetect(executor, new SimpleQuery());
-        assertEquals("🔵 Query", category);
+        assertEquals("Query", category);
     }
 
     @Test
     void detectsGenericRequestWhenNoCommandOrQuery() {
         PipelineExecutor executor = new PipelineExecutor(new PipelineRegistry());
         String category = invokeDetect(executor, new PlainRequest());
-        assertEquals("⚪ Generic IRequest", category);
+        assertEquals("Generic IRequest", category);
     }
 
     private String invokeDetect(PipelineExecutor executor, Object request) {

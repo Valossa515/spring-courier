@@ -29,7 +29,7 @@ class NotificationRegistryTest {
     }
 
     @Test
-    void getHandlersReturnsDefensiveCopy() {
+    void getHandlersReturnsUnmodifiableView() {
         NotificationRegistry registry = new NotificationRegistry();
         Object handler = new Object();
         registry.registerHandler(Integer.class, handler);
@@ -38,7 +38,7 @@ class NotificationRegistryTest {
         assertEquals(1, handlers.size());
         assertSame(handler, handlers.get(0));
 
-        handlers.clear();
+        assertThrows(UnsupportedOperationException.class, handlers::clear);
 
         List<Object> handlersAgain = registry.getHandlers(Integer.class);
         assertEquals(1, handlersAgain.size());
