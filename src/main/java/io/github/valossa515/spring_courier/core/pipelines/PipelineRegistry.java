@@ -9,7 +9,6 @@ import org.springframework.core.annotation.Order;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +19,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class PipelineRegistry {
     private static final Logger logger = LoggerFactory.getLogger(PipelineRegistry.class);
     private final Map<Class<?>, List<PipelineBehavior<?, ?>>> behaviorRegistry = new ConcurrentHashMap<>();
+    private final List<PipelineBehavior<?, ?>> globalBehaviors = new CopyOnWriteArrayList<>();
     private volatile boolean frozen = false;
 
     public void registerBehavior(Class<?> requestType, PipelineBehavior<?, ?> behavior) {
@@ -36,12 +36,24 @@ public class PipelineRegistry {
         list.sort(Comparator.comparingInt(this::getBehaviorOrder));
     }
 
+    public void registerGlobalBehavior(PipelineBehavior<?, ?> behavior) {
+        Objects.requireNonNull(behavior, "behavior must not be null");
+        if (frozen) {
+            throw new IllegalStateException(
+                    "PipelineRegistry is frozen; cannot register global behavior: "
+                            + behavior.getClass().getSimpleName());
+        }
+        globalBehaviors.add(behavior);
+        globalBehaviors.sort(Comparator.comparingInt(this::getBehaviorOrder));
+    }
+
     /**
      * Freezes this registry, preventing any further behavior registrations.
      */
     public void freeze() {
         this.frozen = true;
-        logger.info("PipelineRegistry frozen with {} behaviors", getBehaviorCount());
+        logger.info("PipelineRegistry frozen with {} behaviors ({} global)",
+                getBehaviorCount(), globalBehaviors.size());
     }
 
     public boolean isFrozen() {
@@ -77,20 +89,27 @@ public class PipelineRegistry {
 
     @SuppressWarnings("unchecked")
     public <R extends IRequest<S>, S> List<PipelineBehavior<R, S>> getBehaviors(Class<R> requestType) {
-        List<PipelineBehavior<?, ?>> behaviors = behaviorRegistry.get(requestType);
-        if (behaviors == null) {
-            return Collections.emptyList();
-        }
+        List<PipelineBehavior<R, S>> result = new ArrayList<>();
 
-        List<PipelineBehavior<R, S>> compatibleBehaviors = new ArrayList<>();
-
-        for (PipelineBehavior<?, ?> behavior : behaviors) {
+        // Global behaviors apply to all request types
+        for (PipelineBehavior<?, ?> behavior : globalBehaviors) {
             if (isBehaviorCompatible(behavior, requestType)) {
-                compatibleBehaviors.add((PipelineBehavior<R, S>) behavior);
+                result.add((PipelineBehavior<R, S>) behavior);
             }
         }
 
-        return compatibleBehaviors;
+        // Request-specific behaviors
+        List<PipelineBehavior<?, ?>> behaviors = behaviorRegistry.get(requestType);
+        if (behaviors != null) {
+            for (PipelineBehavior<?, ?> behavior : behaviors) {
+                if (isBehaviorCompatible(behavior, requestType)) {
+                    result.add((PipelineBehavior<R, S>) behavior);
+                }
+            }
+        }
+
+        result.sort(Comparator.comparingInt(this::getBehaviorOrder));
+        return result;
     }
 
     private <R extends IRequest<S>, S> boolean isBehaviorCompatible(
@@ -130,11 +149,15 @@ public class PipelineRegistry {
     }
 
     public boolean hasBehaviorsFor(Class<?> requestType) {
+        if (!globalBehaviors.isEmpty()) {
+            return true;
+        }
         List<PipelineBehavior<?, ?>> behaviors = behaviorRegistry.get(requestType);
         return behaviors != null && !behaviors.isEmpty();
     }
 
     public int getBehaviorCount() {
-        return behaviorRegistry.values().stream().mapToInt(List::size).sum();
+        return globalBehaviors.size()
+                + behaviorRegistry.values().stream().mapToInt(List::size).sum();
     }
 }

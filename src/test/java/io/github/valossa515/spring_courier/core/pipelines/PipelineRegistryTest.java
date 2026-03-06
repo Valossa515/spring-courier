@@ -65,6 +65,87 @@ class PipelineRegistryTest {
         assertFalse(pipelineRegistry.hasBehaviorsFor(TestRequest.class));
     }
 
+    @Test
+    void globalBehaviorsAreIncludedInGetBehaviors() {
+        DefaultBehavior globalBehavior = new DefaultBehavior();
+        pipelineRegistry.registerGlobalBehavior(globalBehavior);
+
+        List<PipelineBehavior<TestRequest, String>> behaviors = pipelineRegistry.getBehaviors(TestRequest.class);
+
+        assertEquals(1, behaviors.size());
+        assertSame(globalBehavior, behaviors.get(0));
+    }
+
+    @Test
+    void globalBehaviorsAreMergedWithSpecificBehaviors() {
+        DefaultBehavior globalBehavior = new DefaultBehavior();
+        CompatibleBehavior specificBehavior = new CompatibleBehavior();
+
+        pipelineRegistry.registerGlobalBehavior(globalBehavior);
+        pipelineRegistry.registerBehavior(TestRequest.class, specificBehavior);
+
+        List<PipelineBehavior<TestRequest, String>> behaviors = pipelineRegistry.getBehaviors(TestRequest.class);
+
+        assertEquals(2, behaviors.size());
+    }
+
+    @Test
+    void hasBehaviorsForReturnsTrueWhenGlobalBehaviorsExist() {
+        pipelineRegistry.registerGlobalBehavior(new DefaultBehavior());
+
+        assertTrue(pipelineRegistry.hasBehaviorsFor(TestRequest.class));
+        assertTrue(pipelineRegistry.hasBehaviorsFor(AnotherRequest.class));
+    }
+
+    @Test
+    void getBehaviorCountIncludesGlobalBehaviors() {
+        pipelineRegistry.registerGlobalBehavior(new DefaultBehavior());
+        pipelineRegistry.registerBehavior(TestRequest.class, new DefaultBehavior());
+
+        assertEquals(2, pipelineRegistry.getBehaviorCount());
+    }
+
+    @Test
+    void registerGlobalBehaviorRejectsNull() {
+        assertThrows(NullPointerException.class,
+                () -> pipelineRegistry.registerGlobalBehavior(null));
+    }
+
+    @Test
+    void incompatibleGlobalBehaviorsAreFilteredOut() {
+        IncompatibleBehavior incompatibleGlobal = new IncompatibleBehavior();
+        pipelineRegistry.registerGlobalBehavior(incompatibleGlobal);
+
+        List<PipelineBehavior<TestRequest, String>> behaviors = pipelineRegistry.getBehaviors(TestRequest.class);
+
+        assertTrue(behaviors.isEmpty(), "Incompatible global behavior should not appear for unrelated request");
+    }
+
+    @Test
+    void compatibleGlobalBehaviorsAreIncludedIncompatibleAreExcluded() {
+        DefaultBehavior compatibleGlobal = new DefaultBehavior();
+        IncompatibleBehavior incompatibleGlobal = new IncompatibleBehavior();
+
+        pipelineRegistry.registerGlobalBehavior(compatibleGlobal);
+        pipelineRegistry.registerGlobalBehavior(incompatibleGlobal);
+
+        List<PipelineBehavior<TestRequest, String>> behaviors = pipelineRegistry.getBehaviors(TestRequest.class);
+
+        assertEquals(1, behaviors.size(), "Only compatible global behavior should be returned");
+        assertSame(compatibleGlobal, behaviors.get(0));
+    }
+
+    @Test
+    void incompatibleGlobalBehaviorStillAppearsForMatchingRequestType() {
+        IncompatibleBehavior globalForAnother = new IncompatibleBehavior();
+        pipelineRegistry.registerGlobalBehavior(globalForAnother);
+
+        List<PipelineBehavior<AnotherRequest, String>> behaviors = pipelineRegistry.getBehaviors(AnotherRequest.class);
+
+        assertEquals(1, behaviors.size(), "Global behavior should appear for its own compatible request type");
+        assertSame(globalForAnother, behaviors.get(0));
+    }
+
     private static class TestRequest implements IRequest<String> {
     }
 

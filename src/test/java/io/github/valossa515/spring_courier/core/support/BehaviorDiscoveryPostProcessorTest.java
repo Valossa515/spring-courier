@@ -29,7 +29,7 @@ class BehaviorDiscoveryPostProcessorTest {
     }
 
     @Test
-    void ignoresBehaviorsWithoutResolvableRequestType() {
+    void registersGlobalBehaviorWhenRequestTypeNotResolvable() {
         PipelineBehavior<?, ?> behavior = new GenericBehavior() {
             @Override
             public String handle(IRequest<String> request, Next<String> next) {
@@ -40,15 +40,17 @@ class BehaviorDiscoveryPostProcessorTest {
         postProcessor.postProcessAfterInitialization(behavior, "genericBehavior");
 
         verify(pipelineRegistry, never()).registerBehavior(any(), any());
+        verify(pipelineRegistry).registerGlobalBehavior(behavior);
     }
 
     @Test
-    void logsWarningWhenRequestTypeCannotBeResolved() {
+    void registersGlobalBehaviorWhenTypeCannotBeResolved() {
         PipelineBehavior<?, ?> behavior = new BehaviorWithoutGeneric();
 
         postProcessor.postProcessAfterInitialization(behavior, "noTypeBehavior");
 
         verify(pipelineRegistry, never()).registerBehavior(any(), any());
+        verify(pipelineRegistry).registerGlobalBehavior(behavior);
     }
 
     private static class SampleRequest implements IRequest<String> {
