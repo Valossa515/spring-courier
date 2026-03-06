@@ -29,19 +29,19 @@ public class CourierAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public HandlerRegistry handlerRegistry() {
+    public static HandlerRegistry handlerRegistry() {
         return new HandlerRegistry();
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public NotificationRegistry notificationRegistry() {
+    public static NotificationRegistry notificationRegistry() {
         return new NotificationRegistry();
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public PipelineRegistry pipelineRegistry() {
+    public static PipelineRegistry pipelineRegistry() {
         return new PipelineRegistry();
     }
 
@@ -64,14 +64,14 @@ public class CourierAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public HandlerDiscoveryPostProcessor handlerDiscoveryPostProcessor(HandlerRegistry handlerRegistry,
+    public static HandlerDiscoveryPostProcessor handlerDiscoveryPostProcessor(HandlerRegistry handlerRegistry,
                                                                        ApplicationContext applicationContext) {
         return new HandlerDiscoveryPostProcessor(handlerRegistry, applicationContext);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public NotificationDiscoveryPostProcessor notificationDiscoveryPostProcessor(
+    public static NotificationDiscoveryPostProcessor notificationDiscoveryPostProcessor(
             NotificationRegistry notificationRegistry,
             ApplicationContext applicationContext) {
         return new NotificationDiscoveryPostProcessor(notificationRegistry, applicationContext);
@@ -79,7 +79,7 @@ public class CourierAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public BehaviorDiscoveryPostProcessor behaviorDiscoveryPostProcessor(PipelineRegistry pipelineRegistry) {
+    public static BehaviorDiscoveryPostProcessor behaviorDiscoveryPostProcessor(PipelineRegistry pipelineRegistry) {
         return new BehaviorDiscoveryPostProcessor(pipelineRegistry);
     }
 
