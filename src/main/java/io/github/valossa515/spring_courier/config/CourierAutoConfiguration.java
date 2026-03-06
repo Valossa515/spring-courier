@@ -59,7 +59,7 @@ public class CourierAutoConfiguration {
                            CourierProperties properties,
                            ObjectProvider<Executor> asyncExecutor) {
         return new Courier(handlerRegistry, notificationRegistry, pipelineExecutor,
-                asyncExecutor.getIfAvailable(), properties.getAsyncTimeoutMs());
+                asyncExecutor.getIfUnique(), properties.getAsyncTimeoutMs());
     }
 
     @Bean

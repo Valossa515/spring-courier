@@ -93,7 +93,9 @@ public class PipelineRegistry {
 
         // Global behaviors apply to all request types
         for (PipelineBehavior<?, ?> behavior : globalBehaviors) {
-            result.add((PipelineBehavior<R, S>) behavior);
+            if (isBehaviorCompatible(behavior, requestType)) {
+                result.add((PipelineBehavior<R, S>) behavior);
+            }
         }
 
         // Request-specific behaviors

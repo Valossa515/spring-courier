@@ -16,6 +16,8 @@ import java.util.concurrent.Executor;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class CourierAutoConfigurationTest {
 
@@ -58,5 +60,61 @@ class CourierAutoConfigurationTest {
         assertNotNull(handlerPostProcessor);
         assertNotNull(notificationPostProcessor);
         assertNotNull(behaviorPostProcessor);
+    }
+
+    @Test
+    void courierUsesGetIfUniqueForExecutorLookup() {
+        CourierAutoConfiguration configuration = new CourierAutoConfiguration();
+        CourierProperties properties = new CourierProperties();
+        HandlerRegistry handlerRegistry = configuration.handlerRegistry();
+        NotificationRegistry notificationRegistry = configuration.notificationRegistry();
+        PipelineRegistry pipelineRegistry = configuration.pipelineRegistry();
+        PipelineExecutor pipelineExecutor = configuration.pipelineExecutor(pipelineRegistry);
+
+        @SuppressWarnings("unchecked")
+        ObjectProvider<Executor> executorProvider = mock(ObjectProvider.class);
+
+        configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, properties, executorProvider);
+
+        verify(executorProvider).getIfUnique();
+    }
+
+    @Test
+    void courierReceivesExecutorWhenUniqueBeanExists() {
+        CourierAutoConfiguration configuration = new CourierAutoConfiguration();
+        CourierProperties properties = new CourierProperties();
+        HandlerRegistry handlerRegistry = configuration.handlerRegistry();
+        NotificationRegistry notificationRegistry = configuration.notificationRegistry();
+        PipelineRegistry pipelineRegistry = configuration.pipelineRegistry();
+        PipelineExecutor pipelineExecutor = configuration.pipelineExecutor(pipelineRegistry);
+
+        Executor expectedExecutor = Runnable::run;
+        @SuppressWarnings("unchecked")
+        ObjectProvider<Executor> executorProvider = mock(ObjectProvider.class);
+        when(executorProvider.getIfUnique()).thenReturn(expectedExecutor);
+
+        Courier courier = configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, properties, executorProvider);
+
+        assertNotNull(courier);
+        verify(executorProvider).getIfUnique();
+    }
+
+    @Test
+    void courierReceivesNullWhenMultipleExecutorsExist() {
+        CourierAutoConfiguration configuration = new CourierAutoConfiguration();
+        CourierProperties properties = new CourierProperties();
+        HandlerRegistry handlerRegistry = configuration.handlerRegistry();
+        NotificationRegistry notificationRegistry = configuration.notificationRegistry();
+        PipelineRegistry pipelineRegistry = configuration.pipelineRegistry();
+        PipelineExecutor pipelineExecutor = configuration.pipelineExecutor(pipelineRegistry);
+
+        @SuppressWarnings("unchecked")
+        ObjectProvider<Executor> executorProvider = mock(ObjectProvider.class);
+        when(executorProvider.getIfUnique()).thenReturn(null);
+
+        Courier courier = configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, properties, executorProvider);
+
+        assertNotNull(courier);
+        verify(executorProvider).getIfUnique();
     }
 }
