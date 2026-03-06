@@ -8,12 +8,15 @@ import io.github.valossa515.spring_courier.core.support.HandlerDiscoveryPostProc
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.NotificationDiscoveryPostProcessor;
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.concurrent.Executor;
 
 /**
  * Autoconfiguration that wires the core Spring Courier beans required for the
@@ -53,9 +56,10 @@ public class CourierAutoConfiguration {
     public Courier courier(HandlerRegistry handlerRegistry,
                            NotificationRegistry notificationRegistry,
                            PipelineExecutor pipelineExecutor,
-                           CourierProperties properties) {
+                           CourierProperties properties,
+                           ObjectProvider<Executor> asyncExecutor) {
         return new Courier(handlerRegistry, notificationRegistry, pipelineExecutor,
-                null, properties.getAsyncTimeoutMs());
+                asyncExecutor.getIfAvailable(), properties.getAsyncTimeoutMs());
     }
 
     @Bean

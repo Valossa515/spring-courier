@@ -9,7 +9,10 @@ import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.NotificationDiscoveryPostProcessor;
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationContext;
+
+import java.util.concurrent.Executor;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
@@ -25,7 +28,9 @@ class CourierAutoConfigurationTest {
         NotificationRegistry notificationRegistry = configuration.notificationRegistry();
         PipelineRegistry pipelineRegistry = configuration.pipelineRegistry();
         PipelineExecutor pipelineExecutor = configuration.pipelineExecutor(pipelineRegistry);
-        Courier courier = configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, properties);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<Executor> executorProvider = mock(ObjectProvider.class);
+        Courier courier = configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, properties, executorProvider);
 
         assertNotNull(handlerRegistry);
         assertNotNull(notificationRegistry);

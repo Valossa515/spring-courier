@@ -20,6 +20,8 @@ class PipelineRegistryFreezeTest {
 
         assertThrows(IllegalStateException.class,
                 () -> registry.registerBehavior(TestReq.class, new SimpleBehavior()));
+        assertThrows(IllegalStateException.class,
+                () -> registry.registerGlobalBehavior(new SimpleBehavior()));
     }
 
     @Test

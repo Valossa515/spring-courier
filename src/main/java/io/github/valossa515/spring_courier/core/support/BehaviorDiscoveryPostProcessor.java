@@ -49,8 +49,8 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
             logger.info("Pipeline behavior registered: {} -> {}",
                     requestType.getSimpleName(), behaviorClass.getSimpleName());
         } else {
-            logger.warn("Could not determine the request type for behavior: {}",
-                    behaviorClass.getSimpleName());
+            pipelineRegistry.registerGlobalBehavior(behavior);
+            logger.info("Global pipeline behavior registered: {}", behaviorClass.getSimpleName());
         }
     }
 
