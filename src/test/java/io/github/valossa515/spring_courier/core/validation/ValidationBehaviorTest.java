@@ -34,7 +34,7 @@ class ValidationBehaviorTest {
         assertFalse(result.isSuccess());
         assertEquals(400, result.getStatusCode());
         assertTrue(result.getError().contains("validation_error"));
-        assertTrue(result.getError().contains("validator failed"));
+        assertTrue(result.getError().contains("An internal validation error occurred"));
     }
 
     @Test

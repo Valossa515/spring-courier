@@ -12,13 +12,16 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Dispatches requests through the CQRS pipeline, invoking synchronous or
@@ -28,16 +31,34 @@ import java.util.concurrent.TimeoutException;
 public class Courier {
     private static final Logger logger = LoggerFactory.getLogger(Courier.class);
     private static final long DEFAULT_ASYNC_TIMEOUT_MS = 30_000;
+    private static final int MAX_CACHE_SIZE = 1024;
 
     /**
-     * Cache for request handler methods (accepts "handle" or "execute").
+     * Bounded LRU cache for request handler methods (accepts "handle" or "execute").
+     * Limited to {@value #MAX_CACHE_SIZE} entries to prevent memory exhaustion
+     * in environments with class reloading.
      */
-    private static final ConcurrentHashMap<Class<?>, Method> REQUEST_METHOD_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Method> REQUEST_METHOD_CACHE =
+            Collections.synchronizedMap(new LinkedHashMap<>(64, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<Class<?>, Method> eldest) {
+                    return size() > MAX_CACHE_SIZE;
+                }
+            });
 
     /**
-     * Cache for notification handler methods (accepts only "handle").
+     * Bounded LRU cache for notification handler methods (accepts only "handle").
+     * Limited to {@value #MAX_CACHE_SIZE} entries to prevent memory exhaustion.
      */
-    private static final ConcurrentHashMap<Class<?>, Method> NOTIFICATION_METHOD_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Method> NOTIFICATION_METHOD_CACHE =
+            Collections.synchronizedMap(new LinkedHashMap<>(64, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<Class<?>, Method> eldest) {
+                    return size() > MAX_CACHE_SIZE;
+                }
+            });
+
+    private static final AtomicBoolean COMMON_POOL_WARNING_LOGGED = new AtomicBoolean(false);
 
     private final HandlerRegistry handlerRegistry;
     private final NotificationRegistry notificationRegistry;
@@ -74,8 +95,12 @@ public class Courier {
 
     /**
      * Sends a request and returns a typed {@link Response}.
+     *
+     * @param request the request to dispatch; must not be {@code null}
+     * @throws NullPointerException if {@code request} is {@code null}
      */
     public <R> Response<R> send(@NotNull IRequest<R> request) {
+        Objects.requireNonNull(request, "request must not be null");
         logger.debug("Sending request: {}", request.getClass().getSimpleName());
 
         Object handler = handlerRegistry.getHandler(request.getClass());
@@ -145,19 +170,26 @@ public class Courier {
      * Returns a cached Method for the given handler class, resolving and caching
      * on first access. The method is made accessible once during caching, which
      * avoids repeated setAccessible calls on concurrent invocations.
+     *
+     * <p>Only methods whose single parameter is assignable from {@link IRequest}
+     * are matched, preventing unrelated methods from being invoked via reflection.
      */
     @SuppressWarnings("java:S3011")
     private @NotNull Method getCachedMethod(@NotNull Class<?> handlerClass) {
-        return REQUEST_METHOD_CACHE.computeIfAbsent(handlerClass, clazz -> {
-            for (Method method : clazz.getMethods()) {
-                if ((method.getName().equals("handle") || method.getName().equals("execute"))
-                        && method.getParameterCount() == 1) {
-                    method.setAccessible(true);
-                    return method;
-                }
+        Method cached = REQUEST_METHOD_CACHE.get(handlerClass);
+        if (cached != null) {
+            return cached;
+        }
+        for (Method method : handlerClass.getMethods()) {
+            if ((method.getName().equals("handle") || method.getName().equals("execute"))
+                    && method.getParameterCount() == 1
+                    && IRequest.class.isAssignableFrom(method.getParameterTypes()[0])) {
+                method.setAccessible(true);
+                REQUEST_METHOD_CACHE.put(handlerClass, method);
+                return method;
             }
-            throw new HandlerMethodNotFoundException(clazz.getName(), "handle/execute");
-        });
+        }
+        throw new HandlerMethodNotFoundException(handlerClass.getName(), "handle/execute");
     }
 
     /**
@@ -171,10 +203,12 @@ public class Courier {
      * <p>If no handler is registered for the given notification type, a {@code WARN}
      * message is logged and the method returns immediately.
      *
-     * @param notification the notification to publish
+     * @param notification the notification to publish; must not be {@code null}
+     * @throws NullPointerException if {@code notification} is {@code null}
      * @see #publishAsync(INotification) for non-blocking variant
      */
     public void publish(@NotNull INotification notification) {
+        Objects.requireNonNull(notification, "notification must not be null");
         logger.debug("Publishing notification: {}", notification.getClass().getSimpleName());
 
         List<Object> handlers = notificationRegistry.getHandlers(notification.getClass());
@@ -200,27 +234,56 @@ public class Courier {
     /**
      * Publishes a notification asynchronously to all registered handlers.
      *
-     * @param notification the notification to publish
+     * <p>If no dedicated async executor was configured, the ForkJoinPool common
+     * pool is used and a one-time warning is logged advising operators to
+     * configure a dedicated executor.
+     *
+     * @param notification the notification to publish; must not be {@code null}
      * @return CompletableFuture that completes when all handlers finish
+     * @throws NullPointerException if {@code notification} is {@code null}
      */
     public CompletableFuture<Void> publishAsync(@NotNull INotification notification) {
+        Objects.requireNonNull(notification, "notification must not be null");
         if (asyncExecutor != null) {
             return CompletableFuture.runAsync(() -> publish(notification), asyncExecutor);
+        }
+        if (COMMON_POOL_WARNING_LOGGED.compareAndSet(false, true)) {
+            logger.warn("publishAsync() is using the ForkJoinPool common pool because no "
+                    + "asyncExecutor was configured. This may starve other application work. "
+                    + "Configure a dedicated executor via the Courier constructor.");
         }
         return CompletableFuture.runAsync(() -> publish(notification));
     }
 
+    /**
+     * Returns a cached Method for notification handlers. Only methods whose
+     * single parameter is assignable from {@link INotification} are matched.
+     */
     @SuppressWarnings("java:S3011")
     private @NotNull Method getCachedHandleMethod(@NotNull Class<?> handlerClass) {
-        return NOTIFICATION_METHOD_CACHE.computeIfAbsent(handlerClass, clazz -> {
-            for (Method method : clazz.getMethods()) {
-                if (method.getName().equals("handle") && method.getParameterCount() == 1) {
-                    method.setAccessible(true);
-                    return method;
-                }
+        Method cached = NOTIFICATION_METHOD_CACHE.get(handlerClass);
+        if (cached != null) {
+            return cached;
+        }
+        for (Method method : handlerClass.getMethods()) {
+            if (method.getName().equals("handle")
+                    && method.getParameterCount() == 1
+                    && INotification.class.isAssignableFrom(method.getParameterTypes()[0])) {
+                method.setAccessible(true);
+                NOTIFICATION_METHOD_CACHE.put(handlerClass, method);
+                return method;
             }
-            throw new HandlerMethodNotFoundException(clazz.getName(), "handle");
-        });
+        }
+        throw new HandlerMethodNotFoundException(handlerClass.getName(), "handle");
+    }
+
+    /**
+     * Clears the internal method caches. Intended for use by tests and
+     * class-reloading scenarios.
+     */
+    static void clearMethodCaches() {
+        REQUEST_METHOD_CACHE.clear();
+        NOTIFICATION_METHOD_CACHE.clear();
     }
 
     /**

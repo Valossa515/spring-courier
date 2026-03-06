@@ -1,5 +1,6 @@
 package io.github.valossa515.spring_courier.core.support;
 
+import io.github.valossa515.spring_courier.core.exceptions.CourierException;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,11 +39,12 @@ class ResponseTest {
 
         RuntimeException failure = new RuntimeException("boom");
         Response<String> fromThrowable = Response.error(failure);
-        assertEquals("boom", fromThrowable.getError());
+        assertEquals("An internal error occurred", fromThrowable.getError());
         assertEquals(500, fromThrowable.getStatusCode());
 
         Response<String> fromThrowableWithStatus = Response.error(failure, 503);
         assertEquals(503, fromThrowableWithStatus.getStatusCode());
+        assertEquals("An internal error occurred", fromThrowableWithStatus.getError());
     }
 
     @Test
@@ -66,19 +68,17 @@ class ResponseTest {
     void builderCreatesExpectedResponseAndSupportsEquality() {
         Response<String> built = Response.<String>builder()
                 .data("data")
-                .error("none")
                 .success(true)
                 .statusCode(204)
                 .build();
 
         assertEquals("data", built.getData());
-        assertEquals("none", built.getError());
+        assertNull(built.getError());
         assertTrue(built.isSuccess());
         assertEquals(204, built.getStatusCode());
 
         Response<String> identical = Response.<String>builder()
                 .data("data")
-                .error("none")
                 .success(true)
                 .statusCode(204)
                 .build();
@@ -131,5 +131,77 @@ class ResponseTest {
     void responseExceptionExposesStatusCode() {
         Response.ResponseException ex = new Response.ResponseException("boom", 418);
         assertEquals(418, ex.getStatusCode());
+    }
+
+    @Test
+    void errorFromCourierExceptionPassesMessageThrough() {
+        CourierException ce = new CourierException("courier-specific error");
+        Response<String> resp = Response.error(ce);
+        assertEquals("courier-specific error", resp.getError());
+        assertEquals(500, resp.getStatusCode());
+
+        Response<String> respWithStatus = Response.error(ce, 422);
+        assertEquals("courier-specific error", respWithStatus.getError());
+        assertEquals(422, respWithStatus.getStatusCode());
+    }
+
+    @Test
+    void errorFromNonCourierExceptionReturnsSanitizedMessage() {
+        RuntimeException re = new RuntimeException("sensitive internal detail");
+        Response<String> resp = Response.error(re);
+        assertEquals("An internal error occurred", resp.getError());
+
+        Response<String> respWithStatus = Response.error(re, 502);
+        assertEquals("An internal error occurred", respWithStatus.getError());
+    }
+
+    @Test
+    void toStringMasksDataField() {
+        Response<String> withData = Response.success("secret-token-123");
+        String str = withData.toString();
+        assertFalse(str.contains("secret-token-123"));
+        assertTrue(str.contains("<present>"));
+
+        Response<String> withoutData = Response.success();
+        String strNull = withoutData.toString();
+        assertTrue(strNull.contains("data=null"));
+    }
+
+    @Test
+    void builderRejectsSuccessWithErrorMessage() {
+        assertThrows(IllegalStateException.class, () ->
+                Response.<String>builder()
+                        .success(true)
+                        .error("oops")
+                        .build());
+    }
+
+    @Test
+    void builderRejectsErrorWithSuccessStatusCode() {
+        assertThrows(IllegalStateException.class, () ->
+                Response.<String>builder()
+                        .success(false)
+                        .error("fail")
+                        .statusCode(200)
+                        .build());
+
+        assertThrows(IllegalStateException.class, () ->
+                Response.<String>builder()
+                        .success(false)
+                        .error("fail")
+                        .statusCode(299)
+                        .build());
+    }
+
+    @Test
+    void builderAllowsErrorWithNon2xxStatusCode() {
+        Response<String> resp = Response.<String>builder()
+                .success(false)
+                .error("fail")
+                .statusCode(400)
+                .build();
+        assertFalse(resp.isSuccess());
+        assertEquals("fail", resp.getError());
+        assertEquals(400, resp.getStatusCode());
     }
 }

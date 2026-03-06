@@ -1,5 +1,6 @@
 package io.github.valossa515.spring_courier.core.support;
 
+import io.github.valossa515.spring_courier.core.exceptions.CourierException;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -14,6 +15,8 @@ import java.util.Objects;
  * @param <T> response payload type
  */
 public class Response<T> {
+    private static final String GENERIC_ERROR_MESSAGE = "An internal error occurred";
+
     private final T data;
     private final String error;
     private final boolean success;
@@ -69,19 +72,28 @@ public class Response<T> {
 
     /**
      * Creates an error response based on the supplied exception.
+     * For security, only {@link CourierException} messages are propagated;
+     * all other exception types receive a generic error message to prevent
+     * information leakage.
      */
     @Contract("_ -> new")
     public static <T> @NotNull Response<T> error(@NotNull Throwable throwable) {
-        String message = throwable.getMessage() != null ? throwable.getMessage() : throwable.getClass().getSimpleName();
+        String message = (throwable instanceof CourierException)
+                ? throwable.getMessage()
+                : GENERIC_ERROR_MESSAGE;
         return new Response<>(null, message, false, 500);
     }
 
     /**
      * Creates an error response from an exception and a custom status code.
+     * For security, only {@link CourierException} messages are propagated;
+     * all other exception types receive a generic error message.
      */
     @Contract("_, _ -> new")
     public static <T> @NotNull Response<T> error(@NotNull Throwable throwable, int statusCode) {
-        String message = throwable.getMessage() != null ? throwable.getMessage() : throwable.getClass().getSimpleName();
+        String message = (throwable instanceof CourierException)
+                ? throwable.getMessage()
+                : GENERIC_ERROR_MESSAGE;
         return new Response<>(null, message, false, statusCode);
     }
 
@@ -166,7 +178,7 @@ public class Response<T> {
     @Override
     public String toString() {
         return "Response{" +
-                "data=" + data +
+                "data=" + (data != null ? "<present>" : "null") +
                 ", error='" + error + '\'' +
                 ", success=" + success +
                 ", statusCode=" + statusCode +
@@ -203,6 +215,14 @@ public class Response<T> {
         }
 
         public Response<T> build() {
+            if (success && error != null) {
+                throw new IllegalStateException(
+                        "Cannot build a success response with an error message set");
+            }
+            if (!success && statusCode >= 200 && statusCode < 300) {
+                throw new IllegalStateException(
+                        "Cannot build an error response with a 2xx status code");
+            }
             return new Response<>(data, error, success, statusCode);
         }
     }

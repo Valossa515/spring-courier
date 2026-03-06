@@ -1,5 +1,6 @@
 package io.github.valossa515.spring_courier.core.pipelines;
 
+import io.github.valossa515.spring_courier.core.exceptions.CourierException;
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
 import io.github.valossa515.spring_courier.core.support.Response;
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ import java.util.List;
  */
 public class PipelineExecutor {
     private static final Logger logger = LoggerFactory.getLogger(PipelineExecutor.class);
+    private static final int MAX_PIPELINE_DEPTH = 64;
     private final PipelineRegistry pipelineRegistry;
 
     public PipelineExecutor(PipelineRegistry pipelineRegistry) {
@@ -76,7 +78,8 @@ public class PipelineExecutor {
     }
 
     /**
-     * Executes the registered behaviors recursively.
+     * Executes the registered behaviors recursively, with a depth guard
+     * to prevent {@link StackOverflowError} from malformed or excessive behaviors.
      */
     @SuppressWarnings("unchecked")
     private <R extends IRequest<S>, S> Object executeBehaviorChain(
@@ -84,6 +87,12 @@ public class PipelineExecutor {
             List<PipelineBehavior<R, S>> behaviors,
             int currentIndex,
             HandlerInvoker<R, S> handlerInvoker) {
+
+        if (currentIndex > MAX_PIPELINE_DEPTH) {
+            throw new CourierException(
+                    "Pipeline behavior chain exceeded maximum depth of " + MAX_PIPELINE_DEPTH
+                            + " for request: " + request.getClass().getSimpleName());
+        }
 
         if (currentIndex >= behaviors.size()) {
             return handlerInvoker.invoke();
