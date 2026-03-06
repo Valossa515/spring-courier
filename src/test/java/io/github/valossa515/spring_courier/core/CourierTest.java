@@ -72,7 +72,7 @@ class CourierTest {
         var response = fixture.courier().send(new SampleRequest());
 
         assertFalse(response.isSuccess());
-        assertTrue(response.getError().contains("No handle method"));
+        assertEquals("An internal error occurred", response.getError());
     }
 
     @Test
@@ -84,7 +84,7 @@ class CourierTest {
         var response = fixture.courier().send(new RealRequest());
 
         assertFalse(response.isSuccess());
-        assertTrue(response.getError().contains("boom"));
+        assertEquals("An internal error occurred", response.getError());
     }
 
     private static class SampleRequest implements IRequest<String> {

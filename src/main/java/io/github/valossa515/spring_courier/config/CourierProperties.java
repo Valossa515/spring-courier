@@ -15,9 +15,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "spring.courier")
 public class CourierProperties {
 
+    private static final long MIN_TIMEOUT_MS = 100;
+    private static final long MAX_TIMEOUT_MS = 600_000;
+
     /**
      * Timeout in milliseconds for asynchronous handler execution.
      * Defaults to 30 000 ms (30 seconds).
+     * Must be between {@value #MIN_TIMEOUT_MS} and {@value #MAX_TIMEOUT_MS}.
      */
     private long asyncTimeoutMs = 30_000;
 
@@ -26,6 +30,11 @@ public class CourierProperties {
     }
 
     public void setAsyncTimeoutMs(long asyncTimeoutMs) {
+        if (asyncTimeoutMs < MIN_TIMEOUT_MS || asyncTimeoutMs > MAX_TIMEOUT_MS) {
+            throw new IllegalArgumentException(
+                    "asyncTimeoutMs must be between " + MIN_TIMEOUT_MS + " and " + MAX_TIMEOUT_MS
+                            + ", got: " + asyncTimeoutMs);
+        }
         this.asyncTimeoutMs = asyncTimeoutMs;
     }
 }

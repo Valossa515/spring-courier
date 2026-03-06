@@ -24,7 +24,7 @@ class CourierInvokeTest {
         var response = fixture.courier().send(new DummyRequest());
 
         assertFalse(response.isSuccess());
-        assertTrue(response.getError().contains("No handle method"));
+        assertEquals("An internal error occurred", response.getError());
     }
 
     @Test
@@ -34,7 +34,7 @@ class CourierInvokeTest {
         var response = fixture.courier().send(new DummyRequest());
 
         assertFalse(response.isSuccess());
-        assertTrue(response.getError().contains("handler boom"));
+        assertEquals("An internal error occurred", response.getError());
     }
 
     @Test

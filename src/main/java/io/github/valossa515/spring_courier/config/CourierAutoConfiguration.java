@@ -8,6 +8,7 @@ import io.github.valossa515.spring_courier.core.support.HandlerDiscoveryPostProc
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.NotificationDiscoveryPostProcessor;
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
@@ -76,5 +77,21 @@ public class CourierAutoConfiguration {
     @ConditionalOnMissingBean
     public BehaviorDiscoveryPostProcessor behaviorDiscoveryPostProcessor(PipelineRegistry pipelineRegistry) {
         return new BehaviorDiscoveryPostProcessor(pipelineRegistry);
+    }
+
+    /**
+     * Freezes all registries after all singleton beans have been initialized,
+     * preventing runtime handler/behavior replacement (registry poisoning).
+     */
+    @Bean
+    public SmartInitializingSingleton freezeRegistries(
+            HandlerRegistry handlerRegistry,
+            NotificationRegistry notificationRegistry,
+            PipelineRegistry pipelineRegistry) {
+        return () -> {
+            handlerRegistry.freeze();
+            notificationRegistry.freeze();
+            pipelineRegistry.freeze();
+        };
     }
 }

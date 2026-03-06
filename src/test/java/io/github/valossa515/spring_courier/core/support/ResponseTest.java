@@ -38,11 +38,12 @@ class ResponseTest {
 
         RuntimeException failure = new RuntimeException("boom");
         Response<String> fromThrowable = Response.error(failure);
-        assertEquals("boom", fromThrowable.getError());
+        assertEquals("An internal error occurred", fromThrowable.getError());
         assertEquals(500, fromThrowable.getStatusCode());
 
         Response<String> fromThrowableWithStatus = Response.error(failure, 503);
         assertEquals(503, fromThrowableWithStatus.getStatusCode());
+        assertEquals("An internal error occurred", fromThrowableWithStatus.getError());
     }
 
     @Test
@@ -66,19 +67,17 @@ class ResponseTest {
     void builderCreatesExpectedResponseAndSupportsEquality() {
         Response<String> built = Response.<String>builder()
                 .data("data")
-                .error("none")
                 .success(true)
                 .statusCode(204)
                 .build();
 
         assertEquals("data", built.getData());
-        assertEquals("none", built.getError());
+        assertNull(built.getError());
         assertTrue(built.isSuccess());
         assertEquals(204, built.getStatusCode());
 
         Response<String> identical = Response.<String>builder()
                 .data("data")
-                .error("none")
                 .success(true)
                 .statusCode(204)
                 .build();

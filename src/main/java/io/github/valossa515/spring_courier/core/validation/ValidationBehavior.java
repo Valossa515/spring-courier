@@ -46,9 +46,12 @@ public class ValidationBehavior<T extends IRequest<R>, R>
                     errors.addAll(result.getErrors());
                 }
             } catch (Exception e) {
-                logger.error("Error during validation: {}", e.getMessage(), e);
+                logger.error("Validator {} threw an exception for request {}: {}",
+                        validator.getClass().getSimpleName(),
+                        request.getClass().getSimpleName(),
+                        e.getMessage(), e);
                 errors.add(new ValidationError("validation_error",
-                        "Internal error during validation: " + e.getMessage()));
+                        "An internal validation error occurred"));
             }
         }
 

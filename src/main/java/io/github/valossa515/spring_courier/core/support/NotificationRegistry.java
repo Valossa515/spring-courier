@@ -18,18 +18,39 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class NotificationRegistry {
     private static final Logger logger = LoggerFactory.getLogger(NotificationRegistry.class);
     private final Map<Class<?>, List<Object>> handlers = new ConcurrentHashMap<>();
+    private volatile boolean frozen = false;
 
     /**
      * Registers a notification handler.
      *
      * @param notificationType the notification type
      * @param handler          the handler instance
+     * @throws IllegalStateException if the registry has been frozen
      */
     public void registerHandler(Class<?> notificationType, Object handler) {
         Objects.requireNonNull(notificationType, "notificationType must not be null");
         Objects.requireNonNull(handler, "handler must not be null");
+        if (frozen) {
+            throw new IllegalStateException(
+                    "NotificationRegistry is frozen; cannot register handler for: "
+                            + notificationType.getSimpleName());
+        }
         handlers.computeIfAbsent(notificationType, k -> new CopyOnWriteArrayList<>()).add(handler);
         logger.debug("Notification handler registered for: {}", notificationType.getSimpleName());
+    }
+
+    /**
+     * Freezes this registry, preventing any further handler registrations.
+     */
+    public void freeze() {
+        this.frozen = true;
+        long totalHandlers = handlers.values().stream().mapToLong(List::size).sum();
+        logger.info("NotificationRegistry frozen with {} handlers across {} notification types",
+                totalHandlers, handlers.size());
+    }
+
+    public boolean isFrozen() {
+        return frozen;
     }
 
     /**

@@ -16,15 +16,34 @@ import java.util.concurrent.ConcurrentHashMap;
 public class HandlerRegistry {
     private static final Logger logger = LoggerFactory.getLogger(HandlerRegistry.class);
     private final Map<Class<?>, Object> handlers = new ConcurrentHashMap<>();
+    private volatile boolean frozen = false;
 
     public void registerHandler(Class<?> requestType, Object handler) {
         Objects.requireNonNull(requestType, "requestType must not be null");
         Objects.requireNonNull(handler, "handler must not be null");
+        if (frozen) {
+            throw new IllegalStateException(
+                    "HandlerRegistry is frozen; cannot register handler for: "
+                            + requestType.getSimpleName());
+        }
         Object previous = handlers.put(requestType, handler);
         if (previous != null) {
             logger.warn("Replacing existing handler for request type: {}", requestType.getSimpleName());
         }
         logger.debug("Handler registered for: {}", requestType.getSimpleName());
+    }
+
+    /**
+     * Freezes this registry, preventing any further handler registrations.
+     * Should be called after application context startup is complete.
+     */
+    public void freeze() {
+        this.frozen = true;
+        logger.info("HandlerRegistry frozen with {} handlers", handlers.size());
+    }
+
+    public boolean isFrozen() {
+        return frozen;
     }
 
     public <T> Object getHandler(Class<T> requestType) {

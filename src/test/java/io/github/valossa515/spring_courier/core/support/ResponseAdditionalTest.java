@@ -10,7 +10,7 @@ class ResponseAdditionalTest {
         Throwable t = new IllegalStateException("t-problem");
         Response<String> resp = Response.error(t, 503);
         assertFalse(resp.isSuccess());
-        assertEquals("t-problem", resp.getError());
+        assertEquals("An internal error occurred", resp.getError());
         assertEquals(503, resp.getStatusCode());
     }
 
