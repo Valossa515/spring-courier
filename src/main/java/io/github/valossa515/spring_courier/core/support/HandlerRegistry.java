@@ -30,9 +30,9 @@ public class HandlerRegistry {
     public <T> Object getHandler(Class<T> requestType) {
         Object handler = handlers.get(requestType);
         if (handler == null) {
-            String errorMsg = "No handler registered for request type: " + requestType.getName();
-            logger.error(errorMsg);
-            throw new HandlerNotFoundException(errorMsg);
+            logger.error("No handler registered for request type: {}", requestType.getName());
+            throw new HandlerNotFoundException(
+                    "No handler registered for request type: " + requestType.getSimpleName());
         }
         logger.debug("Handler found for: {}", requestType.getSimpleName());
         return handler;

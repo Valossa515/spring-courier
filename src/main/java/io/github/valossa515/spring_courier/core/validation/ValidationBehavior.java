@@ -46,9 +46,10 @@ public class ValidationBehavior<T extends IRequest<R>, R>
                     errors.addAll(result.getErrors());
                 }
             } catch (Exception e) {
-                logger.error("Error during validation: {}", e.getMessage(), e);
+                logger.error("Error during validation for request type: {}",
+                        request.getClass().getSimpleName(), e);
                 errors.add(new ValidationError("validation_error",
-                        "Internal error during validation: " + e.getMessage()));
+                        "Internal error during validation"));
             }
         }
 
@@ -61,20 +62,47 @@ public class ValidationBehavior<T extends IRequest<R>, R>
         return next.invoke();
     }
 
-    /**\n     * Builds a {@link Response#error(String, int)} with HTTP 400.\n     *\n     * @throws ClassCastException if {@code R} is not {@code Response<?>}\n     */
+    /**
+     * Builds a {@link Response#error(String, int)} with HTTP 400.
+     *
+     * @throws ClassCastException if {@code R} is not {@code Response<?>}
+     */
     @SuppressWarnings("unchecked")
     private R createValidationErrorResponse(List<ValidationError> errors) {
         StringBuilder errorMessage = new StringBuilder("Validation errors: ");
-        for (ValidationError error : errors) {
-            errorMessage.append(error.field())
+        int maxErrors = Math.min(errors.size(), 50);
+        for (int i = 0; i < maxErrors; i++) {
+            ValidationError error = errors.get(i);
+            errorMessage.append(sanitize(error.field()))
                     .append(": ")
-                    .append(error.message())
+                    .append(sanitize(error.message()))
                     .append("; ");
+        }
+        if (errors.size() > maxErrors) {
+            errorMessage.append("... and ").append(errors.size() - maxErrors).append(" more errors");
         }
 
         // R must be Response<?> — see class-level Javadoc.
         // Due to type erasure, the unchecked cast cannot fail here; it will
         // surface as a CCE at the call-site when R is not Response<?>.
         return (R) Response.error(errorMessage.toString(), 400);
+    }
+
+    /**
+     * Sanitizes user-controlled values to prevent log injection attacks.
+     * Removes newlines, carriage returns, and other control characters
+     * that could be used to forge log entries.
+     */
+    private String sanitize(String value) {
+        if (value == null) {
+            return "";
+        }
+        // Remove control characters (newlines, tabs, carriage returns, etc.)
+        String sanitized = value.replaceAll("[\\r\\n\\t\\x00-\\x1F\\x7F]", "");
+        // Truncate overly long values
+        if (sanitized.length() > 200) {
+            sanitized = sanitized.substring(0, 200) + "...";
+        }
+        return sanitized;
     }
 }

@@ -1,7 +1,10 @@
 package io.github.valossa515.spring_courier.core;
 
+import io.github.valossa515.spring_courier.core.interfaces.CommandHandler;
 import io.github.valossa515.spring_courier.core.interfaces.INotification;
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
+import io.github.valossa515.spring_courier.core.interfaces.NotificationHandler;
+import io.github.valossa515.spring_courier.core.interfaces.QueryHandler;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
@@ -14,6 +17,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -28,6 +32,10 @@ import java.util.concurrent.TimeoutException;
 public class Courier {
     private static final Logger logger = LoggerFactory.getLogger(Courier.class);
     private static final long DEFAULT_ASYNC_TIMEOUT_MS = 30_000;
+    private static final long MIN_ASYNC_TIMEOUT_MS = 100;
+    private static final long MAX_ASYNC_TIMEOUT_MS = 600_000;
+
+    private static final Set<String> ALLOWED_HANDLER_METHOD_NAMES = Set.of("handle", "execute");
 
     /**
      * Cache for request handler methods (accepts "handle" or "execute").
@@ -67,7 +75,7 @@ public class Courier {
         this.notificationRegistry = Objects.requireNonNull(notificationRegistry, "notificationRegistry must not be null");
         this.pipelineExecutor = Objects.requireNonNull(pipelineExecutor, "pipelineExecutor must not be null");
         this.asyncExecutor = asyncExecutor;
-        this.asyncTimeoutMs = asyncTimeoutMs > 0 ? asyncTimeoutMs : DEFAULT_ASYNC_TIMEOUT_MS;
+        this.asyncTimeoutMs = clampTimeout(asyncTimeoutMs);
         logger.info("Courier initialized with {} registered handlers (asyncTimeoutMs={})",
                 handlerRegistry.getHandlerCount(), this.asyncTimeoutMs);
     }
@@ -96,6 +104,7 @@ public class Courier {
     @SuppressWarnings("unchecked")
     private <R> Response<R> invokeHandler(Object handler, IRequest<R> request) {
         try {
+            validateHandler(handler);
             Method method = getCachedMethod(handler.getClass());
             long start = System.nanoTime();
 
@@ -107,7 +116,7 @@ public class Courier {
                 } catch (TimeoutException e) {
                     logger.error("Handler timed out after {}ms: {}", asyncTimeoutMs,
                             handler.getClass().getSimpleName());
-                    return Response.error("Handler timed out after " + asyncTimeoutMs + "ms", 504);
+                    return Response.error("Handler timed out", 504);
                 }
             }
 
@@ -126,37 +135,39 @@ public class Courier {
 
         } catch (InvocationTargetException e) {
             Throwable target = e.getTargetException();
-            logger.error("Handler error: {}", target.getMessage(), target);
-            return Response.error(target);
+            logger.error("Handler execution failed for request type: {}",
+                    request.getClass().getSimpleName(), target);
+            return Response.error(sanitizeErrorMessage(target.getMessage()));
         } catch (RuntimeException e) {
-            logger.error("Courier runtime error: {}", e.getMessage(), e);
-            return Response.error(e);
+            logger.error("Courier runtime error for request type: {}",
+                    request.getClass().getSimpleName(), e);
+            return Response.error(sanitizeErrorMessage(e.getMessage()));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            logger.error("Handler interrupted: {}", e.getMessage(), e);
-            return Response.error(e);
+            logger.error("Handler interrupted for request type: {}",
+                    request.getClass().getSimpleName(), e);
+            return Response.error("Handler execution was interrupted");
         } catch (Exception e) {
-            logger.error("Failed to invoke handler: {}", e.getMessage(), e);
-            return Response.error(e);
+            logger.error("Failed to invoke handler for request type: {}",
+                    request.getClass().getSimpleName(), e);
+            return Response.error("An internal error occurred");
         }
     }
 
     /**
      * Returns a cached Method for the given handler class, resolving and caching
-     * on first access. The method is made accessible once during caching, which
-     * avoids repeated setAccessible calls on concurrent invocations.
+     * on first access. Only public methods from recognized handler interfaces are
+     * resolved — private/protected methods are never made accessible.
      */
-    @SuppressWarnings("java:S3011")
     private @NotNull Method getCachedMethod(@NotNull Class<?> handlerClass) {
         return REQUEST_METHOD_CACHE.computeIfAbsent(handlerClass, clazz -> {
             for (Method method : clazz.getMethods()) {
-                if ((method.getName().equals("handle") || method.getName().equals("execute"))
+                if (ALLOWED_HANDLER_METHOD_NAMES.contains(method.getName())
                         && method.getParameterCount() == 1) {
-                    method.setAccessible(true);
                     return method;
                 }
             }
-            throw new HandlerMethodNotFoundException(clazz.getName(), "handle/execute");
+            throw new HandlerMethodNotFoundException(clazz.getSimpleName(), "handle/execute");
         });
     }
 
@@ -186,13 +197,14 @@ public class Courier {
 
         for (Object handler : handlers) {
             try {
+                validateNotificationHandler(handler);
                 Method method = getCachedHandleMethod(handler.getClass());
                 method.invoke(handler, notification);
                 logger.debug("Notification handler executed: {} -> {}",
                         notification.getClass().getSimpleName(), handler.getClass().getSimpleName());
             } catch (Exception e) {
-                logger.error("Error executing notification handler {}: {}",
-                        handler.getClass().getSimpleName(), e.getMessage(), e);
+                logger.error("Error executing notification handler for notification type: {}",
+                        notification.getClass().getSimpleName(), e);
             }
         }
     }
@@ -210,17 +222,74 @@ public class Courier {
         return CompletableFuture.runAsync(() -> publish(notification));
     }
 
-    @SuppressWarnings("java:S3011")
     private @NotNull Method getCachedHandleMethod(@NotNull Class<?> handlerClass) {
         return NOTIFICATION_METHOD_CACHE.computeIfAbsent(handlerClass, clazz -> {
             for (Method method : clazz.getMethods()) {
-                if (method.getName().equals("handle") && method.getParameterCount() == 1) {
-                    method.setAccessible(true);
+                if ("handle".equals(method.getName()) && method.getParameterCount() == 1) {
                     return method;
                 }
             }
-            throw new HandlerMethodNotFoundException(clazz.getName(), "handle");
+            throw new HandlerMethodNotFoundException(clazz.getSimpleName(), "handle");
         });
+    }
+
+    /**
+     * Validates that the handler is a recognized handler type (CommandHandler or QueryHandler).
+     */
+    private void validateHandler(Object handler) {
+        if (!(handler instanceof CommandHandler<?, ?>) && !(handler instanceof QueryHandler<?, ?>)) {
+            throw new IllegalArgumentException(
+                    "Handler must implement CommandHandler or QueryHandler: " + handler.getClass().getSimpleName());
+        }
+    }
+
+    /**
+     * Validates that the handler is a recognized notification handler type.
+     */
+    private void validateNotificationHandler(Object handler) {
+        if (!(handler instanceof NotificationHandler<?>)) {
+            throw new IllegalArgumentException(
+                    "Handler must implement NotificationHandler: " + handler.getClass().getSimpleName());
+        }
+    }
+
+    /**
+     * Clamps the timeout value to a safe range between {@link #MIN_ASYNC_TIMEOUT_MS}
+     * and {@link #MAX_ASYNC_TIMEOUT_MS}.
+     */
+    private static long clampTimeout(long timeoutMs) {
+        if (timeoutMs <= 0) {
+            return DEFAULT_ASYNC_TIMEOUT_MS;
+        }
+        if (timeoutMs < MIN_ASYNC_TIMEOUT_MS) {
+            logger.warn("Async timeout {}ms is below minimum, using {}ms", timeoutMs, MIN_ASYNC_TIMEOUT_MS);
+            return MIN_ASYNC_TIMEOUT_MS;
+        }
+        if (timeoutMs > MAX_ASYNC_TIMEOUT_MS) {
+            logger.warn("Async timeout {}ms exceeds maximum, using {}ms", timeoutMs, MAX_ASYNC_TIMEOUT_MS);
+            return MAX_ASYNC_TIMEOUT_MS;
+        }
+        return timeoutMs;
+    }
+
+    /**
+     * Sanitizes error messages to prevent information disclosure. Strips
+     * class names, file paths, and stack trace details from messages exposed
+     * to callers.
+     */
+    private static String sanitizeErrorMessage(String message) {
+        if (message == null || message.isBlank()) {
+            return "An internal error occurred";
+        }
+        // Remove potential class/package names and file paths
+        String sanitized = message.replaceAll("[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*){2,}", "***");
+        // Remove potential file paths
+        sanitized = sanitized.replaceAll("(/[\\w.-]+){2,}", "***");
+        // Truncate overly long messages
+        if (sanitized.length() > 200) {
+            sanitized = sanitized.substring(0, 200) + "...";
+        }
+        return sanitized;
     }
 
     /**

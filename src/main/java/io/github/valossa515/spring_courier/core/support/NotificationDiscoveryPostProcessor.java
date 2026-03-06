@@ -41,9 +41,8 @@ public class NotificationDiscoveryPostProcessor implements BeanPostProcessor {
             } catch (Exception e) {
                 logger.error(
                         "Error while processing notification handler {}: {}",
-                        targetClass.getName(),
-                        e.getMessage(),
-                        e
+                        targetClass.getSimpleName(),
+                        e.getMessage()
                 );
             }
         }

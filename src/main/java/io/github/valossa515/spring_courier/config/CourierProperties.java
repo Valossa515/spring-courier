@@ -26,6 +26,12 @@ public class CourierProperties {
     }
 
     public void setAsyncTimeoutMs(long asyncTimeoutMs) {
+        if (asyncTimeoutMs < 100) {
+            throw new IllegalArgumentException("asyncTimeoutMs must be at least 100ms, got: " + asyncTimeoutMs);
+        }
+        if (asyncTimeoutMs > 600_000) {
+            throw new IllegalArgumentException("asyncTimeoutMs must not exceed 600000ms (10 min), got: " + asyncTimeoutMs);
+        }
         this.asyncTimeoutMs = asyncTimeoutMs;
     }
 }

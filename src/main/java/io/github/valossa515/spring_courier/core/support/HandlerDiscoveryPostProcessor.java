@@ -42,7 +42,7 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
             try {
                 discoverAndRegisterHandler(bean, targetClass);
             } catch (Exception e) {
-                logger.error("Error while processing handler {}: {}", targetClass.getName(), e.getMessage(), e);
+                logger.error("Error while processing handler {}: {}", targetClass.getSimpleName(), e.getMessage());
             }
         }
 

@@ -1,6 +1,8 @@
 package io.github.valossa515.spring_courier.core.pipelines;
 
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 
@@ -16,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class PipelineRegistry {
+    private static final Logger logger = LoggerFactory.getLogger(PipelineRegistry.class);
     private final Map<Class<?>, List<PipelineBehavior<?, ?>>> behaviorRegistry = new ConcurrentHashMap<>();
 
     public void registerBehavior(Class<?> requestType, PipelineBehavior<?, ?> behavior) {
@@ -65,7 +68,12 @@ public class PipelineRegistry {
 
         for (PipelineBehavior<?, ?> behavior : behaviors) {
             if (isBehaviorCompatible(behavior, requestType)) {
-                compatibleBehaviors.add((PipelineBehavior<R, S>) behavior);
+                try {
+                    compatibleBehaviors.add((PipelineBehavior<R, S>) behavior);
+                } catch (ClassCastException e) {
+                    logger.warn("Skipping incompatible behavior {} for request type {}",
+                            behavior.getClass().getSimpleName(), requestType.getSimpleName());
+                }
             }
         }
 

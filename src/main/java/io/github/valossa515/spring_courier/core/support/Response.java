@@ -69,20 +69,42 @@ public class Response<T> {
 
     /**
      * Creates an error response based on the supplied exception.
+     * Exception details are sanitized to prevent information disclosure.
      */
     @Contract("_ -> new")
     public static <T> @NotNull Response<T> error(@NotNull Throwable throwable) {
-        String message = throwable.getMessage() != null ? throwable.getMessage() : throwable.getClass().getSimpleName();
+        String message = sanitizeExceptionMessage(throwable);
         return new Response<>(null, message, false, 500);
     }
 
     /**
      * Creates an error response from an exception and a custom status code.
+     * Exception details are sanitized to prevent information disclosure.
      */
     @Contract("_, _ -> new")
     public static <T> @NotNull Response<T> error(@NotNull Throwable throwable, int statusCode) {
-        String message = throwable.getMessage() != null ? throwable.getMessage() : throwable.getClass().getSimpleName();
+        String message = sanitizeExceptionMessage(throwable);
         return new Response<>(null, message, false, statusCode);
+    }
+
+    /**
+     * Extracts a safe error message from an exception, avoiding exposure of
+     * internal class names, file paths, or stack trace details.
+     */
+    private static String sanitizeExceptionMessage(Throwable throwable) {
+        String message = throwable.getMessage();
+        if (message == null || message.isBlank()) {
+            return "An internal error occurred";
+        }
+        // Remove potential fully-qualified class names (e.g., com.example.SomeClass)
+        String sanitized = message.replaceAll("[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*){2,}", "***");
+        // Remove potential file paths
+        sanitized = sanitized.replaceAll("(/[\\w.-]+){2,}", "***");
+        // Truncate overly long messages
+        if (sanitized.length() > 200) {
+            sanitized = sanitized.substring(0, 200) + "...";
+        }
+        return sanitized;
     }
 
     // Getters
