@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: spring-courier
+  namespace: argocd
+  labels:
+    app: spring-courier
+spec:
+  description: Projeto GitOps para o pipeline de CD do Spring Courier
+
+  sourceRepos:
+    - https://github.com/valossa515/spring-courier.git
+
+  destinations:
+    - namespace: spring-courier
+      server: https://kubernetes.default.svc
+
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: "*"
+    - group: "argoproj.io"
+      kind: "*"
+    - group: "rbac.authorization.k8s.io"
+      kind: "*"

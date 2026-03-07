@@ -1,0 +1,301 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: publish-maven-central
+  namespace: spring-courier
+  labels:
+    app: spring-courier
+    component: cd
+  annotations:
+    workflows.argoproj.io/description: |
+      Pipeline de CD para publicar o Spring Courier no Maven Central.
+      Substitui o GitHub Actions publish-maven-central.yml.
+spec:
+  entrypoint: publish-pipeline
+  serviceAccountName: argo-workflow-sa
+
+  arguments:
+    parameters:
+      - name: git-revision
+        value: "main"
+      - name: version-override
+        value: ""
+
+  volumeClaimTemplates:
+    - metadata:
+        name: workspace
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+
+  templates:
+    - name: publish-pipeline
+      dag:
+        tasks:
+          - name: checkout
+            template: git-checkout
+
+          - name: extract-version
+            template: extract-version
+            dependencies: [checkout]
+
+          - name: build
+            template: maven-build
+            dependencies: [extract-version]
+            arguments:
+              parameters:
+                - name: version
+                  value: "{{tasks.extract-version.outputs.parameters.version}}"
+
+          - name: sign-artifacts
+            template: gpg-sign
+            dependencies: [build]
+            arguments:
+              parameters:
+                - name: version
+                  value: "{{tasks.extract-version.outputs.parameters.version}}"
+
+          - name: generate-checksums
+            template: checksums
+            dependencies: [sign-artifacts]
+            arguments:
+              parameters:
+                - name: version
+                  value: "{{tasks.extract-version.outputs.parameters.version}}"
+
+          - name: create-bundle
+            template: bundle
+            dependencies: [generate-checksums]
+            arguments:
+              parameters:
+                - name: version
+                  value: "{{tasks.extract-version.outputs.parameters.version}}"
+
+          - name: publish
+            template: publish-to-central
+            dependencies: [create-bundle]
+            arguments:
+              parameters:
+                - name: version
+                  value: "{{tasks.extract-version.outputs.parameters.version}}"
+
+    # ---------- Step Templates ----------
+
+    - name: git-checkout
+      container:
+        image: alpine/git:latest
+        command: [sh, -c]
+        args:
+          - |
+            git clone --branch {{workflow.parameters.git-revision}} \
+              --single-branch --depth 1 \
+              https://github.com/valossa515/spring-courier.git /workspace/source
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+
+    - name: extract-version
+      container:
+        image: maven:3.9-eclipse-temurin-17
+        command: [sh, -c]
+        args:
+          - |
+            cd /workspace/source
+            if [ -n "{{workflow.parameters.version-override}}" ]; then
+              VERSION="{{workflow.parameters.version-override}}"
+            else
+              VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+            fi
+            echo "Building version: $VERSION"
+            echo "$VERSION" > /tmp/version.txt
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+      outputs:
+        parameters:
+          - name: version
+            valueFrom:
+              path: /tmp/version.txt
+
+    - name: maven-build
+      inputs:
+        parameters:
+          - name: version
+      container:
+        image: maven:3.9-eclipse-temurin-17
+        command: [sh, -c]
+        args:
+          - |
+            cd /workspace/source
+            ./mvnw clean verify -DskipTests -Prelease
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+
+    - name: gpg-sign
+      inputs:
+        parameters:
+          - name: version
+      container:
+        image: maven:3.9-eclipse-temurin-17
+        command: [sh, -c]
+        args:
+          - |
+            # Import GPG key from secret
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+            echo "allow-preset-passphrase" >> ~/.gnupg/gpg-agent.conf
+            gpg-connect-agent reloadagent /bye || true
+
+            cd /workspace/source
+            ./mvnw verify -DskipTests -Prelease \
+              -Dgpg.passphrase="$GPG_PASSPHRASE"
+        env:
+          - name: GPG_PRIVATE_KEY
+            valueFrom:
+              secretKeyRef:
+                name: maven-central-secrets
+                key: gpg-private-key
+          - name: GPG_PASSPHRASE
+            valueFrom:
+              secretKeyRef:
+                name: maven-central-secrets
+                key: gpg-passphrase
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+
+    - name: checksums
+      inputs:
+        parameters:
+          - name: version
+      container:
+        image: alpine:3.19
+        command: [sh, -c]
+        args:
+          - |
+            VERSION="{{inputs.parameters.version}}"
+            cd /workspace/source/target
+
+            for file in \
+              spring-courier-${VERSION}.jar \
+              spring-courier-${VERSION}-sources.jar \
+              spring-courier-${VERSION}-javadoc.jar \
+              spring-courier-${VERSION}.pom; do
+
+              if [ -f "$file" ]; then
+                sha1sum "$file" | awk '{print $1}' > "${file}.sha1"
+                md5sum "$file" | awk '{print $1}' > "${file}.md5"
+                sha256sum "$file" | awk '{print $1}' > "${file}.sha256"
+                sha512sum "$file" | awk '{print $1}' > "${file}.sha512"
+              fi
+
+              if [ -f "${file}.asc" ]; then
+                sha1sum "${file}.asc" | awk '{print $1}' > "${file}.asc.sha1"
+                md5sum "${file}.asc" | awk '{print $1}' > "${file}.asc.md5"
+              fi
+            done
+
+            echo "Checksums generated successfully"
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+
+    - name: bundle
+      inputs:
+        parameters:
+          - name: version
+      container:
+        image: alpine:3.19
+        command: [sh, -c]
+        args:
+          - |
+            apk add --no-cache zip
+
+            VERSION="{{inputs.parameters.version}}"
+            GROUP_PATH="io/github/valossa515"
+            ARTIFACT_ID="spring-courier"
+
+            TMPDIR=$(mktemp -d)
+            FULL_PATH="$TMPDIR/$GROUP_PATH/$ARTIFACT_ID/$VERSION"
+            mkdir -p "$FULL_PATH"
+
+            cd /workspace/source/target
+            for artifact in \
+              "${ARTIFACT_ID}-${VERSION}.jar" \
+              "${ARTIFACT_ID}-${VERSION}-sources.jar" \
+              "${ARTIFACT_ID}-${VERSION}-javadoc.jar" \
+              "${ARTIFACT_ID}-${VERSION}.pom"; do
+              for ext in "" ".asc" ".sha1" ".md5" ".sha256" ".sha512"; do
+                file="${artifact}${ext}"
+                [ -f "$file" ] && cp "$file" "$FULL_PATH/"
+              done
+            done
+
+            cd "$TMPDIR"
+            zip -r -9 "${ARTIFACT_ID}-${VERSION}-bundle.zip" "$GROUP_PATH"
+            mv "${ARTIFACT_ID}-${VERSION}-bundle.zip" /workspace/source/target/
+
+            echo "Bundle created: ${ARTIFACT_ID}-${VERSION}-bundle.zip"
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+
+    - name: publish-to-central
+      inputs:
+        parameters:
+          - name: version
+      container:
+        image: curlimages/curl:latest
+        command: [sh, -c]
+        args:
+          - |
+            VERSION="{{inputs.parameters.version}}"
+            BUNDLE_FILE="/workspace/source/target/spring-courier-${VERSION}-bundle.zip"
+
+            echo "Publishing bundle to Maven Central..."
+
+            HTTP_CODE=$(curl -X POST \
+              https://central.sonatype.com/api/v1/publisher/upload \
+              -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" \
+              -F "bundle=@${BUNDLE_FILE}" \
+              -w "%{http_code}" \
+              -s -o /tmp/response.txt)
+
+            echo "HTTP Status: $HTTP_CODE"
+            cat /tmp/response.txt
+
+            if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+              echo "Bundle published successfully!"
+            else
+              echo "Failed to publish bundle"
+              exit 1
+            fi
+        env:
+          - name: SONATYPE_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: maven-central-secrets
+                key: sonatype-username
+          - name: SONATYPE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: maven-central-secrets
+                key: sonatype-password
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+      retryStrategy:
+        limit: 3
+        retryPolicy: "OnFailure"
+        backoff:
+          duration: "30s"
+          factor: 2

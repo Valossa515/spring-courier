@@ -1,0 +1,72 @@
+apiVersion: argoproj.io/v1alpha1
+kind: EventSource
+metadata:
+  name: github-release
+  namespace: spring-courier
+  labels:
+    app: spring-courier
+    component: cd
+spec:
+  github:
+    spring-courier-release:
+      repositories:
+        - owner: valossa515
+          names:
+            - spring-courier
+      webhook:
+        endpoint: /push
+        port: "12000"
+        method: POST
+      events:
+        - release
+      apiToken:
+        name: github-webhook-secret
+        key: token
+      webhookSecret:
+        name: github-webhook-secret
+        key: webhook-secret
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: publish-on-release
+  namespace: spring-courier
+  labels:
+    app: spring-courier
+    component: cd
+spec:
+  dependencies:
+    - name: github-release
+      eventSourceName: github-release
+      eventName: spring-courier-release
+      filters:
+        data:
+          - path: body.action
+            type: string
+            value:
+              - published
+
+  triggers:
+    - template:
+        name: publish-workflow
+        argoWorkflow:
+          operation: submit
+          source:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: Workflow
+              metadata:
+                generateName: publish-maven-central-
+                namespace: spring-courier
+              spec:
+                workflowTemplateRef:
+                  name: publish-maven-central
+                arguments:
+                  parameters:
+                    - name: git-revision
+                      value: ""
+          parameters:
+            - src:
+                dependencyName: github-release
+                dataKey: body.release.tag_name
+              dest: spec.arguments.parameters.0.value
