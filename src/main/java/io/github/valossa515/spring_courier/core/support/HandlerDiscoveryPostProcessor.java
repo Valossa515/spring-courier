@@ -92,7 +92,9 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
             return Arrays.stream(interfaceType.getMethods())
                     .anyMatch(m -> ("handle".equals(m.getName()) || "execute".equals(m.getName()))
                             && m.getParameterCount() == 1
-                            && m.getReturnType() != Void.TYPE);
+                            && m.getReturnType() != Void.TYPE
+                            && io.github.valossa515.spring_courier.core.interfaces.IRequest.class
+                                    .isAssignableFrom(m.getParameterTypes()[0]));
         } catch (SecurityException e) {
             logger.warn(
                     "Security error while analyzing interface {}: {}",
