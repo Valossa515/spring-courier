@@ -10,11 +10,13 @@ import io.github.valossa515.spring_courier.core.support.NotificationDiscoveryPos
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Role;
 
 import java.util.concurrent.Executor;
 
@@ -29,18 +31,21 @@ public class CourierAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     public static HandlerRegistry handlerRegistry() {
         return new HandlerRegistry();
     }
 
     @Bean
     @ConditionalOnMissingBean
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     public static NotificationRegistry notificationRegistry() {
         return new NotificationRegistry();
     }
 
     @Bean
     @ConditionalOnMissingBean
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     public static PipelineRegistry pipelineRegistry() {
         return new PipelineRegistry();
     }
