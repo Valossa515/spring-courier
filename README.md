@@ -1,11 +1,20 @@
-# 📦 Spring Courier  
-> 🚀 Uma biblioteca Java para simplificar a implementação do padrão **CQRS + Mediator** em aplicações **Spring Boot**.
+<p align="center">
+  <img src="assets/Spring Courier.png" alt="Spring Courier Logo" width="600"/>
+</p>
 
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.valossa515/spring-courier)](https://central.sonatype.com/artifact/io.github.valossa515/spring-courier)
-[![Publish to Maven Central](https://github.com/Valossa515/spring-courier/actions/workflows/publish-maven-central.yml/badge.svg)](https://github.com/Valossa515/spring-courier/actions/workflows/publish-maven-central.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Java](https://img.shields.io/badge/java-17%2B-orange)](https://openjdk.org/projects/jdk/17/)
-[![Spring Boot](https://img.shields.io/badge/spring--boot-3.5.x-brightgreen)](https://spring.io/projects/spring-boot)
+<h1 align="center">Spring Courier</h1>
+
+<p align="center">
+  🚀 Uma biblioteca Java para simplificar a implementação do padrão <strong>CQRS + Mediator</strong> em aplicações <strong>Spring Boot</strong>.
+</p>
+
+<p align="center">
+  <a href="https://central.sonatype.com/artifact/io.github.valossa515/spring-courier"><img src="https://img.shields.io/maven-central/v/io.github.valossa515/spring-courier" alt="Maven Central"/></a>
+  <a href="https://github.com/Valossa515/spring-courier/actions/workflows/publish-maven-central.yml"><img src="https://github.com/Valossa515/spring-courier/actions/workflows/publish-maven-central.yml/badge.svg" alt="Publish to Maven Central"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"/></a>
+  <a href="https://openjdk.org/projects/jdk/17/"><img src="https://img.shields.io/badge/java-17%2B-orange" alt="Java"/></a>
+  <a href="https://spring.io/projects/spring-boot"><img src="https://img.shields.io/badge/spring--boot-3.5.x-brightgreen" alt="Spring Boot"/></a>
+</p>
 
 ---
 
@@ -227,9 +236,9 @@ Todos os `CommandHandler`, `QueryHandler` e `NotificationHandler` anotados com `
 Contribuições são **muito bem-vindas**!  
 Siga os passos abaixo para contribuir:
 
-1. Faça um fork do repositório  
-2. Crie uma branch (`feature/nova-funcionalidade`)  
-3. Faça suas alterações e adicione testes  
+1. Faça um fork do repositório
+2. Crie uma branch (`feature/nova-funcionalidade`)
+3. Faça suas alterações e adicione testes
 4. Envie um Pull Request 🚀
 
 Para mais informações sobre o processo de contribuição e publicação de releases, consulte o [CONTRIBUTING.md](CONTRIBUTING.md).
