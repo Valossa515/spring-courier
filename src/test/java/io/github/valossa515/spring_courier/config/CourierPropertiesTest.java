@@ -3,7 +3,9 @@ package io.github.valossa515.spring_courier.config;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CourierPropertiesTest {
 
@@ -40,5 +42,18 @@ class CourierPropertiesTest {
 
         properties.setAsyncTimeoutMs(600_000);
         assertEquals(600_000, properties.getAsyncTimeoutMs());
+    }
+
+    @Test
+    void metricsEnabledByDefault() {
+        CourierProperties properties = new CourierProperties();
+        assertTrue(properties.isMetricsEnabled());
+    }
+
+    @Test
+    void metricsCanBeDisabled() {
+        CourierProperties properties = new CourierProperties();
+        properties.setMetricsEnabled(false);
+        assertFalse(properties.isMetricsEnabled());
     }
 }

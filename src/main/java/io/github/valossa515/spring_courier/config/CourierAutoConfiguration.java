@@ -1,6 +1,7 @@
 package io.github.valossa515.spring_courier.config;
 
 import io.github.valossa515.spring_courier.core.Courier;
+import io.github.valossa515.spring_courier.core.CourierMetrics;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
 import io.github.valossa515.spring_courier.core.support.BehaviorDiscoveryPostProcessor;
@@ -62,9 +63,12 @@ public class CourierAutoConfiguration {
                            NotificationRegistry notificationRegistry,
                            PipelineExecutor pipelineExecutor,
                            CourierProperties properties,
-                           ObjectProvider<Executor> asyncExecutor) {
-        return new Courier(handlerRegistry, notificationRegistry, pipelineExecutor,
-                asyncExecutor.getIfUnique(), properties.getAsyncTimeoutMs());
+                           ObjectProvider<Executor> asyncExecutor,
+                           ObjectProvider<CourierMetrics> courierMetrics) {
+        return new Courier(handlerRegistry, notificationRegistry,
+                pipelineExecutor, asyncExecutor.getIfUnique(),
+                properties.getAsyncTimeoutMs(),
+                courierMetrics.getIfAvailable());
     }
 
     @Bean

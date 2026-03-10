@@ -7,6 +7,7 @@ import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
 import io.github.valossa515.spring_courier.core.support.Response;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,18 +66,22 @@ public class Courier {
     private final PipelineExecutor pipelineExecutor;
     private final Executor asyncExecutor;
     private final long asyncTimeoutMs;
+    @Nullable
+    private final CourierMetrics metrics;
 
     public Courier(@NotNull HandlerRegistry handlerRegistry,
                    @NotNull NotificationRegistry notificationRegistry,
                    @NotNull PipelineExecutor pipelineExecutor) {
-        this(handlerRegistry, notificationRegistry, pipelineExecutor, null, DEFAULT_ASYNC_TIMEOUT_MS);
+        this(handlerRegistry, notificationRegistry, pipelineExecutor,
+                null, DEFAULT_ASYNC_TIMEOUT_MS, null);
     }
 
     public Courier(@NotNull HandlerRegistry handlerRegistry,
                    @NotNull NotificationRegistry notificationRegistry,
                    @NotNull PipelineExecutor pipelineExecutor,
                    Executor asyncExecutor) {
-        this(handlerRegistry, notificationRegistry, pipelineExecutor, asyncExecutor, DEFAULT_ASYNC_TIMEOUT_MS);
+        this(handlerRegistry, notificationRegistry, pipelineExecutor,
+                asyncExecutor, DEFAULT_ASYNC_TIMEOUT_MS, null);
     }
 
     public Courier(@NotNull HandlerRegistry handlerRegistry,
@@ -84,13 +89,30 @@ public class Courier {
                    @NotNull PipelineExecutor pipelineExecutor,
                    Executor asyncExecutor,
                    long asyncTimeoutMs) {
-        this.handlerRegistry = Objects.requireNonNull(handlerRegistry, "handlerRegistry must not be null");
-        this.notificationRegistry = Objects.requireNonNull(notificationRegistry, "notificationRegistry must not be null");
-        this.pipelineExecutor = Objects.requireNonNull(pipelineExecutor, "pipelineExecutor must not be null");
+        this(handlerRegistry, notificationRegistry, pipelineExecutor,
+                asyncExecutor, asyncTimeoutMs, null);
+    }
+
+    public Courier(@NotNull HandlerRegistry handlerRegistry,
+                   @NotNull NotificationRegistry notificationRegistry,
+                   @NotNull PipelineExecutor pipelineExecutor,
+                   Executor asyncExecutor,
+                   long asyncTimeoutMs,
+                   @Nullable CourierMetrics metrics) {
+        this.handlerRegistry = Objects.requireNonNull(
+                handlerRegistry, "handlerRegistry must not be null");
+        this.notificationRegistry = Objects.requireNonNull(
+                notificationRegistry, "notificationRegistry must not be null");
+        this.pipelineExecutor = Objects.requireNonNull(
+                pipelineExecutor, "pipelineExecutor must not be null");
         this.asyncExecutor = asyncExecutor;
-        this.asyncTimeoutMs = asyncTimeoutMs > 0 ? asyncTimeoutMs : DEFAULT_ASYNC_TIMEOUT_MS;
-        logger.info("Courier initialized with {} registered handlers (asyncTimeoutMs={})",
-                handlerRegistry.getHandlerCount(), this.asyncTimeoutMs);
+        this.asyncTimeoutMs = asyncTimeoutMs > 0
+                ? asyncTimeoutMs : DEFAULT_ASYNC_TIMEOUT_MS;
+        this.metrics = metrics;
+        logger.info("Courier initialized with {} registered handlers "
+                        + "(asyncTimeoutMs={}, metricsEnabled={})",
+                handlerRegistry.getHandlerCount(), this.asyncTimeoutMs,
+                metrics != null);
     }
 
     /**
@@ -101,17 +123,42 @@ public class Courier {
      */
     public <R> Response<R> send(@NotNull IRequest<R> request) {
         Objects.requireNonNull(request, "request must not be null");
-        logger.debug("Sending request: {}", request.getClass().getSimpleName());
+        String requestType = request.getClass().getSimpleName();
+        logger.debug("Sending request: {}", requestType);
 
-        Object handler = handlerRegistry.getHandler(request.getClass());
-
-        Response<R> result = pipelineExecutor.execute(request, () -> invokeHandler(handler, request));
-
-        if (result == null) {
-            return Response.success(null);
+        if (metrics != null) {
+            metrics.incrementActive();
         }
 
-        return result;
+        long startNs = System.nanoTime();
+        try {
+            Object handler = handlerRegistry.getHandler(request.getClass());
+            Response<R> result = pipelineExecutor.execute(
+                    request, () -> invokeHandler(handler, request));
+
+            if (result == null) {
+                result = Response.success(null);
+            }
+
+            if (metrics != null) {
+                long durationNs = System.nanoTime() - startNs;
+                metrics.recordRequest(requestType, result.isSuccess(),
+                        durationNs);
+            }
+
+            return result;
+        } catch (Exception e) {
+            if (metrics != null) {
+                long durationNs = System.nanoTime() - startNs;
+                metrics.recordRequest(requestType, false, durationNs);
+                metrics.recordError(requestType);
+            }
+            throw e;
+        } finally {
+            if (metrics != null) {
+                metrics.decrementActive();
+            }
+        }
     }
 
     /**
@@ -119,7 +166,8 @@ public class Courier {
      * method conventions.
      */
     @SuppressWarnings("unchecked")
-    private <R> Response<R> invokeHandler(Object handler, IRequest<R> request) {
+    private <R> Response<R> invokeHandler(Object handler,
+                                          IRequest<R> request) {
         try {
             Method method = getCachedMethod(handler.getClass());
             long start = System.nanoTime();
@@ -128,17 +176,26 @@ public class Courier {
 
             if (result instanceof CompletableFuture<?> future) {
                 try {
-                    result = future.get(asyncTimeoutMs, TimeUnit.MILLISECONDS);
+                    result = future.get(asyncTimeoutMs,
+                            TimeUnit.MILLISECONDS);
                 } catch (TimeoutException e) {
-                    logger.error("Handler timed out after {}ms: {}", asyncTimeoutMs,
+                    String reqType = request.getClass().getSimpleName();
+                    logger.error("Handler timed out after {}ms: {}",
+                            asyncTimeoutMs,
                             handler.getClass().getSimpleName());
-                    return Response.error("Handler timed out after " + asyncTimeoutMs + "ms", 504);
+                    if (metrics != null) {
+                        metrics.recordTimeout(reqType);
+                    }
+                    return Response.error("Handler timed out after "
+                            + asyncTimeoutMs + "ms", 504);
                 }
             }
 
-            long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+            long durationMs = TimeUnit.NANOSECONDS.toMillis(
+                    System.nanoTime() - start);
             logger.debug("Handler executed in {}ms: {} -> {}", durationMs,
-                    request.getClass().getSimpleName(), handler.getClass().getSimpleName());
+                    request.getClass().getSimpleName(),
+                    handler.getClass().getSimpleName());
 
             if (result == null) {
                 return Response.success(null);
@@ -167,12 +224,8 @@ public class Courier {
     }
 
     /**
-     * Returns a cached Method for the given handler class, resolving and caching
-     * on first access. The method is made accessible once during caching, which
-     * avoids repeated setAccessible calls on concurrent invocations.
-     *
-     * <p>Only methods whose single parameter is assignable from {@link IRequest}
-     * are matched, preventing unrelated methods from being invoked via reflection.
+     * Returns a cached Method for the given handler class, resolving and
+     * caching on first access.
      */
     @SuppressWarnings("java:S3011")
     private @NotNull Method getCachedMethod(@NotNull Class<?> handlerClass) {
@@ -181,40 +234,46 @@ public class Courier {
             return cached;
         }
         for (Method method : handlerClass.getMethods()) {
-            if ((method.getName().equals("handle") || method.getName().equals("execute"))
+            if ((method.getName().equals("handle")
+                    || method.getName().equals("execute"))
                     && method.getParameterCount() == 1
-                    && IRequest.class.isAssignableFrom(method.getParameterTypes()[0])) {
+                    && IRequest.class.isAssignableFrom(
+                    method.getParameterTypes()[0])) {
                 method.setAccessible(true);
                 REQUEST_METHOD_CACHE.put(handlerClass, method);
                 return method;
             }
         }
-        throw new HandlerMethodNotFoundException(handlerClass.getName(), "handle/execute");
+        throw new HandlerMethodNotFoundException(
+                handlerClass.getName(), "handle/execute");
     }
 
     /**
      * Publishes a notification to all registered handlers.
      *
-     * <p><strong>Execution model:</strong> handlers are invoked <em>sequentially</em>
-     * in the order they were registered. If a handler throws an exception,
-     * it will be logged at {@code ERROR} level but <strong>not propagated</strong>,
-     * so subsequent handlers are still executed.
+     * <p><strong>Execution model:</strong> handlers are invoked
+     * <em>sequentially</em> in the order they were registered. If a handler
+     * throws an exception, it will be logged at {@code ERROR} level but
+     * <strong>not propagated</strong>, so subsequent handlers are still
+     * executed.
      *
-     * <p>If no handler is registered for the given notification type, a {@code WARN}
-     * message is logged and the method returns immediately.
-     *
-     * @param notification the notification to publish; must not be {@code null}
+     * @param notification the notification to publish
      * @throws NullPointerException if {@code notification} is {@code null}
-     * @see #publishAsync(INotification) for non-blocking variant
      */
     public void publish(@NotNull INotification notification) {
-        Objects.requireNonNull(notification, "notification must not be null");
-        logger.debug("Publishing notification: {}", notification.getClass().getSimpleName());
+        Objects.requireNonNull(notification,
+                "notification must not be null");
+        String notifType = notification.getClass().getSimpleName();
+        logger.debug("Publishing notification: {}", notifType);
 
-        List<Object> handlers = notificationRegistry.getHandlers(notification.getClass());
+        long startNs = System.nanoTime();
+
+        List<Object> handlers = notificationRegistry.getHandlers(
+                notification.getClass());
 
         if (handlers.isEmpty()) {
-            logger.warn("No handler registered for notification: {}", notification.getClass().getSimpleName());
+            logger.warn("No handler registered for notification: {}",
+                    notifType);
             return;
         }
 
@@ -223,44 +282,51 @@ public class Courier {
                 Method method = getCachedHandleMethod(handler.getClass());
                 method.invoke(handler, notification);
                 logger.debug("Notification handler executed: {} -> {}",
-                        notification.getClass().getSimpleName(), handler.getClass().getSimpleName());
+                        notifType, handler.getClass().getSimpleName());
             } catch (Exception e) {
-                logger.error("Error executing notification handler {}: {}",
-                        handler.getClass().getSimpleName(), e.getMessage(), e);
+                logger.error(
+                        "Error executing notification handler {}: {}",
+                        handler.getClass().getSimpleName(),
+                        e.getMessage(), e);
             }
+        }
+
+        if (metrics != null) {
+            long durationNs = System.nanoTime() - startNs;
+            metrics.recordNotification(notifType, durationNs);
         }
     }
 
     /**
      * Publishes a notification asynchronously to all registered handlers.
      *
-     * <p>If no dedicated async executor was configured, the ForkJoinPool common
-     * pool is used and a one-time warning is logged advising operators to
-     * configure a dedicated executor.
-     *
-     * @param notification the notification to publish; must not be {@code null}
+     * @param notification the notification to publish
      * @return CompletableFuture that completes when all handlers finish
      * @throws NullPointerException if {@code notification} is {@code null}
      */
-    public CompletableFuture<Void> publishAsync(@NotNull INotification notification) {
-        Objects.requireNonNull(notification, "notification must not be null");
+    public CompletableFuture<Void> publishAsync(
+            @NotNull INotification notification) {
+        Objects.requireNonNull(notification,
+                "notification must not be null");
         if (asyncExecutor != null) {
-            return CompletableFuture.runAsync(() -> publish(notification), asyncExecutor);
+            return CompletableFuture.runAsync(
+                    () -> publish(notification), asyncExecutor);
         }
         if (COMMON_POOL_WARNING_LOGGED.compareAndSet(false, true)) {
-            logger.warn("publishAsync() is using the ForkJoinPool common pool because no "
-                    + "asyncExecutor was configured. This may starve other application work. "
-                    + "Configure a dedicated executor via the Courier constructor.");
+            logger.warn("publishAsync() is using the ForkJoinPool common "
+                    + "pool because no asyncExecutor was configured. This "
+                    + "may starve other application work. Configure a "
+                    + "dedicated executor via the Courier constructor.");
         }
         return CompletableFuture.runAsync(() -> publish(notification));
     }
 
     /**
-     * Returns a cached Method for notification handlers. Only methods whose
-     * single parameter is assignable from {@link INotification} are matched.
+     * Returns a cached Method for notification handlers.
      */
     @SuppressWarnings("java:S3011")
-    private @NotNull Method getCachedHandleMethod(@NotNull Class<?> handlerClass) {
+    private @NotNull Method getCachedHandleMethod(
+            @NotNull Class<?> handlerClass) {
         Method cached = NOTIFICATION_METHOD_CACHE.get(handlerClass);
         if (cached != null) {
             return cached;
@@ -268,13 +334,15 @@ public class Courier {
         for (Method method : handlerClass.getMethods()) {
             if (method.getName().equals("handle")
                     && method.getParameterCount() == 1
-                    && INotification.class.isAssignableFrom(method.getParameterTypes()[0])) {
+                    && INotification.class.isAssignableFrom(
+                    method.getParameterTypes()[0])) {
                 method.setAccessible(true);
                 NOTIFICATION_METHOD_CACHE.put(handlerClass, method);
                 return method;
             }
         }
-        throw new HandlerMethodNotFoundException(handlerClass.getName(), "handle");
+        throw new HandlerMethodNotFoundException(
+                handlerClass.getName(), "handle");
     }
 
     /**
@@ -289,9 +357,12 @@ public class Courier {
     /**
      * Exception for missing handler methods.
      */
-    public static class HandlerMethodNotFoundException extends RuntimeException {
-        public HandlerMethodNotFoundException(String handlerClassName, String expectedMethod) {
-            super("No handle method (" + expectedMethod + ") found in handler: " + handlerClassName);
+    public static class HandlerMethodNotFoundException
+            extends RuntimeException {
+        public HandlerMethodNotFoundException(String handlerClassName,
+                                              String expectedMethod) {
+            super("No handle method (" + expectedMethod
+                    + ") found in handler: " + handlerClassName);
         }
     }
 }

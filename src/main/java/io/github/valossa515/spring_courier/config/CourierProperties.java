@@ -25,6 +25,13 @@ public class CourierProperties {
      */
     private long asyncTimeoutMs = 30_000;
 
+    /**
+     * Whether Micrometer metrics collection is enabled.
+     * Defaults to {@code true}. Metrics are only recorded when Micrometer
+     * is on the classpath and a {@code MeterRegistry} bean is available.
+     */
+    private boolean metricsEnabled = true;
+
     public long getAsyncTimeoutMs() {
         return asyncTimeoutMs;
     }
@@ -32,9 +39,18 @@ public class CourierProperties {
     public void setAsyncTimeoutMs(long asyncTimeoutMs) {
         if (asyncTimeoutMs < MIN_TIMEOUT_MS || asyncTimeoutMs > MAX_TIMEOUT_MS) {
             throw new IllegalArgumentException(
-                    "asyncTimeoutMs must be between " + MIN_TIMEOUT_MS + " and " + MAX_TIMEOUT_MS
+                    "asyncTimeoutMs must be between " + MIN_TIMEOUT_MS
+                            + " and " + MAX_TIMEOUT_MS
                             + ", got: " + asyncTimeoutMs);
         }
         this.asyncTimeoutMs = asyncTimeoutMs;
+    }
+
+    public boolean isMetricsEnabled() {
+        return metricsEnabled;
+    }
+
+    public void setMetricsEnabled(boolean metricsEnabled) {
+        this.metricsEnabled = metricsEnabled;
     }
 }

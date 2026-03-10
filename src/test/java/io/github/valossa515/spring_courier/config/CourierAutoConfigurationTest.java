@@ -1,6 +1,7 @@
 package io.github.valossa515.spring_courier.config;
 
 import io.github.valossa515.spring_courier.core.Courier;
+import io.github.valossa515.spring_courier.core.CourierMetrics;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
 import io.github.valossa515.spring_courier.core.support.BehaviorDiscoveryPostProcessor;
@@ -21,6 +22,11 @@ import static org.mockito.Mockito.when;
 
 class CourierAutoConfigurationTest {
 
+    @SuppressWarnings("unchecked")
+    private ObjectProvider<CourierMetrics> emptyMetricsProvider() {
+        return mock(ObjectProvider.class);
+    }
+
     @Test
     void buildsCoreBeans() {
         CourierAutoConfiguration configuration = new CourierAutoConfiguration();
@@ -32,7 +38,9 @@ class CourierAutoConfigurationTest {
         PipelineExecutor pipelineExecutor = configuration.pipelineExecutor(pipelineRegistry);
         @SuppressWarnings("unchecked")
         ObjectProvider<Executor> executorProvider = mock(ObjectProvider.class);
-        Courier courier = configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, properties, executorProvider);
+        Courier courier = configuration.courier(
+                handlerRegistry, notificationRegistry, pipelineExecutor,
+                properties, executorProvider, emptyMetricsProvider());
 
         assertNotNull(handlerRegistry);
         assertNotNull(notificationRegistry);
@@ -74,7 +82,9 @@ class CourierAutoConfigurationTest {
         @SuppressWarnings("unchecked")
         ObjectProvider<Executor> executorProvider = mock(ObjectProvider.class);
 
-        configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, properties, executorProvider);
+        configuration.courier(
+                handlerRegistry, notificationRegistry, pipelineExecutor,
+                properties, executorProvider, emptyMetricsProvider());
 
         verify(executorProvider).getIfUnique();
     }
@@ -93,7 +103,9 @@ class CourierAutoConfigurationTest {
         ObjectProvider<Executor> executorProvider = mock(ObjectProvider.class);
         when(executorProvider.getIfUnique()).thenReturn(expectedExecutor);
 
-        Courier courier = configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, properties, executorProvider);
+        Courier courier = configuration.courier(
+                handlerRegistry, notificationRegistry, pipelineExecutor,
+                properties, executorProvider, emptyMetricsProvider());
 
         assertNotNull(courier);
         verify(executorProvider).getIfUnique();
@@ -112,7 +124,9 @@ class CourierAutoConfigurationTest {
         ObjectProvider<Executor> executorProvider = mock(ObjectProvider.class);
         when(executorProvider.getIfUnique()).thenReturn(null);
 
-        Courier courier = configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, properties, executorProvider);
+        Courier courier = configuration.courier(
+                handlerRegistry, notificationRegistry, pipelineExecutor,
+                properties, executorProvider, emptyMetricsProvider());
 
         assertNotNull(courier);
         verify(executorProvider).getIfUnique();
