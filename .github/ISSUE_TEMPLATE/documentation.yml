@@ -1,0 +1,44 @@
+---
+name: 📖 Documentação
+description: Reporte um problema ou sugira melhorias na documentação
+title: "[Docs]: "
+labels: ["documentation"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ajude-nos a melhorar a documentação do Spring Courier!
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Tipo
+      options:
+        - Erro na documentação
+        - Documentação ausente
+        - Melhoria na documentação
+        - Exemplo de código incorreto
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descrição
+      description: Descreva o problema ou a melhoria sugerida.
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Localização
+      description: Link ou caminho do arquivo com o problema.
+      placeholder: "ex: README.md, docs/diagrams/..."
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Sugestão de Correção
+      description: Como a documentação deveria ser.

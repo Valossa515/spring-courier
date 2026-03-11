@@ -1,0 +1,100 @@
+---
+name: 🐛 Bug Report
+description: Reporte um bug encontrado no Spring Courier
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar este bug! Preencha as informações abaixo para nos ajudar a investigar.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descrição do Bug
+      description: Uma descrição clara e concisa do que aconteceu.
+      placeholder: Descreva o bug...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Passos para Reproduzir
+      description: Passos para reproduzir o comportamento.
+      placeholder: |
+        1. Configure o handler '...'
+        2. Envie o command '...'
+        3. Veja o erro
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento Esperado
+      description: O que você esperava que acontecesse.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportamento Atual
+      description: O que realmente aconteceu.
+    validations:
+      required: true
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Código de Exemplo
+      description: Código mínimo que reproduz o problema.
+      render: java
+
+  - type: input
+    id: version
+    attributes:
+      label: Versão do Spring Courier
+      placeholder: "ex: 1.3.2"
+    validations:
+      required: true
+
+  - type: input
+    id: java-version
+    attributes:
+      label: Versão do Java
+      placeholder: "ex: 17, 21"
+    validations:
+      required: true
+
+  - type: input
+    id: spring-version
+    attributes:
+      label: Versão do Spring Boot
+      placeholder: "ex: 3.5.5"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Stack Trace
+      description: Cole os logs ou stack trace relevantes.
+      render: shell
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Sistema Operacional
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Outro
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto Adicional
+      description: Qualquer outra informação relevante.
