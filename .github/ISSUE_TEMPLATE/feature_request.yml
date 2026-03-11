@@ -1,0 +1,61 @@
+---
+name: ✨ Feature Request
+description: Sugira uma nova funcionalidade para o Spring Courier
+title: "[Feature]: "
+labels: ["enhancement"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por sugerir uma melhoria! Descreva sua ideia abaixo.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema ou Motivação
+      description: Descreva o problema que esta funcionalidade resolveria.
+      placeholder: "Eu sempre fico frustrado quando..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solução Proposta
+      description: Descreva como você gostaria que a funcionalidade funcionasse.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas Consideradas
+      description: Outras soluções ou funcionalidades que você considerou.
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Exemplo de Uso
+      description: Como a API ficaria com esta funcionalidade.
+      render: java
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área do Projeto
+      options:
+        - Core (Courier/Dispatcher)
+        - Commands/Queries
+        - Notifications
+        - Pipeline/Behaviors
+        - Validation
+        - Configuração
+        - Documentação
+        - Outro
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto Adicional
+      description: Qualquer outra informação, screenshots ou mockups.
