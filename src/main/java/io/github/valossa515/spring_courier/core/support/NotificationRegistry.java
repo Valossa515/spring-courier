@@ -68,6 +68,14 @@ public class NotificationRegistry {
     }
 
     /**
+     * Returns the total number of notification handlers registered across
+     * all notification types.
+     */
+    public int getHandlerCount() {
+        return handlers.values().stream().mapToInt(List::size).sum();
+    }
+
+    /**
      * Checks if any handlers are registered for the notification type.
      *
      * @param notificationType the notification type
