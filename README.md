@@ -47,7 +47,7 @@ Adicione a dependência no seu `pom.xml` ou `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>1.3.2</version>
+    <version>1.3.3</version>
 </dependency>
 ```
 
@@ -188,6 +188,92 @@ public ValidationBehavior<CreateProductCommand, CreateProductResponse> productVa
     return new ValidationBehavior<>(List.of(new CreateProductValidator()));
 }
 ```
+
+---
+
+## 📈 Observabilidade (Micrometer / Prometheus / Grafana)
+
+A partir da versão **1.4.0**, o Spring Courier possui instrumentação **opcional** com [Micrometer](https://micrometer.io/), permitindo exportar métricas para Prometheus, Grafana e outros backends.
+
+### Ativação
+
+Basta adicionar o `micrometer-core` (ou `spring-boot-starter-actuator`) ao classpath da sua aplicação. O Spring Courier detecta automaticamente e substitui o `Courier` padrão por um `MeteredCourier` instrumentado.
+
+```xml
+<!-- Se sua aplicação já usa Actuator, não precisa de mais nada -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+```
+
+Para desabilitar as métricas:
+
+```properties
+spring.courier.metrics.enabled=false
+```
+
+### Métricas Disponíveis
+
+#### ⏱️ Timers (latência com percentis p50, p95, p99)
+
+| Métrica                          | Descrição                                  | Tags                                            |
+|----------------------------------|--------------------------------------------|------------------------------------------------|
+| `courier.send.duration`          | Tempo de execução de commands/queries      | `request.type`, `request.category`, `outcome`  |
+| `courier.publish.duration`       | Tempo de publicação de notificações        | `notification.type`                            |
+| `courier.publish.async.duration` | Tempo de publicação assíncrona             | `notification.type`                            |
+
+#### 🔢 Counters (throughput e erros)
+
+| Métrica                        | Descrição                               | Tags                               |
+|--------------------------------|-----------------------------------------|------------------------------------|
+| `courier.send`                 | Total de requests despachados           | `request.type`, `outcome`          |
+| `courier.publish`              | Total de notificações publicadas        | `notification.type`                |
+| `courier.handler.errors`       | Erros em handlers                       | `request.type`, `exception.type`   |
+| `courier.handler.timeouts`     | Timeouts de handlers async              | —                                  |
+| `courier.validation.failures`  | Falhas de validação no pipeline         | `request.type`                     |
+
+#### 📊 Gauges (estado do registro)
+
+| Métrica                                    | Descrição                                      |
+|--------------------------------------------|------------------------------------------------|
+| `courier.handlers.registered`              | Quantidade de command/query handlers registrados|
+| `courier.notification.handlers.registered` | Quantidade de notification handlers registrados |
+| `courier.pipeline.behaviors.registered`    | Quantidade de pipeline behaviors registrados    |
+
+#### 🏷️ Tags
+
+| Tag                  | Valores possíveis                   | Descrição                         |
+|----------------------|-------------------------------------|-----------------------------------|
+| `request.type`       | Nome simples da classe do request   | Ex: `CreateProductCommand`        |
+| `request.category`   | `command`, `query`, `request`       | Tipo do request (CQRS)            |
+| `notification.type`  | Nome simples da classe da notificação| Ex: `ProductCreatedEvent`        |
+| `outcome`            | `success`, `error`                  | Resultado da operação             |
+| `exception.type`     | Nome simples da exceção             | Tipo da exceção capturada         |
+
+### Exemplo com Prometheus + Grafana
+
+1. Adicione `micrometer-registry-prometheus` à sua aplicação:
+
+```xml
+<dependency>
+    <groupId>io.micrometer</groupId>
+    <artifactId>micrometer-registry-prometheus</artifactId>
+</dependency>
+```
+
+2. Exponha o endpoint de métricas no `application.properties`:
+
+```properties
+management.endpoints.web.exposure.include=prometheus,health,metrics
+management.metrics.export.prometheus.enabled=true
+```
+
+3. Configure o Prometheus para fazer scrape do endpoint `/actuator/prometheus`.
+
+4. Importe o dashboard Grafana disponível em [`docs/grafana/courier-dashboard.json`](docs/grafana/courier-dashboard.json).
+
+> 📖 Consulte o [Guia de PromQL](docs/grafana/PROMQL_REFERENCE.md) para queries prontas para monitoramento.
 
 ---
 

@@ -25,6 +25,12 @@ public class CourierProperties {
      */
     private long asyncTimeoutMs = 30_000;
 
+    /**
+     * Whether Micrometer metrics instrumentation is enabled.
+     * Defaults to {@code true} when {@code micrometer-core} is on the classpath.
+     */
+    private boolean metricsEnabled = true;
+
     public long getAsyncTimeoutMs() {
         return asyncTimeoutMs;
     }
@@ -36,5 +42,13 @@ public class CourierProperties {
                             + ", got: " + asyncTimeoutMs);
         }
         this.asyncTimeoutMs = asyncTimeoutMs;
+    }
+
+    public boolean isMetricsEnabled() {
+        return metricsEnabled;
+    }
+
+    public void setMetricsEnabled(boolean metricsEnabled) {
+        this.metricsEnabled = metricsEnabled;
     }
 }
