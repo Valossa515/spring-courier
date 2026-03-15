@@ -19,7 +19,7 @@ por favor reporte de forma responsável.
 
 Em vez disso:
 
-1. **Envie um e-mail** para **valossa515@github.com** com os detalhes da vulnerabilidade
+1. **Envie um e-mail** para **fe.mmo515@gmail.com** com os detalhes da vulnerabilidade
 2. Ou use a funcionalidade **[Security Advisories](https://github.com/Valossa515/spring-courier/security/advisories/new)** do GitHub
 
 ### O que incluir no relatório
