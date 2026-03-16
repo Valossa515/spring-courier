@@ -61,15 +61,25 @@ public class SlackAlertManager {
     /**
      * Starts the periodic alert evaluation loop.
      */
+    private static final int WARMUP_DELAY_SECONDS = 10;
+
     public void start() {
+        if (!notifier.isConfigured()) {
+            logger.warn("Slack alerting disabled — webhook URL is not "
+                    + "configured. Set spring.courier.slack.webhook-url "
+                    + "to enable.");
+            return;
+        }
+
         int interval = config.getEvaluationIntervalSeconds();
+        int initialDelay = Math.min(interval, WARMUP_DELAY_SECONDS);
         logger.info("Slack alerting started (interval={}s, cooldown={}min, "
                         + "forDuration={}s)",
                 interval, config.getCooldownMinutes(),
                 config.getForDurationSeconds());
 
         scheduler.scheduleAtFixedRate(this::evaluate,
-                interval, interval, TimeUnit.SECONDS);
+                initialDelay, interval, TimeUnit.SECONDS);
     }
 
     /**
@@ -107,15 +117,33 @@ public class SlackAlertManager {
                 return;
             }
 
-            evaluateErrorRatio(current, prev, elapsedSeconds);
-            evaluateP99Latency(current);
-            evaluateTimeouts(current, prev, elapsedSeconds);
-            evaluateValidationSpike(current, prev, elapsedSeconds);
-            evaluateThroughputDrop(current, prev, prior, elapsedSeconds);
+            safeEvaluate("error-ratio",
+                    () -> evaluateErrorRatio(current, prev,
+                            elapsedSeconds));
+            safeEvaluate("p99-latency",
+                    () -> evaluateP99Latency(current));
+            safeEvaluate("timeouts",
+                    () -> evaluateTimeouts(current, prev,
+                            elapsedSeconds));
+            safeEvaluate("validation-spike",
+                    () -> evaluateValidationSpike(current, prev,
+                            elapsedSeconds));
+            safeEvaluate("throughput-drop",
+                    () -> evaluateThroughputDrop(current, prev,
+                            prior, elapsedSeconds));
 
         } catch (Exception e) {
             logger.error("Error during Slack alert evaluation: {}",
                     e.getMessage(), e);
+        }
+    }
+
+    private void safeEvaluate(String rule, Runnable evaluation) {
+        try {
+            evaluation.run();
+        } catch (Exception e) {
+            logger.error("Error evaluating alert rule '{}': {}",
+                    rule, e.getMessage(), e);
         }
     }
 
@@ -256,11 +284,17 @@ public class SlackAlertManager {
 
         if (state.conditionSince == null) {
             state.conditionSince = now;
+            logger.debug("Alert condition detected for '{}': waiting "
+                    + "forDuration={}s before firing",
+                    ruleName, config.getForDurationSeconds());
         }
 
         long pendingSeconds = Duration.between(
                 state.conditionSince, now).getSeconds();
         if (pendingSeconds < config.getForDurationSeconds()) {
+            logger.debug("Alert '{}' pending: {}s / {}s",
+                    ruleName, pendingSeconds,
+                    config.getForDurationSeconds());
             return;
         }
 
@@ -297,7 +331,10 @@ public class SlackAlertManager {
                 notifier.sendResolved(ruleName,
                         "Condition returned to normal.",
                         config.getAppName());
-            } else {
+            } else if (state.conditionSince != null) {
+                logger.debug("Alert '{}' condition cleared before "
+                        + "forDuration was reached — resetting pending timer",
+                        ruleName);
                 state.conditionSince = null;
             }
         }

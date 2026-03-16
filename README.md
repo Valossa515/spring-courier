@@ -48,12 +48,12 @@ Adicione a dependência no seu `pom.xml` ou `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>1.7.0</version>
+    <version>1.7.1</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier:1.7.0")
+implementation("io.github.valossa515:spring-courier:1.7.1")
 ```
 
 > 🔧 É necessário ter o **Java 17+** e **Spring Boot 3.x+**.
