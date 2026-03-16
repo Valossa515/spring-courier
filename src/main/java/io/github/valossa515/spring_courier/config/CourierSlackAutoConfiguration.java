@@ -25,6 +25,8 @@ import org.springframework.context.annotation.Configuration;
  * <p>Once active, the library evaluates alert rules on a fixed interval and
  * sends notifications directly to the configured Slack webhook — no external
  * alerting infrastructure (Grafana, Prometheus Alertmanager) is required.
+ *
+ * @see CourierMetricsAutoConfiguration for ordering rationale
  */
 @Configuration
 @ConditionalOnClass(MeterRegistry.class)
