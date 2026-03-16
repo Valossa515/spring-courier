@@ -242,8 +242,25 @@ Insira estes seletores de labels em qualquer query acima:
 
 ---
 
+## � Alertas no Slack
+
+Os alertas sugeridos acima estão disponíveis como **regras provisionáveis do Grafana** com integração Slack pronta para uso.
+
+Consulte o guia completo: **[SLACK_ALERTING.md](./SLACK_ALERTING.md)**
+
+Arquivos de provisioning:
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `provisioning/alerting/courier-alert-rules.yml` | 6 regras de alerta (Grafana Unified Alerting) |
+| `provisioning/alerting/courier-slack-notifications.yml` | Contact points Slack + notification policies |
+
+---
+
 ## 📖 Referências
 
 - [Micrometer Concepts](https://micrometer.io/docs/concepts)
 - [Prometheus Query Basics](https://prometheus.io/docs/prometheus/latest/querying/basics/)
 - [Grafana — Prometheus Data Source](https://grafana.com/docs/grafana/latest/datasources/prometheus/)
+- [Grafana Unified Alerting](https://grafana.com/docs/grafana/latest/alerting/)
+- [Slack Incoming Webhooks](https://api.slack.com/messaging/webhooks)
