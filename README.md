@@ -47,12 +47,12 @@ Adicione a dependência no seu `pom.xml` ou `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier:1.3.2")
+implementation("io.github.valossa515:spring-courier:1.6.0")
 ```
 
 > 🔧 É necessário ter o **Java 17+** e **Spring Boot 3.x+**.
@@ -267,6 +267,7 @@ spring.courier.metrics.enabled=false
 ```properties
 management.endpoints.web.exposure.include=prometheus,health,metrics
 management.metrics.export.prometheus.enabled=true
+spring.courier.metrics.enabled=true
 ```
 
 3. Configure o Prometheus para fazer scrape do endpoint `/actuator/prometheus`.
@@ -274,6 +275,34 @@ management.metrics.export.prometheus.enabled=true
 4. Importe o dashboard Grafana disponível em [`docs/grafana/courier-dashboard.json`](docs/grafana/courier-dashboard.json).
 
 > 📖 Consulte o [Guia de PromQL](docs/grafana/PROMQL_REFERENCE.md) para queries prontas para monitoramento.
+
+### 🔔 Alertas no Slack
+
+A partir da versão **1.6.0**, o Spring Courier inclui configurações prontas para alertas no **Slack** via **Grafana Unified Alerting**. Os alertas são baseados nas métricas exportadas pelo Micrometer e coletadas pelo Prometheus.
+
+#### Alertas Disponíveis
+
+| Alerta | Condição | Severidade |
+|--------|----------|------------|
+| **High Error Ratio** | Error ratio > 5% | `warning` |
+| **High p99 Latency** | p99 send > 1s | `warning` |
+| **Handler Timeouts** | Timeouts detectados | `critical` |
+| **Validation Spike** | Falhas de validação > 10/s | `warning` |
+| **Throughput Drop** | Queda de throughput > 50% | `critical` |
+| **High Error by Exception** | Erros por exceção > 1/s | `warning` |
+
+#### Configuração Rápida
+
+1. Crie um [Slack Incoming Webhook](https://api.slack.com/messaging/webhooks) para o canal desejado
+2. Defina as variáveis de ambiente:
+   ```bash
+   export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/T.../B.../xxx"
+   export SLACK_CHANNEL="#courier-alerts"
+   ```
+3. Copie os arquivos de provisioning de `docs/grafana/provisioning/` para o diretório de provisioning do Grafana
+4. Reinicie o Grafana
+
+> 📖 Consulte o [Guia completo de Slack Alerting](docs/grafana/SLACK_ALERTING.md) para instruções detalhadas de configuração.
 
 ---
 
