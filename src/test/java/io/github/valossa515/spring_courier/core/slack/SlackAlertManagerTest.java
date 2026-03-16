@@ -170,6 +170,18 @@ class SlackAlertManagerTest {
     }
 
     @Test
+    void startSkipsSchedulingWhenNotifierNotConfigured() {
+        SlackNotifier unconfiguredNotifier =
+                new SlackNotifier("", "#test");
+        SlackAlertManager mgr = new SlackAlertManager(
+                meterRegistry, unconfiguredNotifier, slackConfig);
+        assertDoesNotThrow(() -> {
+            mgr.start();
+            mgr.stop();
+        });
+    }
+
+    @Test
     void evaluateSendsResolvedAfterRecovery() {
         Counter successCounter = Counter.builder(CourierMetrics.SEND_TOTAL)
                 .tag(CourierMetrics.TAG_OUTCOME, CourierMetrics.OUTCOME_SUCCESS)

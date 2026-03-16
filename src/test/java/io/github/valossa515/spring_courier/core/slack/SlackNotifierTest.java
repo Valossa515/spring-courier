@@ -2,6 +2,8 @@ package io.github.valossa515.spring_courier.core.slack;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.CompletableFuture;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class SlackNotifierTest {
@@ -55,15 +57,55 @@ class SlackNotifierTest {
 
     @Test
     void constructorAcceptsValidUrl() {
-        assertDoesNotThrow(() ->
-                new SlackNotifier("https://hooks.slack.com/services/T/B/x",
-                        "#test"));
+        SlackNotifier notifier = new SlackNotifier(
+                "https://hooks.slack.com/services/T/B/x", "#test");
+        assertDoesNotThrow(() -> {});
+        assertTrue(notifier.isConfigured());
     }
 
     @Test
     void constructorAcceptsNullChannel() {
-        assertDoesNotThrow(() ->
-                new SlackNotifier("https://hooks.slack.com/services/T/B/x",
-                        null));
+        SlackNotifier notifier = new SlackNotifier(
+                "https://hooks.slack.com/services/T/B/x", null);
+        assertDoesNotThrow(() -> {});
+        assertTrue(notifier.isConfigured());
+    }
+
+    @Test
+    void isConfiguredReturnsFalseForBlankUrl() {
+        SlackNotifier notifier = new SlackNotifier("", "#test");
+        assertFalse(notifier.isConfigured());
+    }
+
+    @Test
+    void isConfiguredReturnsFalseForNullUrl() {
+        SlackNotifier notifier = new SlackNotifier(null, "#test");
+        assertFalse(notifier.isConfigured());
+    }
+
+    @Test
+    void isConfiguredReturnsFalseForUrlWithoutScheme() {
+        SlackNotifier notifier = new SlackNotifier(
+                "not-a-url", "#test");
+        assertFalse(notifier.isConfigured());
+    }
+
+    @Test
+    void sendFiringReturnsImmediatelyWhenNotConfigured() {
+        SlackNotifier notifier = new SlackNotifier("", "#test");
+        CompletableFuture<Void> result = notifier.sendFiring(
+                "test", AlertSeverity.WARNING,
+                "summary", "detail", "app");
+        assertNotNull(result);
+        assertDoesNotThrow(() -> result.get());
+    }
+
+    @Test
+    void sendResolvedReturnsImmediatelyWhenNotConfigured() {
+        SlackNotifier notifier = new SlackNotifier("", "#test");
+        CompletableFuture<Void> result = notifier.sendResolved(
+                "test", "summary", "app");
+        assertNotNull(result);
+        assertDoesNotThrow(() -> result.get());
     }
 }

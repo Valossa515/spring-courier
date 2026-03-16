@@ -30,17 +30,44 @@ public class SlackNotifier {
     private final HttpClient httpClient;
 
     public SlackNotifier(String webhookUrl, String channel) {
-        this.webhookUri = URI.create(webhookUrl);
+        this.webhookUri = parseWebhookUrl(webhookUrl);
         this.channel = channel;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(CONNECT_TIMEOUT)
                 .build();
+        if (this.webhookUri == null) {
+            logger.warn("Slack webhook URL is blank or invalid "
+                    + "— notifications will be silently dropped");
+        }
     }
 
     SlackNotifier(String webhookUrl, String channel, HttpClient httpClient) {
-        this.webhookUri = URI.create(webhookUrl);
+        this.webhookUri = parseWebhookUrl(webhookUrl);
         this.channel = channel;
         this.httpClient = httpClient;
+    }
+
+    /**
+     * Returns {@code true} if this notifier has a valid webhook URL
+     * and can send notifications.
+     */
+    public boolean isConfigured() {
+        return webhookUri != null;
+    }
+
+    private static URI parseWebhookUrl(String webhookUrl) {
+        if (webhookUrl == null || webhookUrl.isBlank()) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(webhookUrl);
+            if (uri.getScheme() == null) {
+                return null;
+            }
+            return uri;
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /**
@@ -83,6 +110,11 @@ public class SlackNotifier {
     }
 
     private CompletableFuture<Void> send(String text) {
+        if (webhookUri == null) {
+            logger.debug("Slack notification skipped — no webhook URL");
+            return CompletableFuture.completedFuture(null);
+        }
+
         String payload = buildPayload(text);
 
         HttpRequest request = HttpRequest.newBuilder()
