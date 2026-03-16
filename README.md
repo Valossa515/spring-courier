@@ -35,7 +35,8 @@ Ela fornece uma infraestrutura para desacoplar comandos, consultas e eventos —
 ✅ Suporte a **Request/Response Pattern**  
 ✅ **Async Support** — Publicação assíncrona de notificações  
 ✅ Extensível para eventos e pipelines personalizados  
-✅ Zero configuração adicional — **plug and play**
+✅ Zero configuração adicional — **plug and play**  
+✅ **Slack Alerting Nativo** — Alertas direto no Slack sem Grafana/Alertmanager
 
 ---
 
@@ -47,12 +48,12 @@ Adicione a dependência no seu `pom.xml` ou `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>1.6.0</version>
+    <version>1.7.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier:1.6.0")
+implementation("io.github.valossa515:spring-courier:1.7.0")
 ```
 
 > 🔧 É necessário ter o **Java 17+** e **Spring Boot 3.x+**.
@@ -278,9 +279,38 @@ spring.courier.metrics.enabled=true
 
 ### 🔔 Alertas no Slack
 
+#### Via Grafana (externa)
+
 A partir da versão **1.6.0**, o Spring Courier inclui configurações prontas para alertas no **Slack** via **Grafana Unified Alerting**. Os alertas são baseados nas métricas exportadas pelo Micrometer e coletadas pelo Prometheus.
 
-#### Alertas Disponíveis
+1. Crie um [Slack Incoming Webhook](https://api.slack.com/messaging/webhooks) para o canal desejado
+2. Copie os arquivos de provisioning de `docs/grafana/provisioning/` para o diretório de provisioning do Grafana
+3. Reinicie o Grafana
+
+> 📖 Consulte o [Guia completo de Slack Alerting](docs/grafana/SLACK_ALERTING.md) para instruções detalhadas de configuração.
+
+#### 🆕 Via Spring Courier Nativo (sem Grafana)
+
+A partir da versão **1.7.0**, o Spring Courier traz **alertas nativos no Slack** — sem necessidade de Grafana, Prometheus Alertmanager ou qualquer infraestrutura de alerting externa. Basta configurar o webhook e a biblioteca avalia as métricas automaticamente, enviando notificações direto para o Slack.
+
+**Ativação:**
+
+Adicione a configuração ao `application.properties`:
+
+```properties
+# Obrigatório — ativa o alerting nativo
+spring.courier.slack.webhook-url=https://hooks.slack.com/services/T.../B.../xxx
+
+# Opcional — canal Slack (sobrescreve o default do webhook)
+spring.courier.slack.channel=#courier-alerts
+
+# Opcional — nome da aplicação nos alertas (default: Spring Courier)
+spring.courier.slack.app-name=minha-api
+```
+
+> ⚠️ Para o alerting nativo funcionar, o Micrometer (`spring-boot-starter-actuator`) precisa estar no classpath e `spring.courier.metrics.enabled=true` (habilitado por padrão).
+
+**Alertas Disponíveis:**
 
 | Alerta | Condição | Severidade |
 |--------|----------|------------|
@@ -289,20 +319,37 @@ A partir da versão **1.6.0**, o Spring Courier inclui configurações prontas p
 | **Handler Timeouts** | Timeouts detectados | `critical` |
 | **Validation Spike** | Falhas de validação > 10/s | `warning` |
 | **Throughput Drop** | Queda de throughput > 50% | `critical` |
-| **High Error by Exception** | Erros por exceção > 1/s | `warning` |
 
-#### Configuração Rápida
+**Configurações Avançadas:**
 
-1. Crie um [Slack Incoming Webhook](https://api.slack.com/messaging/webhooks) para o canal desejado
-2. Defina as variáveis de ambiente:
-   ```bash
-   export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/T.../B.../xxx"
-   export SLACK_CHANNEL="#courier-alerts"
-   ```
-3. Copie os arquivos de provisioning de `docs/grafana/provisioning/` para o diretório de provisioning do Grafana
-4. Reinicie o Grafana
+```properties
+# Intervalo de avaliação das regras (10–3600s, default: 60s)
+spring.courier.slack.evaluation-interval-seconds=60
 
-> 📖 Consulte o [Guia completo de Slack Alerting](docs/grafana/SLACK_ALERTING.md) para instruções detalhadas de configuração.
+# Cooldown entre alertas repetidos do mesmo tipo (1–1440min, default: 15min)
+spring.courier.slack.cooldown-minutes=15
+
+# Tempo mínimo que a condição deve se manter antes de disparar (default: 300s)
+spring.courier.slack.for-duration-seconds=300
+
+# Thresholds personalizáveis
+spring.courier.slack.thresholds.error-ratio=0.05
+spring.courier.slack.thresholds.p99-latency-seconds=1.0
+spring.courier.slack.thresholds.validation-rate=10.0
+spring.courier.slack.thresholds.throughput-drop-ratio=0.5
+```
+
+**Ciclo de vida dos alertas:** `OK → PENDING → FIRING → RESOLVED`
+
+- **PENDING:** A condição foi detectada, mas ainda não atingiu o tempo mínimo (`for-duration-seconds`)
+- **FIRING:** A condição se manteve e uma notificação foi enviada ao Slack (com cooldown entre re-notificações)
+- **RESOLVED:** A condição normalizou — uma mensagem de resolução é enviada automaticamente
+
+**Para desabilitar:**
+
+```properties
+spring.courier.slack.enabled=false
+```
 
 ---
 

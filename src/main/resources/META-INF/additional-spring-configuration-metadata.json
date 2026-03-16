@@ -1,10 +1,88 @@
 {
+  "groups": [
+    {
+      "name": "spring.courier.slack",
+      "type": "io.github.valossa515.spring_courier.config.CourierProperties$Slack",
+      "sourceType": "io.github.valossa515.spring_courier.config.CourierProperties"
+    },
+    {
+      "name": "spring.courier.slack.thresholds",
+      "type": "io.github.valossa515.spring_courier.config.CourierProperties$Slack$Thresholds",
+      "sourceType": "io.github.valossa515.spring_courier.config.CourierProperties$Slack"
+    }
+  ],
   "properties": [
     {
       "name": "spring.courier.metrics.enabled",
       "type": "java.lang.Boolean",
       "description": "Whether Micrometer metrics instrumentation is enabled. Defaults to true when micrometer-core is on the classpath.",
       "defaultValue": true
+    },
+    {
+      "name": "spring.courier.slack.webhook-url",
+      "type": "java.lang.String",
+      "description": "Slack Incoming Webhook URL. When set, enables built-in Slack alerting.",
+      "defaultValue": null
+    },
+    {
+      "name": "spring.courier.slack.channel",
+      "type": "java.lang.String",
+      "description": "Slack channel override (e.g. #courier-alerts).",
+      "defaultValue": null
+    },
+    {
+      "name": "spring.courier.slack.app-name",
+      "type": "java.lang.String",
+      "description": "Display name for the application in alert messages.",
+      "defaultValue": "Spring Courier"
+    },
+    {
+      "name": "spring.courier.slack.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether Slack alerting is enabled. Requires webhook-url to be set.",
+      "defaultValue": true
+    },
+    {
+      "name": "spring.courier.slack.evaluation-interval-seconds",
+      "type": "java.lang.Integer",
+      "description": "How often (in seconds) alert rules are evaluated. Must be between 10 and 3600.",
+      "defaultValue": 60
+    },
+    {
+      "name": "spring.courier.slack.cooldown-minutes",
+      "type": "java.lang.Integer",
+      "description": "Minimum minutes between repeated alerts for the same rule. Must be between 1 and 1440.",
+      "defaultValue": 15
+    },
+    {
+      "name": "spring.courier.slack.for-duration-seconds",
+      "type": "java.lang.Integer",
+      "description": "How long (in seconds) a condition must hold before firing.",
+      "defaultValue": 300
+    },
+    {
+      "name": "spring.courier.slack.thresholds.error-ratio",
+      "type": "java.lang.Double",
+      "description": "Error ratio threshold (0.0-1.0).",
+      "defaultValue": 0.05
+    },
+    {
+      "name": "spring.courier.slack.thresholds.p99-latency-seconds",
+      "type": "java.lang.Double",
+      "description": "p99 latency threshold in seconds.",
+      "defaultValue": 1.0
+    },
+    {
+      "name": "spring.courier.slack.thresholds.validation-rate",
+      "type": "java.lang.Double",
+      "description": "Validation failures per second threshold.",
+      "defaultValue": 10.0
+    },
+    {
+      "name": "spring.courier.slack.thresholds.throughput-drop-ratio",
+      "type": "java.lang.Double",
+      "description": "Throughput drop ratio (0.0-1.0).",
+      "defaultValue": 0.5
     }
   ]
 }

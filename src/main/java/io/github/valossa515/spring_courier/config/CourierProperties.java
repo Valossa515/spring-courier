@@ -30,6 +30,11 @@ public class CourierProperties {
      */
     private Metrics metrics = new Metrics();
 
+    /**
+     * Slack alerting configuration group.
+     */
+    private Slack slack = new Slack();
+
     public long getAsyncTimeoutMs() {
         return asyncTimeoutMs;
     }
@@ -49,6 +54,14 @@ public class CourierProperties {
 
     public void setMetrics(Metrics metrics) {
         this.metrics = metrics;
+    }
+
+    public Slack getSlack() {
+        return slack;
+    }
+
+    public void setSlack(Slack slack) {
+        this.slack = slack;
     }
 
     /**
@@ -87,6 +100,188 @@ public class CourierProperties {
 
         public void setEnabled(boolean enabled) {
             this.enabled = enabled;
+        }
+    }
+
+    /**
+     * Slack alerting sub-properties (prefix {@code spring.courier.slack}).
+     */
+    public static class Slack {
+
+        private static final int MIN_INTERVAL = 10;
+        private static final int MAX_INTERVAL = 3600;
+        private static final int MIN_COOLDOWN = 1;
+        private static final int MAX_COOLDOWN = 1440;
+
+        /**
+         * Slack Incoming Webhook URL. When set, enables Slack alerting.
+         */
+        private String webhookUrl;
+
+        /**
+         * Slack channel override (e.g. {@code #courier-alerts}).
+         */
+        private String channel;
+
+        /**
+         * Display name for the application in alert messages.
+         * Defaults to {@code "Spring Courier"}.
+         */
+        private String appName = "Spring Courier";
+
+        /**
+         * Whether Slack alerting is enabled.
+         * Defaults to {@code true}; requires {@code webhook-url} to be set.
+         */
+        private boolean enabled = true;
+
+        /**
+         * How often (in seconds) alert rules are evaluated.
+         * Defaults to 60. Must be between 10 and 3600.
+         */
+        private int evaluationIntervalSeconds = 60;
+
+        /**
+         * Minimum minutes between repeated alerts for the same rule.
+         * Defaults to 15. Must be between 1 and 1440.
+         */
+        private int cooldownMinutes = 15;
+
+        /**
+         * How long (in seconds) a condition must hold before firing.
+         * Defaults to 300 (5 minutes).
+         */
+        private int forDurationSeconds = 300;
+
+        /**
+         * Alert threshold configuration.
+         */
+        private Thresholds thresholds = new Thresholds();
+
+        public String getWebhookUrl() {
+            return webhookUrl;
+        }
+
+        public void setWebhookUrl(String webhookUrl) {
+            this.webhookUrl = webhookUrl;
+        }
+
+        public String getChannel() {
+            return channel;
+        }
+
+        public void setChannel(String channel) {
+            this.channel = channel;
+        }
+
+        public String getAppName() {
+            return appName;
+        }
+
+        public void setAppName(String appName) {
+            this.appName = appName;
+        }
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getEvaluationIntervalSeconds() {
+            return evaluationIntervalSeconds;
+        }
+
+        public void setEvaluationIntervalSeconds(int evaluationIntervalSeconds) {
+            if (evaluationIntervalSeconds < MIN_INTERVAL
+                    || evaluationIntervalSeconds > MAX_INTERVAL) {
+                throw new IllegalArgumentException(
+                        "evaluationIntervalSeconds must be between "
+                                + MIN_INTERVAL + " and " + MAX_INTERVAL);
+            }
+            this.evaluationIntervalSeconds = evaluationIntervalSeconds;
+        }
+
+        public int getCooldownMinutes() {
+            return cooldownMinutes;
+        }
+
+        public void setCooldownMinutes(int cooldownMinutes) {
+            if (cooldownMinutes < MIN_COOLDOWN
+                    || cooldownMinutes > MAX_COOLDOWN) {
+                throw new IllegalArgumentException(
+                        "cooldownMinutes must be between "
+                                + MIN_COOLDOWN + " and " + MAX_COOLDOWN);
+            }
+            this.cooldownMinutes = cooldownMinutes;
+        }
+
+        public int getForDurationSeconds() {
+            return forDurationSeconds;
+        }
+
+        public void setForDurationSeconds(int forDurationSeconds) {
+            this.forDurationSeconds = forDurationSeconds;
+        }
+
+        public Thresholds getThresholds() {
+            return thresholds;
+        }
+
+        public void setThresholds(Thresholds thresholds) {
+            this.thresholds = thresholds;
+        }
+
+        /**
+         * Alert threshold values (prefix {@code spring.courier.slack.thresholds}).
+         */
+        public static class Thresholds {
+
+            /** Error ratio threshold (0.0–1.0). Default 0.05 (5%). */
+            private double errorRatio = 0.05;
+
+            /** p99 latency threshold in seconds. Default 1.0s. */
+            private double p99LatencySeconds = 1.0;
+
+            /** Validation failures per second threshold. Default 10.0. */
+            private double validationRate = 10.0;
+
+            /** Throughput drop ratio (0.0–1.0). Default 0.5 (50% drop). */
+            private double throughputDropRatio = 0.5;
+
+            public double getErrorRatio() {
+                return errorRatio;
+            }
+
+            public void setErrorRatio(double errorRatio) {
+                this.errorRatio = errorRatio;
+            }
+
+            public double getP99LatencySeconds() {
+                return p99LatencySeconds;
+            }
+
+            public void setP99LatencySeconds(double p99LatencySeconds) {
+                this.p99LatencySeconds = p99LatencySeconds;
+            }
+
+            public double getValidationRate() {
+                return validationRate;
+            }
+
+            public void setValidationRate(double validationRate) {
+                this.validationRate = validationRate;
+            }
+
+            public double getThroughputDropRatio() {
+                return throughputDropRatio;
+            }
+
+            public void setThroughputDropRatio(double throughputDropRatio) {
+                this.throughputDropRatio = throughputDropRatio;
+            }
         }
     }
 }
