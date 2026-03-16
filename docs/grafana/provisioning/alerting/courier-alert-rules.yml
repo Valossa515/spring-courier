@@ -65,8 +65,8 @@ groups:
         annotations:
           summary: "Spring Courier error ratio acima de 5%"
           description: >-
-            {{ $value | humanizePercentage }} dos sends estão falhando
-            nos últimos 5 minutos.
+            {{ $values.error_ratio.Value | printf "%.1f" }}% dos sends estão
+            falhando nos últimos 5 minutos.
           runbook_url: ""
 
       # -----------------------------------------------------------------------
@@ -110,7 +110,8 @@ groups:
         annotations:
           summary: "Spring Courier p99 latency acima de 1s"
           description: >-
-            p99 de send() está em {{ $value }}s nos últimos 5 minutos.
+            p99 de send() está em {{ $values.p99.Value | printf "%.3f" }}s
+            nos últimos 5 minutos.
           runbook_url: ""
 
       # -----------------------------------------------------------------------
@@ -151,8 +152,9 @@ groups:
         annotations:
           summary: "Handler timeouts detectados no Spring Courier"
           description: >-
-            {{ $value }} timeouts/s nos últimos 5 minutos.
-            Verifique handlers assíncronos e o valor de spring.courier.async-timeout-ms.
+            {{ $values.timeouts.Value | printf "%.1f" }} timeouts/s nos
+            últimos 5 minutos. Verifique handlers assíncronos e o valor
+            de spring.courier.async-timeout-ms.
           runbook_url: ""
 
       # -----------------------------------------------------------------------
@@ -193,7 +195,8 @@ groups:
         annotations:
           summary: "Alta taxa de falhas de validação no Spring Courier"
           description: >-
-            {{ $value }} falhas de validação/s nos últimos 5 minutos.
+            {{ $values.validation_rate.Value | printf "%.1f" }} falhas de
+            validação/s nos últimos 5 minutos.
           runbook_url: ""
 
       # -----------------------------------------------------------------------
@@ -252,8 +255,8 @@ groups:
         annotations:
           summary: "Queda abrupta de throughput no Spring Courier"
           description: >-
-            Throughput caiu {{ $value | humanizePercentage }} comparado
-            com os 10 minutos anteriores.
+            Throughput caiu {{ $values.drop_ratio.Value | printf "%.0f" }}%
+            comparado com os 10 minutos anteriores.
           runbook_url: ""
 
       # -----------------------------------------------------------------------
@@ -296,6 +299,7 @@ groups:
         annotations:
           summary: "Spring Courier: alta taxa de erros por tipo de exceção"
           description: >-
-            Exceção {{ $labels.exception_type }} ocorrendo a
-            {{ $value }}/s nos últimos 5 minutos.
+            Exceção {{ index $labels "exception_type" }} ocorrendo a
+            {{ $values.exception_rate.Value | printf "%.1f" }}/s nos
+            últimos 5 minutos.
           runbook_url: ""

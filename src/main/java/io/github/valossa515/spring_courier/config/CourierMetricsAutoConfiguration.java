@@ -8,6 +8,7 @@ import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -32,12 +33,19 @@ import java.util.concurrent.Executor;
  * {@link CourierAutoConfiguration}, the {@code MeteredCourier} bean satisfies
  * the {@code @ConditionalOnMissingBean(Courier.class)} guard in the base
  * configuration, preventing a plain {@code Courier} from being created.
+ *
+ * <p>Must run <em>after</em> Spring Boot Actuator’s
+ * {@code CompositeMeterRegistryAutoConfiguration} so the
+ * {@code MeterRegistry} bean already exists when
+ * {@code @ConditionalOnBean} is evaluated.
  */
 @Configuration
 @ConditionalOnClass(MeterRegistry.class)
 @ConditionalOnBean(MeterRegistry.class)
 @ConditionalOnProperty(name = "spring.courier.metrics.enabled",
         havingValue = "true", matchIfMissing = true)
+@AutoConfigureAfter(name = "org.springframework.boot.actuate.autoconfigure"
+        + ".metrics.CompositeMeterRegistryAutoConfiguration")
 @AutoConfigureBefore(CourierAutoConfiguration.class)
 public class CourierMetricsAutoConfiguration {
 
