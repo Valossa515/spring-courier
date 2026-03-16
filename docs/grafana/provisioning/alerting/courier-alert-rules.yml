@@ -50,13 +50,13 @@ groups:
             datasourceUid: "__expr__"
             model:
               type: math
-              expression: "$errors / $total"
+              expression: "($errors / $total) * 100"
               refId: error_ratio
               conditions:
                 - evaluator:
                     type: gt
                     params:
-                      - 0.05
+                      - 5
         for: 5m
         labels:
           severity: warning
@@ -231,7 +231,7 @@ groups:
             datasourceUid: "__expr__"
             model:
               type: math
-              expression: "1 - ($current / $previous)"
+              expression: "(1 - ($current / $previous)) * 100"
               refId: drop_ratio
           - refId: drop_check
             relativeTimeRange:
@@ -246,7 +246,7 @@ groups:
                 - evaluator:
                     type: gt
                     params:
-                      - 0.5
+                      - 50
         for: 10m
         labels:
           severity: critical
