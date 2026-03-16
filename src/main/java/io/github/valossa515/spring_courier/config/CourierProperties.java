@@ -26,10 +26,9 @@ public class CourierProperties {
     private long asyncTimeoutMs = 30_000;
 
     /**
-     * Whether Micrometer metrics instrumentation is enabled.
-     * Defaults to {@code true} when {@code micrometer-core} is on the classpath.
+     * Metrics configuration group.
      */
-    private boolean metricsEnabled = true;
+    private Metrics metrics = new Metrics();
 
     public long getAsyncTimeoutMs() {
         return asyncTimeoutMs;
@@ -44,11 +43,50 @@ public class CourierProperties {
         this.asyncTimeoutMs = asyncTimeoutMs;
     }
 
-    public boolean isMetricsEnabled() {
-        return metricsEnabled;
+    public Metrics getMetrics() {
+        return metrics;
     }
 
+    public void setMetrics(Metrics metrics) {
+        this.metrics = metrics;
+    }
+
+    /**
+     * Whether Micrometer metrics instrumentation is enabled.
+     *
+     * @return {@code true} if metrics are enabled
+     * @deprecated Use {@link #getMetrics()}.{@link Metrics#isEnabled() isEnabled()} instead.
+     */
+    @Deprecated(since = "1.4.0", forRemoval = true)
+    public boolean isMetricsEnabled() {
+        return metrics.isEnabled();
+    }
+
+    /**
+     * @deprecated Use {@link #getMetrics()}.{@link Metrics#setEnabled(boolean) setEnabled(boolean)} instead.
+     */
+    @Deprecated(since = "1.4.0", forRemoval = true)
     public void setMetricsEnabled(boolean metricsEnabled) {
-        this.metricsEnabled = metricsEnabled;
+        metrics.setEnabled(metricsEnabled);
+    }
+
+    /**
+     * Metrics sub-properties (prefix {@code spring.courier.metrics}).
+     */
+    public static class Metrics {
+
+        /**
+         * Whether Micrometer metrics instrumentation is enabled.
+         * Defaults to {@code true} when {@code micrometer-core} is on the classpath.
+         */
+        private boolean enabled = true;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
     }
 }

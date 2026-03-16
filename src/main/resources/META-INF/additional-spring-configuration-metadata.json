@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "spring.courier.metrics.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether Micrometer metrics instrumentation is enabled. Defaults to true when micrometer-core is on the classpath.",
+      "defaultValue": true
+    }
+  ]
+}
