@@ -1,0 +1,301 @@
+# ============================================================================
+# Spring Courier — Grafana Alert Rules (Unified Alerting Provisioning)
+# ============================================================================
+# Copie este arquivo para:
+#   <GRAFANA_HOME>/conf/provisioning/alerting/courier-alert-rules.yml
+#
+# Requer Grafana >= 10.0 com Unified Alerting habilitado.
+# O datasourceUid "prometheus" corresponde ao UID definido no provisioning
+# de datasources (grafana/provisioning/datasources/prometheus.yml).
+# ============================================================================
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: spring-courier-alerts
+    folder: Spring Courier
+    interval: 1m
+    rules:
+
+      # -----------------------------------------------------------------------
+      # 1. Error Ratio — Taxa de erros acima de 5% por 5 minutos
+      # -----------------------------------------------------------------------
+      - uid: courier-high-error-ratio
+        title: "Courier: High Error Ratio"
+        condition: error_ratio
+        data:
+          - refId: errors
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "prometheus"
+            model:
+              expr: sum(rate(courier_send_total{outcome="error"}[5m]))
+              instant: true
+              refId: errors
+          - refId: total
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "prometheus"
+            model:
+              expr: sum(rate(courier_send_total[5m]))
+              instant: true
+              refId: total
+          - refId: error_ratio
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              type: math
+              expression: "$errors / $total"
+              refId: error_ratio
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: spring-courier
+          alert_type: error-ratio
+        annotations:
+          summary: "Spring Courier error ratio acima de 5%"
+          description: >-
+            {{ $value | humanizePercentage }} dos sends estão falhando
+            nos últimos 5 minutos.
+          runbook_url: ""
+
+      # -----------------------------------------------------------------------
+      # 2. High Latency — p99 de send() acima de 1 segundo por 5 minutos
+      # -----------------------------------------------------------------------
+      - uid: courier-high-latency
+        title: "Courier: High p99 Latency"
+        condition: p99_check
+        data:
+          - refId: p99
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "prometheus"
+            model:
+              expr: >-
+                histogram_quantile(0.99,
+                  sum by(le) (rate(courier_send_duration_seconds_bucket[5m]))
+                )
+              instant: true
+              refId: p99
+          - refId: p99_check
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              expression: "$p99"
+              refId: p99_check
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 1.0
+        for: 5m
+        labels:
+          severity: warning
+          component: spring-courier
+          alert_type: latency
+        annotations:
+          summary: "Spring Courier p99 latency acima de 1s"
+          description: >-
+            p99 de send() está em {{ $value }}s nos últimos 5 minutos.
+          runbook_url: ""
+
+      # -----------------------------------------------------------------------
+      # 3. Handler Timeouts — Timeouts assíncronos detectados
+      # -----------------------------------------------------------------------
+      - uid: courier-handler-timeouts
+        title: "Courier: Handler Timeouts Detected"
+        condition: timeout_check
+        data:
+          - refId: timeouts
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "prometheus"
+            model:
+              expr: sum(rate(courier_handler_timeouts_total[5m]))
+              instant: true
+              refId: timeouts
+          - refId: timeout_check
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              expression: "$timeouts"
+              refId: timeout_check
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
+        for: 5m
+        labels:
+          severity: critical
+          component: spring-courier
+          alert_type: timeout
+        annotations:
+          summary: "Handler timeouts detectados no Spring Courier"
+          description: >-
+            {{ $value }} timeouts/s nos últimos 5 minutos.
+            Verifique handlers assíncronos e o valor de spring.courier.async-timeout-ms.
+          runbook_url: ""
+
+      # -----------------------------------------------------------------------
+      # 4. Validation Spike — Mais de 10 falhas de validação por segundo
+      # -----------------------------------------------------------------------
+      - uid: courier-validation-spike
+        title: "Courier: Validation Failure Spike"
+        condition: validation_check
+        data:
+          - refId: validation_rate
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "prometheus"
+            model:
+              expr: sum(rate(courier_validation_failures_total[5m]))
+              instant: true
+              refId: validation_rate
+          - refId: validation_check
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              expression: "$validation_rate"
+              refId: validation_check
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 10
+        for: 5m
+        labels:
+          severity: warning
+          component: spring-courier
+          alert_type: validation
+        annotations:
+          summary: "Alta taxa de falhas de validação no Spring Courier"
+          description: >-
+            {{ $value }} falhas de validação/s nos últimos 5 minutos.
+          runbook_url: ""
+
+      # -----------------------------------------------------------------------
+      # 5. Throughput Drop — Queda abrupta de throughput (> 50% em 10 min)
+      # -----------------------------------------------------------------------
+      - uid: courier-throughput-drop
+        title: "Courier: Throughput Drop"
+        condition: drop_check
+        data:
+          - refId: current
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "prometheus"
+            model:
+              expr: sum(rate(courier_send_total[5m]))
+              instant: true
+              refId: current
+          - refId: previous
+            relativeTimeRange:
+              from: 1200
+              to: 600
+            datasourceUid: "prometheus"
+            model:
+              expr: sum(rate(courier_send_total[5m]))
+              instant: true
+              refId: previous
+          - refId: drop_ratio
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              type: math
+              expression: "1 - ($current / $previous)"
+              refId: drop_ratio
+          - refId: drop_check
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              expression: "$drop_ratio"
+              refId: drop_check
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0.5
+        for: 10m
+        labels:
+          severity: critical
+          component: spring-courier
+          alert_type: throughput
+        annotations:
+          summary: "Queda abrupta de throughput no Spring Courier"
+          description: >-
+            Throughput caiu {{ $value | humanizePercentage }} comparado
+            com os 10 minutos anteriores.
+          runbook_url: ""
+
+      # -----------------------------------------------------------------------
+      # 6. High Error Count by Exception — Erros concentrados em tipo específico
+      # -----------------------------------------------------------------------
+      - uid: courier-error-by-exception
+        title: "Courier: High Error Rate by Exception Type"
+        condition: exception_check
+        data:
+          - refId: exception_rate
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "prometheus"
+            model:
+              expr: >-
+                sum by(exception_type)
+                  (rate(courier_handler_errors_total[5m])) > 1
+              instant: true
+              refId: exception_rate
+          - refId: exception_check
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              expression: "$exception_rate"
+              refId: exception_check
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 1
+        for: 5m
+        labels:
+          severity: warning
+          component: spring-courier
+          alert_type: exception
+        annotations:
+          summary: "Spring Courier: alta taxa de erros por tipo de exceção"
+          description: >-
+            Exceção {{ $labels.exception_type }} ocorrendo a
+            {{ $value }}/s nos últimos 5 minutos.
+          runbook_url: ""

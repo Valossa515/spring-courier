@@ -1,0 +1,118 @@
+# ============================================================================
+# Spring Courier — Grafana Contact Points & Notification Policies (Slack)
+# ============================================================================
+# Copie este arquivo para:
+#   <GRAFANA_HOME>/conf/provisioning/alerting/courier-slack-notifications.yml
+#
+# Configure as variáveis de ambiente antes de iniciar o Grafana:
+#   SLACK_WEBHOOK_URL  — Incoming Webhook URL do Slack
+#   SLACK_CHANNEL      — Canal de destino (ex: #courier-alerts)
+#   SLACK_TOKEN        — (Opcional) Bot token para Slack API
+# ============================================================================
+
+apiVersion: 1
+
+# =============================================================================
+# Contact Points — Canais de notificação Slack
+# =============================================================================
+contactPoints:
+  - orgId: 1
+    name: courier-slack-critical
+    receivers:
+      - uid: courier-slack-critical
+        type: slack
+        settings:
+          url: "${SLACK_WEBHOOK_URL}"
+          recipient: "${SLACK_CHANNEL}"
+          username: "Grafana Courier Alerts"
+          icon_emoji: ":rotating_light:"
+          title: |
+            {{ .Status | toUpper }} | {{ .CommonLabels.alert_type }} | {{ .CommonLabels.severity | toUpper }}
+          text: |
+            *Alert:* {{ .CommonLabels.alertname }}
+            *Severity:* `{{ .CommonLabels.severity }}`
+            *Component:* `{{ .CommonLabels.component }}`
+
+            {{ range .Alerts }}
+            :small_red_triangle: *{{ .Annotations.summary }}*
+            {{ .Annotations.description }}
+            {{ if .Annotations.runbook_url }}:book: <{{ .Annotations.runbook_url }}|Runbook>{{ end }}
+            {{ end }}
+
+            :chart_with_upwards_trend: <{{ .ExternalURL }}|Ver no Grafana>
+          mention_channel: "here"
+        disableResolveMessage: false
+
+  - orgId: 1
+    name: courier-slack-warning
+    receivers:
+      - uid: courier-slack-warning
+        type: slack
+        settings:
+          url: "${SLACK_WEBHOOK_URL}"
+          recipient: "${SLACK_CHANNEL}"
+          username: "Grafana Courier Alerts"
+          icon_emoji: ":warning:"
+          title: |
+            {{ .Status | toUpper }} | {{ .CommonLabels.alert_type }} | {{ .CommonLabels.severity | toUpper }}
+          text: |
+            *Alert:* {{ .CommonLabels.alertname }}
+            *Severity:* `{{ .CommonLabels.severity }}`
+            *Component:* `{{ .CommonLabels.component }}`
+
+            {{ range .Alerts }}
+            :warning: *{{ .Annotations.summary }}*
+            {{ .Annotations.description }}
+            {{ end }}
+
+            :chart_with_upwards_trend: <{{ .ExternalURL }}|Ver no Grafana>
+        disableResolveMessage: false
+
+# =============================================================================
+# Notification Policies — Roteamento de alertas por severidade
+# =============================================================================
+policies:
+  - orgId: 1
+    receiver: courier-slack-warning
+    group_by:
+      - alertname
+      - severity
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+    routes:
+      # Alertas CRITICAL → canal com @here mention
+      - receiver: courier-slack-critical
+        matchers:
+          - component = spring-courier
+          - severity = critical
+        group_wait: 10s
+        group_interval: 1m
+        repeat_interval: 1h
+        continue: false
+
+      # Alertas WARNING → canal sem mention
+      - receiver: courier-slack-warning
+        matchers:
+          - component = spring-courier
+          - severity = warning
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+        continue: false
+
+# =============================================================================
+# Mute Timings — Silenciar alertas em horários específicos (opcional)
+# =============================================================================
+# Descomente e ajuste conforme necessário:
+#
+# muteTimes:
+#   - orgId: 1
+#     name: courier-maintenance-window
+#     time_intervals:
+#       - times:
+#           - start_time: "02:00"
+#             end_time: "04:00"
+#         weekdays:
+#           - "sunday"
+#         location: "America/Sao_Paulo"
