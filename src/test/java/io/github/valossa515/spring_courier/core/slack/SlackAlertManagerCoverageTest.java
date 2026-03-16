@@ -139,7 +139,10 @@ class SlackAlertManagerCoverageTest {
 
         slackConfig.getThresholds().setThroughputDropRatio(0.5);
 
-        successCounter.increment(1000);
+        successCounter.increment(500);
+        manager.evaluate();
+
+        successCounter.increment(500);
         manager.evaluate();
 
         // No new sends → currentRate = 0 → drop ratio = 1.0
@@ -164,6 +167,7 @@ class SlackAlertManagerCoverageTest {
                         CourierMetrics.OUTCOME_ERROR)
                 .register(meterRegistry);
 
+        manager.evaluate();
         manager.evaluate();
         manager.evaluate();
 
@@ -407,7 +411,10 @@ class SlackAlertManagerCoverageTest {
 
         slackConfig.getThresholds().setThroughputDropRatio(0.5);
 
-        successCounter.increment(1000);
+        successCounter.increment(500);
+        manager.evaluate();
+
+        successCounter.increment(500);
         manager.evaluate();
 
         // No new sends → triggers throughput drop

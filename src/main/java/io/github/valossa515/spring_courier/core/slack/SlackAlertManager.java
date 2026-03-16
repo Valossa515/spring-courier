@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Periodically evaluates built-in alert rules against Courier metrics and
@@ -41,7 +42,8 @@ public class SlackAlertManager {
     private final ScheduledExecutorService scheduler;
     private final Map<String, AlertState> alertStates = new ConcurrentHashMap<>();
 
-    private volatile MetricSnapshot previousSnapshot;
+    private final AtomicReference<SnapshotWindow> snapshotWindow =
+            new AtomicReference<>(new SnapshotWindow(null, null));
 
     public SlackAlertManager(MeterRegistry meterRegistry,
                              SlackNotifier notifier,
@@ -89,8 +91,10 @@ public class SlackAlertManager {
     void evaluate() {
         try {
             MetricSnapshot current = takeSnapshot();
-            MetricSnapshot prev = previousSnapshot;
-            previousSnapshot = current;
+            SnapshotWindow old = snapshotWindow.getAndUpdate(
+                    w -> new SnapshotWindow(current, w.previous()));
+            MetricSnapshot prev = old.previous();
+            MetricSnapshot prior = old.prior();
 
             if (prev == null) {
                 return;
@@ -107,7 +111,7 @@ public class SlackAlertManager {
             evaluateP99Latency(current);
             evaluateTimeouts(current, prev, elapsedSeconds);
             evaluateValidationSpike(current, prev, elapsedSeconds);
-            evaluateThroughputDrop(current, prev, elapsedSeconds);
+            evaluateThroughputDrop(current, prev, prior, elapsedSeconds);
 
         } catch (Exception e) {
             logger.error("Error during Slack alert evaluation: {}",
@@ -203,10 +207,25 @@ public class SlackAlertManager {
 
     private void evaluateThroughputDrop(MetricSnapshot current,
                                         MetricSnapshot prev,
+                                        MetricSnapshot prior,
                                         double elapsed) {
-        double prevRate = prev.sendTotal() / Math.max(1.0, elapsed);
-        double currentTotal = current.sendTotal() - prev.sendTotal();
-        double currentRate = currentTotal / elapsed;
+        if (prior == null) {
+            transition("throughput-drop", false);
+            return;
+        }
+
+        double prevElapsed = Duration.between(
+                prior.timestamp(), prev.timestamp()).toNanos()
+                / 1_000_000_000.0;
+        if (prevElapsed <= 0) {
+            transition("throughput-drop", false);
+            return;
+        }
+
+        double prevDelta = prev.sendTotal() - prior.sendTotal();
+        double prevRate = prevDelta / prevElapsed;
+        double currentDelta = current.sendTotal() - prev.sendTotal();
+        double currentRate = currentDelta / elapsed;
 
         if (prevRate <= 0) {
             transition("throughput-drop", false);
@@ -315,15 +334,19 @@ public class SlackAlertManager {
     private double readP99Latency() {
         var timers = meterRegistry.find(CourierMetrics.SEND_DURATION)
                 .timers();
+        double maxP99 = -1.0;
         for (Timer timer : timers) {
             var snapshot = timer.takeSnapshot();
             for (ValueAtPercentile vap : snapshot.percentileValues()) {
                 if (Math.abs(vap.percentile() - P99_PERCENTILE) < 0.001) {
-                    return vap.value(TimeUnit.SECONDS);
+                    double value = vap.value(TimeUnit.SECONDS);
+                    if (value > maxP99) {
+                        maxP99 = value;
+                    }
                 }
             }
         }
-        return -1.0;
+        return maxP99;
     }
 
     private static String formatPct(double ratio) {
@@ -336,6 +359,10 @@ public class SlackAlertManager {
                           double validationFailures,
                           double p99LatencySeconds,
                           Instant timestamp) {
+    }
+
+    record SnapshotWindow(MetricSnapshot previous,
+                          MetricSnapshot prior) {
     }
 
     private static class AlertState {
