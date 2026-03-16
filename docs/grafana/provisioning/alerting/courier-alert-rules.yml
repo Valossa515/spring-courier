@@ -5,8 +5,8 @@
 #   <GRAFANA_HOME>/conf/provisioning/alerting/courier-alert-rules.yml
 #
 # Requer Grafana >= 10.0 com Unified Alerting habilitado.
-# O datasourceUid "prometheus" corresponde ao UID definido no provisioning
-# de datasources (grafana/provisioning/datasources/prometheus.yml).
+# Substitua ${DS_PROMETHEUS} pelo UID do seu datasource Prometheus.
+# O valor padrão do provisioning é "prometheus" (ver datasources/prometheus.yml).
 # ============================================================================
 
 apiVersion: 1
@@ -29,7 +29,7 @@ groups:
             relativeTimeRange:
               from: 300
               to: 0
-            datasourceUid: "prometheus"
+            datasourceUid: "${DS_PROMETHEUS}"
             model:
               expr: sum(rate(courier_send_total{outcome="error"}[5m]))
               instant: true
@@ -38,7 +38,7 @@ groups:
             relativeTimeRange:
               from: 300
               to: 0
-            datasourceUid: "prometheus"
+            datasourceUid: "${DS_PROMETHEUS}"
             model:
               expr: sum(rate(courier_send_total[5m]))
               instant: true
@@ -80,7 +80,7 @@ groups:
             relativeTimeRange:
               from: 300
               to: 0
-            datasourceUid: "prometheus"
+            datasourceUid: "${DS_PROMETHEUS}"
             model:
               expr: >-
                 histogram_quantile(0.99,
@@ -124,7 +124,7 @@ groups:
             relativeTimeRange:
               from: 300
               to: 0
-            datasourceUid: "prometheus"
+            datasourceUid: "${DS_PROMETHEUS}"
             model:
               expr: sum(rate(courier_handler_timeouts_total[5m]))
               instant: true
@@ -166,7 +166,7 @@ groups:
             relativeTimeRange:
               from: 300
               to: 0
-            datasourceUid: "prometheus"
+            datasourceUid: "${DS_PROMETHEUS}"
             model:
               expr: sum(rate(courier_validation_failures_total[5m]))
               instant: true
@@ -207,7 +207,7 @@ groups:
             relativeTimeRange:
               from: 600
               to: 0
-            datasourceUid: "prometheus"
+            datasourceUid: "${DS_PROMETHEUS}"
             model:
               expr: sum(rate(courier_send_total[5m]))
               instant: true
@@ -216,7 +216,7 @@ groups:
             relativeTimeRange:
               from: 1200
               to: 600
-            datasourceUid: "prometheus"
+            datasourceUid: "${DS_PROMETHEUS}"
             model:
               expr: sum(rate(courier_send_total[5m]))
               instant: true
@@ -267,11 +267,11 @@ groups:
             relativeTimeRange:
               from: 300
               to: 0
-            datasourceUid: "prometheus"
+            datasourceUid: "${DS_PROMETHEUS}"
             model:
               expr: >-
                 sum by(exception_type)
-                  (rate(courier_handler_errors_total[5m])) > 1
+                  (rate(courier_handler_errors_total[5m]))
               instant: true
               refId: exception_rate
           - refId: exception_check
