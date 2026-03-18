@@ -1,110 +1,112 @@
-# 🚀 Guia Rápido de Visualização dos Diagramas
+> 🌐 **Language / Idioma:** 🇧🇷 [Português](QUICK_START.pt-BR.md) | 🇺🇸 **English** (current)
 
-Este guia ajudará você a visualizar rapidamente os diagramas do Spring Courier.
+# 🚀 Quick Guide to Viewing Diagrams
 
-## ⚡ Método Mais Rápido: Online
+This guide will help you quickly view the Spring Courier diagrams.
 
-1. Acesse: http://www.plantuml.com/plantuml/uml/
-2. Copie o conteúdo de qualquer arquivo `.puml` desta pasta
-3. Cole no campo de texto
-4. Clique em "Submit" para ver o diagrama renderizado
+## ⚡ Fastest Method: Online
 
-### 🔗 Links Diretos (GitHub)
+1. Go to: http://www.plantuml.com/plantuml/uml/
+2. Copy the contents of any `.puml` file from this folder
+3. Paste it in the text field
+4. Click "Submit" to see the rendered diagram
 
-Você pode visualizar os diagramas diretamente no GitHub usando o PlantUML Proxy:
+### 🔗 Direct Links (GitHub)
 
-- [Visão Geral](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/architecture-overview.puml)
-- [Diagrama de Classes](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/class-diagram.puml)
-- [Sequência - Command/Query](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/sequence-diagram-command.puml)
-- [Sequência - Notificações](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/sequence-diagram-notification.puml)
-- [Diagrama de Atividades](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/activity-diagram.puml)
-- [Casos de Uso](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/use-case-diagram.puml)
-- [Diagrama de Componentes](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/component-diagram.puml)
-- [Diagrama de Implantação](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/deployment-diagram.puml)
-- [Diagrama de Estados](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/state-diagram.puml)
+You can view the diagrams directly on GitHub using the PlantUML Proxy:
 
-> **Nota**: Após o merge para a branch `main`, os links acima funcionarão automaticamente!
+- [Architecture Overview](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/architecture-overview.puml)
+- [Class Diagram](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/class-diagram.puml)
+- [Sequence - Command/Query](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/sequence-diagram-command.puml)
+- [Sequence - Notifications](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/sequence-diagram-notification.puml)
+- [Activity Diagram](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/activity-diagram.puml)
+- [Use Cases](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/use-case-diagram.puml)
+- [Component Diagram](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/component-diagram.puml)
+- [Deployment Diagram](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/deployment-diagram.puml)
+- [State Diagram](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/state-diagram.puml)
+
+> **Note**: After merging to the `main` branch, the links above will work automatically!
 
 ---
 
-## 💻 Visualização Local
+## 💻 Local Viewing
 
-### Opção 1: VS Code (Recomendado)
+### Option 1: VS Code (Recommended)
 
-1. Instale a extensão: [PlantUML - jebbs](https://marketplace.visualstudio.com/items?itemName=jebbs.plantuml)
-2. Abra qualquer arquivo `.puml`
-3. Pressione `Alt+D` ou use o comando `PlantUML: Preview Current Diagram`
-4. O diagrama será renderizado em tempo real ao lado do código
+1. Install the extension: [PlantUML - jebbs](https://marketplace.visualstudio.com/items?itemName=jebbs.plantuml)
+2. Open any `.puml` file
+3. Press `Alt+D` or use the command `PlantUML: Preview Current Diagram`
+4. The diagram will be rendered in real time alongside the code
 
-### Opção 2: IntelliJ IDEA
+### Option 2: IntelliJ IDEA
 
-1. Instale o plugin: **PlantUML Integration**
-   - `File` → `Settings` → `Plugins` → Busque "plantuml4idea"
-   - instale o graphviz
-   - vá ate `Settings` → `Languages & Frameworks` → Clique em "PlantUML" → Cole o diretório onde o graphviz foi instalado.
-2. Abra qualquer arquivo `.puml`
-3. O preview aparecerá automaticamente no painel lateral
+1. Install the plugin: **PlantUML Integration**
+   - `File` → `Settings` → `Plugins` → Search for "plantuml4idea"
+   - Install Graphviz
+   - Go to `Settings` → `Languages & Frameworks` → Click "PlantUML" → Paste the directory where Graphviz was installed.
+2. Open any `.puml` file
+3. The preview will appear automatically in the side panel
 
-### Opção 3: Linha de Comando
+### Option 3: Command Line
 
 ```bash
-# Instalar PlantUML (requer Java instalado)
+# Install PlantUML (requires Java)
 
-# macOS (usando Homebrew)
+# macOS (using Homebrew)
 brew install plantuml
 
 # Ubuntu/Debian
 sudo apt-get install plantuml
 
-# Gerar PNG de todos os diagramas
+# Generate PNG for all diagrams
 cd docs/diagrams
 plantuml *.puml
 
-# Gerar SVG (vetorizado, melhor qualidade)
+# Generate SVG (vectorized, better quality)
 plantuml -tsvg *.puml
 
-# Gerar PDF
+# Generate PDF
 plantuml -tpdf *.puml
 ```
 
-Os arquivos de imagem serão gerados na mesma pasta dos `.puml`.
+Image files will be generated in the same folder as the `.puml` files.
 
 ---
 
-## 🎨 Ferramentas Adicionais
+## 🎨 Additional Tools
 
 ### PlantUML QEditor
 - **Download**: http://qeditor.gforge.inria.fr/
-- Editor standalone com preview em tempo real
-- Multiplataforma (Windows, Mac, Linux)
+- Standalone editor with real-time preview
+- Cross-platform (Windows, Mac, Linux)
 
 ### draw.io / diagrams.net
-- Não suporta PlantUML nativamente, mas você pode importar PNGs gerados
+- Does not natively support PlantUML, but you can import generated PNGs
 
 ### Visual Paradigm
-- Suporta importação de PlantUML
-- Versão Community gratuita disponível
+- Supports PlantUML import
+- Free Community version available
 
 ---
 
-## 🔧 Dicas
+## 🔧 Tips
 
-### Exportar para Documentação
+### Export for Documentation
 
 ```bash
-# Gerar todos como PNG em alta resolução
+# Generate all as high-resolution PNGs
 plantuml -tpng -DPLANTUML_LIMIT_SIZE=8192 *.puml
 
-# Gerar SVG para documentação web
+# Generate SVG for web documentation
 plantuml -tsvg *.puml
 
-# Gerar em múltiplos formatos
+# Generate in multiple formats
 plantuml -tpng -tsvg *.puml
 ```
 
-### Integração com CI/CD
+### CI/CD Integration
 
-Você pode adicionar geração automática de diagramas no CI:
+You can add automatic diagram generation in CI:
 
 ```yaml
 # .github/workflows/generate-diagrams.yml
@@ -121,19 +123,19 @@ jobs:
           args: -v -tsvg docs/diagrams/*.puml
 ```
 
-### Incluir em Markdown
+### Include in Markdown
 
 ```markdown
-<!-- Usando proxy público -->
+<!-- Using public proxy -->
 ![Architecture](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/Valossa515/spring-courier/main/docs/diagrams/architecture-overview.puml)
 
-<!-- Ou usando imagem gerada -->
+<!-- Or using a generated image -->
 ![Architecture](./architecture-overview.png)
 ```
 
 ---
 
-## 📚 Recursos
+## 📚 Resources
 
 - [PlantUML Official Site](https://plantuml.com/)
 - [PlantUML Language Reference](https://plantuml.com/guide)
@@ -142,10 +144,10 @@ jobs:
 
 ---
 
-## ❓ Problemas Comuns
+## ❓ Common Issues
 
 ### "Java not found"
-PlantUML requer Java. Instale:
+PlantUML requires Java. Install it:
 ```bash
 # macOS
 brew install openjdk
@@ -155,7 +157,7 @@ sudo apt-get install default-jre
 ```
 
 ### "Graphviz not found"
-Alguns diagramas avançados precisam do Graphviz:
+Some advanced diagrams require Graphviz:
 ```bash
 # macOS
 brew install graphviz
@@ -164,23 +166,23 @@ brew install graphviz
 sudo apt-get install graphviz
 ```
 
-### Diagrama não renderiza no VS Code
-1. Verifique se a extensão PlantUML está instalada
-2. Verifique se Java está instalado: `java -version`
-3. Reinicie o VS Code
+### Diagram not rendering in VS Code
+1. Check that the PlantUML extension is installed
+2. Check that Java is installed: `java -version`
+3. Restart VS Code
 
 ---
 
-## 🤝 Contribuindo
+## 🤝 Contributing
 
-Para adicionar ou modificar diagramas:
+To add or modify diagrams:
 
-1. Edite os arquivos `.puml` existentes ou crie novos
-2. Teste localmente antes de commitar
-3. Mantenha o estilo e tema consistentes
-4. Adicione descrição no `README.md` principal
-5. Abra um Pull Request
+1. Edit existing `.puml` files or create new ones
+2. Test locally before committing
+3. Keep the style and theme consistent
+4. Add a description in the main `README.md`
+5. Open a Pull Request
 
 ---
 
-Desenvolvido com ❤️ para o projeto Spring Courier
+Made with ❤️ for the Spring Courier project

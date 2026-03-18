@@ -1,63 +1,64 @@
-# 🔒 Política de Segurança
+> 🌐 **Language / Idioma:** 🇧🇷 [Português](SECURITY.pt-BR.md) | 🇺🇸 **English** (current)
 
-## Versões Suportadas
+# 🔒 Security Policy
 
-| Versão | Suportada          |
-| ------ | ------------------ |
-| 1.3.x  | ✅ Sim             |
-| 1.2.x  | ✅ Sim             |
-| < 1.2  | ❌ Não             |
+## Supported Versions
 
-## Reportando uma Vulnerabilidade
+| Version | Supported                     |
+| ------- | ----------------------------- |
+| 2.0.x   | ✅ Yes (actively supported)   |
+| 1.3.x   | ✅ Security fixes only        |
+| 1.2.x   | ❌ No                         |
+| < 1.2   | ❌ No                         |
 
-A segurança do Spring Courier é levada a sério. Se você descobrir uma vulnerabilidade de segurança, 
-por favor reporte de forma responsável.
+## Reporting a Vulnerability
 
-### Como Reportar
+The security of Spring Courier is taken seriously. If you discover a security vulnerability, please report it responsibly.
 
-**⚠️ NÃO abra uma issue pública para vulnerabilidades de segurança.**
+### How to Report
 
-Em vez disso:
+**⚠️ DO NOT open a public issue for security vulnerabilities.**
 
-1. **Envie um e-mail** para **fe.mmo515@gmail.com** com os detalhes da vulnerabilidade
-2. Ou use a funcionalidade **[Security Advisories](https://github.com/Valossa515/spring-courier/security/advisories/new)** do GitHub
+Instead:
 
-### O que incluir no relatório
+1. **Send an email** to **fe.mmo515@gmail.com** with the vulnerability details
+2. Or use the **[Security Advisories](https://github.com/Valossa515/spring-courier/security/advisories/new)** feature on GitHub
 
-- Descrição da vulnerabilidade
-- Passos para reprodução
-- Impacto potencial
-- Versão afetada do Spring Courier
-- Sugestão de correção (se tiver)
+### What to Include in Your Report
 
-### O que esperar
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Affected Spring Courier version
+- Suggested fix (if any)
 
-- **Confirmação de recebimento** em até 48 horas
-- **Avaliação inicial** em até 7 dias
-- **Correção e release** de acordo com a severidade:
-  - 🔴 **Crítica**: Correção e release o mais rápido possível
-  - 🟠 **Alta**: Correção na próxima release de patch
-  - 🟡 **Média**: Correção na próxima release minor
-  - 🟢 **Baixa**: Correção em release futura
+### What to Expect
 
-### Divulgação Responsável
+- **Acknowledgment of receipt** within 48 hours
+- **Initial assessment** within 7 days
+- **Fix and release** according to severity:
+  - 🔴 **Critical**: Fix and release as soon as possible
+  - 🟠 **High**: Fix in the next patch release
+  - 🟡 **Medium**: Fix in the next minor release
+  - 🟢 **Low**: Fix in a future release
 
-Pedimos que:
+### Responsible Disclosure
 
-- Nos dê um prazo razoável para corrigir a vulnerabilidade antes de divulgá-la publicamente
-- Não explore a vulnerabilidade além do necessário para demonstrá-la
-- Não acesse ou modifique dados de outros usuários
+We ask that you:
 
-### Reconhecimento
+- Give us a reasonable amount of time to fix the vulnerability before disclosing it publicly
+- Do not exploit the vulnerability beyond what is necessary to demonstrate it
+- Do not access or modify other users' data
 
-Contribuidores que reportarem vulnerabilidades de segurança válidas serão reconhecidos
-(com permissão) nos release notes e no README do projeto.
+### Acknowledgment
 
-## Boas Práticas de Segurança
+Contributors who report valid security vulnerabilities will be acknowledged (with permission) in the release notes and the project's README.
 
-Ao usar o Spring Courier no seu projeto:
+## Security Best Practices
 
-- Mantenha sempre a versão mais recente da biblioteca
-- Valide inputs usando `ValidationBehavior` antes do processamento
-- Não exponha mensagens de erro internas em ambientes de produção
-- Use o `Response<T>` para encapsular respostas de forma segura — apenas exceções do tipo `CourierException` têm suas mensagens propagadas; demais exceções retornam mensagem genérica
+When using Spring Courier in your project:
+
+- Always keep the library up to date with the latest version
+- Validate inputs using `ValidationBehavior` before processing
+- Do not expose internal error messages in production environments
+- Use `Response<T>` to safely encapsulate responses — only `CourierException` messages are propagated; other exceptions return a generic message

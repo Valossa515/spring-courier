@@ -1,42 +1,42 @@
-## Descrição
+## Description
 
-<!-- Descreva as mudanças feitas neste PR -->
+<!-- Describe the changes made in this PR -->
 
-## Tipo de Mudança
+## Type of Change
 
-- [ ] 🐛 Bug fix (correção que não quebra funcionalidades existentes)
-- [ ] ✨ Nova feature (mudança que adiciona funcionalidade)
-- [ ] 💥 Breaking change (correção ou feature que quebraria funcionalidades existentes)
-- [ ] 📖 Documentação (mudanças apenas na documentação)
-- [ ] 🔧 Refatoração (mudança de código que não corrige bug nem adiciona feature)
-- [ ] ✅ Testes (adição ou correção de testes)
-- [ ] 🔨 Build/CI (mudanças no processo de build ou CI)
+- [ ] 🐛 Bug fix (fix that does not break existing functionality)
+- [ ] ✨ New feature (change that adds functionality)
+- [ ] 💥 Breaking change (fix or feature that would break existing functionality)
+- [ ] 📖 Documentation (documentation-only changes)
+- [ ] 🔧 Refactoring (code change that neither fixes a bug nor adds a feature)
+- [ ] ✅ Tests (adding or fixing tests)
+- [ ] 🔨 Build/CI (changes to the build process or CI)
 
 ## Checklist
 
-- [ ] Meu código segue as convenções de estilo do projeto
-- [ ] Fiz a auto-revisão do meu código
-- [ ] Adicionei testes que provam que minha correção/feature funciona
-- [ ] Testes novos e existentes passam localmente (`./mvnw clean test`)
-- [ ] Checkstyle passa sem erros (`./mvnw checkstyle:check`)
-- [ ] Atualizei a documentação (se necessário)
+- [ ] My code follows the project's style conventions
+- [ ] I have self-reviewed my code
+- [ ] I have added tests that prove my fix/feature works
+- [ ] New and existing tests pass locally (`./mvnw clean test`)
+- [ ] Checkstyle passes without errors (`./mvnw checkstyle:check`)
+- [ ] I have updated the documentation (if necessary)
 
-## Issue Relacionada
+## Related Issue
 
-<!-- Link para a issue que este PR resolve, ex: Closes #123 -->
+<!-- Link to the issue this PR resolves, e.g.: Closes #123 -->
 
-## Como Testar
+## How to Test
 
-<!-- Passos para testar as mudanças -->
+<!-- Steps to test the changes -->
 
 1.
 2.
 3.
 
-## Screenshots (se aplicável)
+## Screenshots (if applicable)
 
-<!-- Adicione screenshots se houver mudanças visuais -->
+<!-- Add screenshots if there are visual changes -->
 
-## Notas Adicionais
+## Additional Notes
 
-<!-- Qualquer informação extra para os revisores -->
+<!-- Any extra information for reviewers -->

@@ -5,7 +5,7 @@
 <h1 align="center">Spring Courier</h1>
 
 <p align="center">
-  🚀 Uma biblioteca Java para simplificar a implementação do padrão <strong>CQRS + Mediator</strong> em aplicações <strong>Spring Boot</strong>.
+  🚀 A Java library to simplify the implementation of the <strong>CQRS + Mediator</strong> pattern in <strong>Spring Boot</strong> applications.
 </p>
 
 <p align="center">
@@ -18,46 +18,49 @@
 
 ---
 
-## 🧠 Sobre
+> 🌐 **Language / Idioma:** 🇧🇷 [Português](README.pt-BR.md) | 🇺🇸 **English** (current)
 
-O **Spring Courier** é uma biblioteca leve e extensível que traz para o ecossistema **Spring Boot** a simplicidade e o poder do **MediatR** do .NET.  
-Ela fornece uma infraestrutura para desacoplar comandos, consultas e eventos — permitindo aplicações **clean**, **testáveis** e **orientadas a domínio**.
 
----
+## 🧠 About
 
-## ✨ Recursos
-
-✅ Suporte a **Command Handlers** e **Query Handlers**
-✅ **Notification/Event Support** — Publique eventos para múltiplos handlers
-✅ **Validation Pipeline** — Valide requests antes da execução
-✅ Estrutura genérica e flexível baseada em **interfaces**
-✅ Total integração com o **Spring Context**
-✅ Suporte a **Request/Response Pattern**
-✅ **Async Support** — Publicação assíncrona com **Virtual Threads** (Java 21)
-✅ Extensível para eventos e pipelines personalizados
-✅ Zero configuração adicional — **plug and play**
-✅ **Slack Alerting Nativo** — Alertas direto no Slack sem Grafana/Alertmanager
-✅ **Sealed Exception Hierarchy** — Hierarquia de exceções fechada para type safety
+**Spring Courier** is a lightweight and extensible library that brings to the **Spring Boot** ecosystem the simplicity and power of .NET's **MediatR**.
+It provides infrastructure to decouple commands, queries, and events — enabling **clean**, **testable**, and **domain-oriented** applications.
 
 ---
 
-## ☕ Java 21 — O que mudou
+## ✨ Features
 
-A partir da versão **2.0.0**, o Spring Courier requer **Java 21+** (LTS). Essa atualização traz melhorias significativas de performance e type safety:
+✅ **Command Handlers** and **Query Handlers** support
+✅ **Notification/Event Support** — Publish events to multiple handlers
+✅ **Validation Pipeline** — Validate requests before execution
+✅ Generic and flexible structure based on **interfaces**
+✅ Full integration with the **Spring Context**
+✅ **Request/Response Pattern** support
+✅ **Async Support** — Asynchronous publishing with **Virtual Threads** (Java 21)
+✅ Extensible for custom events and pipelines
+✅ Zero additional configuration — **plug and play**
+✅ **Native Slack Alerting** — Alerts directly to Slack without Grafana/Alertmanager
+✅ **Sealed Exception Hierarchy** — Sealed exception hierarchy for type safety
+
+---
+
+## ☕ Java 21 — What Changed
+
+Starting from version **2.0.0**, Spring Courier requires **Java 21+** (LTS). This update brings significant performance and type safety improvements:
 
 ### 🧵 Virtual Threads
 
-O `publishAsync()` agora utiliza **Virtual Threads** por padrão quando nenhum executor customizado é configurado. Isso substitui o `ForkJoinPool` common pool e oferece:
+`publishAsync()` now uses **Virtual Threads** by default when no custom executor is configured. This replaces the `ForkJoinPool` common pool and offers:
 
-- **Escalabilidade massiva** — milhares de notificações assíncronas sem thread starvation
-- **Custo mínimo** — virtual threads são ordens de magnitude mais leves que platform threads
-- **Zero configuração** — funciona out-of-the-box; você ainda pode fornecer seu próprio `Executor` se preferir
+- **Massive scalability** — thousands of async notifications without thread starvation
+- **Minimal overhead** — virtual threads are orders of magnitude lighter than platform threads
+- **Zero configuration** — works out-of-the-box; you can still provide your own `Executor` if preferred
 
 ```java
-// Usa virtual threads automaticamente (Java 21)
+// Uses virtual threads automatically (Java 21)
 courier.publishAsync(new ProductCreatedEvent(id, name));
 
-// Ou com executor customizado (opcional)
+// Or with a custom executor (optional)
 @Bean
 public Executor courierAsyncExecutor() {
     return Executors.newFixedThreadPool(10);
@@ -66,37 +69,37 @@ public Executor courierAsyncExecutor() {
 
 ### 🔒 Sealed Exception Hierarchy
 
-A hierarquia de exceções agora é **selada** (`sealed`), garantindo que apenas `HandlerNotFoundException` e `ValidationException` estendam `CourierException`:
+The exception hierarchy is now **sealed**, ensuring that only `HandlerNotFoundException` and `ValidationException` extend `CourierException`:
 
 ```java
 public sealed class CourierException extends RuntimeException
         permits HandlerNotFoundException, ValidationException { }
 ```
 
-Isso permite **pattern matching exaustivo** no tratamento de erros:
+This enables **exhaustive pattern matching** in error handling:
 
 ```java
 try {
     courier.send(command);
 } catch (CourierException ex) {
     switch (ex) {
-        case HandlerNotFoundException e -> log.error("Handler não encontrado: {}", e.getMessage());
-        case ValidationException e      -> log.warn("Validação falhou: {} erros", e.getErrors().size());
+        case HandlerNotFoundException e -> log.error("Handler not found: {}", e.getMessage());
+        case ValidationException e      -> log.warn("Validation failed: {} errors", e.getErrors().size());
     }
 }
 ```
 
 ### 🔀 Pattern Matching & Switch Expressions
 
-O código interno da biblioteca foi refatorado para utilizar **pattern matching in switch** e **switch expressions** do Java 21, tornando o código mais conciso e seguro.
+The library's internal code has been refactored to use Java 21's **pattern matching in switch** and **switch expressions**, making the code more concise and safe.
 
-> ⚠️ **Breaking change:** Se sua aplicação roda em Java 17, 18, 19 ou 20, permaneça na versão **1.x** do Spring Courier.
+> ⚠️ **Breaking change:** If your application runs on Java 17, 18, 19, or 20, stay on Spring Courier version **1.x**.
 
 ---
 
-## ⚙️ Instalação
+## ⚙️ Installation
 
-Adicione a dependência no seu `pom.xml` ou `build.gradle`:
+Add the dependency to your `pom.xml` or `build.gradle`:
 
 ```xml
 <dependency>
@@ -110,13 +113,13 @@ Adicione a dependência no seu `pom.xml` ou `build.gradle`:
 implementation("io.github.valossa515:spring-courier:2.0.0")
 ```
 
-> 🔧 É necessário ter o **Java 21+** e **Spring Boot 3.x+**.
+> 🔧 Requires **Java 21+** and **Spring Boot 3.x+**.
 
 ---
 
-## 🚀 Exemplo de Uso
+## 🚀 Usage Examples
 
-### 1️⃣ Criando um Command e um Handler
+### 1️⃣ Creating a Command and a Handler
 
 ```java
 public record CreateProductCommand(String name, BigDecimal price) implements ICommand<CreateProductResponse> {}
@@ -126,7 +129,7 @@ public class CreateProductHandler implements CommandHandler<CreateProductCommand
 
     @Override
     public CreateProductResponse handle(CreateProductCommand command) {
-        // Lógica de criação do produto
+        // Product creation logic
         return new CreateProductResponse(UUID.randomUUID(), command.name(), command.price());
     }
 }
@@ -134,7 +137,7 @@ public class CreateProductHandler implements CommandHandler<CreateProductCommand
 
 ---
 
-### 2️⃣ Enviando o Command com o `Courier`
+### 2️⃣ Sending the Command with `Courier`
 
 ```java
 @RestController
@@ -154,7 +157,7 @@ public class ProductController {
 
 ---
 
-### 3️⃣ Exemplo de Query
+### 3️⃣ Query Example
 
 ```java
 public record GetProductByIdQuery(UUID id) implements IQuery<GetProductResponse> {}
@@ -163,7 +166,7 @@ public record GetProductByIdQuery(UUID id) implements IQuery<GetProductResponse>
 public class GetProductByIdHandler implements QueryHandler<GetProductByIdQuery, GetProductResponse> {
     @Override
     public GetProductResponse handle(GetProductByIdQuery query) {
-        // Buscar no repositório, retornar DTO
+        // Fetch from repository, return DTO
         return new GetProductResponse(query.id(), "Example Product", BigDecimal.valueOf(19.90));
     }
 }
@@ -171,44 +174,44 @@ public class GetProductByIdHandler implements QueryHandler<GetProductByIdQuery, 
 
 ---
 
-### 4️⃣ Publicando Notificações/Eventos
+### 4️⃣ Publishing Notifications/Events
 
 ```java
-// Definindo uma notificação
+// Defining a notification
 public record ProductCreatedEvent(UUID productId, String name) implements INotification {}
 
-// Handler 1 - Enviar email
+// Handler 1 - Send email
 @Service
 public class SendEmailOnProductCreated implements NotificationHandler<ProductCreatedEvent> {
     @Override
     public void handle(ProductCreatedEvent event) {
-        // Lógica para enviar email
-        System.out.println("Email enviado para produto: " + event.name());
+        // Email sending logic
+        System.out.println("Email sent for product: " + event.name());
     }
 }
 
-// Handler 2 - Atualizar cache
+// Handler 2 - Update cache
 @Service
 public class UpdateCacheOnProductCreated implements NotificationHandler<ProductCreatedEvent> {
     @Override
     public void handle(ProductCreatedEvent event) {
-        // Lógica para atualizar cache
-        System.out.println("Cache atualizado para produto: " + event.productId());
+        // Cache update logic
+        System.out.println("Cache updated for product: " + event.productId());
     }
 }
 
-// Publicando a notificação
+// Publishing the notification
 @Service
 public class ProductService {
     private final Courier courier;
     
     public void createProduct(String name) {
-        // ... criar produto ...
+        // ... create product ...
         
-        // Publica notificação - todos os handlers serão executados
+        // Publish notification - all handlers will be executed
         courier.publish(new ProductCreatedEvent(UUID.randomUUID(), name));
         
-        // Ou de forma assíncrona
+        // Or asynchronously
         courier.publishAsync(new ProductCreatedEvent(UUID.randomUUID(), name));
     }
 }
@@ -216,28 +219,28 @@ public class ProductService {
 
 ---
 
-### 5️⃣ Validação com Pipeline Behaviors
+### 5️⃣ Validation with Pipeline Behaviors
 
 ```java
-// Definindo um validador
+// Defining a validator
 public class CreateProductValidator implements Validator<CreateProductCommand> {
     @Override
     public ValidationResult validate(CreateProductCommand command) {
         List<ValidationError> errors = new ArrayList<>();
         
         if (command.name() == null || command.name().isEmpty()) {
-            errors.add(new ValidationError("name", "Nome não pode ser vazio"));
+            errors.add(new ValidationError("name", "Name cannot be empty"));
         }
         
         if (command.price() == null || command.price().compareTo(BigDecimal.ZERO) <= 0) {
-            errors.add(new ValidationError("price", "Preço deve ser maior que zero"));
+            errors.add(new ValidationError("price", "Price must be greater than zero"));
         }
         
         return errors.isEmpty() ? ValidationResult.success() : ValidationResult.failure(errors);
     }
 }
 
-// Registrando o behavior de validação
+// Registering the validation behavior
 @Bean
 public ValidationBehavior<CreateProductCommand, CreateProductResponse> productValidationBehavior() {
     return new ValidationBehavior<>(List.of(new CreateProductValidator()));
@@ -246,69 +249,69 @@ public ValidationBehavior<CreateProductCommand, CreateProductResponse> productVa
 
 ---
 
-## 📈 Observabilidade (Micrometer / Prometheus / Grafana)
+## 📈 Observability (Micrometer / Prometheus / Grafana)
 
-A partir da versão **1.4.0**, o Spring Courier possui instrumentação **opcional** com [Micrometer](https://micrometer.io/), permitindo exportar métricas para Prometheus, Grafana e outros backends.
+Starting from version **1.4.0**, Spring Courier features **optional** instrumentation with [Micrometer](https://micrometer.io/), allowing you to export metrics to Prometheus, Grafana, and other backends.
 
-### Ativação
+### Activation
 
-Basta adicionar o `micrometer-core` (ou `spring-boot-starter-actuator`) ao classpath da sua aplicação. O Spring Courier detecta automaticamente e substitui o `Courier` padrão por um `MeteredCourier` instrumentado.
+Simply add `micrometer-core` (or `spring-boot-starter-actuator`) to your application's classpath. Spring Courier automatically detects it and replaces the default `Courier` with an instrumented `MeteredCourier`.
 
 ```xml
-<!-- Se sua aplicação já usa Actuator, não precisa de mais nada -->
+<!-- If your application already uses Actuator, nothing else is needed -->
 <dependency>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-actuator</artifactId>
 </dependency>
 ```
 
-Para desabilitar as métricas:
+To disable metrics:
 
 ```properties
 spring.courier.metrics.enabled=false
 ```
 
-### Métricas Disponíveis
+### Available Metrics
 
-#### ⏱️ Timers (latência com percentis p50, p95, p99)
+#### ⏱️ Timers (latency with p50, p95, p99 percentiles)
 
-| Métrica                          | Descrição                                  | Tags                                            |
-|----------------------------------|--------------------------------------------|------------------------------------------------|
-| `courier.send.duration`          | Tempo de execução de commands/queries      | `request.type`, `request.category`, `outcome`  |
-| `courier.publish.duration`       | Tempo de publicação de notificações        | `notification.type`                            |
-| `courier.publish.async.duration` | Tempo de publicação assíncrona             | `notification.type`                            |
+| Metric                           | Description                                | Tags                                            |
+|----------------------------------|--------------------------------------------|-------------------------------------------------|
+| `courier.send.duration`          | Command/query execution time               | `request.type`, `request.category`, `outcome`   |
+| `courier.publish.duration`       | Notification publish time                  | `notification.type`                             |
+| `courier.publish.async.duration` | Async notification publish time            | `notification.type`                             |
 
-#### 🔢 Counters (throughput e erros)
+#### 🔢 Counters (throughput and errors)
 
-| Métrica                        | Descrição                               | Tags                               |
+| Metric                         | Description                             | Tags                               |
 |--------------------------------|-----------------------------------------|------------------------------------|
-| `courier.send`                 | Total de requests despachados           | `request.type`, `outcome`          |
-| `courier.publish`              | Total de notificações publicadas        | `notification.type`                |
-| `courier.handler.errors`       | Erros em handlers                       | `request.type`, `exception.type`   |
-| `courier.handler.timeouts`     | Timeouts de handlers async              | —                                  |
-| `courier.validation.failures`  | Falhas de validação no pipeline         | `request.type`                     |
+| `courier.send`                 | Total dispatched requests               | `request.type`, `outcome`          |
+| `courier.publish`              | Total published notifications           | `notification.type`                |
+| `courier.handler.errors`       | Handler errors                          | `request.type`, `exception.type`   |
+| `courier.handler.timeouts`     | Async handler timeouts                  | —                                  |
+| `courier.validation.failures`  | Pipeline validation failures            | `request.type`                     |
 
-#### 📊 Gauges (estado do registro)
+#### 📊 Gauges (registry state)
 
-| Métrica                                    | Descrição                                      |
-|--------------------------------------------|------------------------------------------------|
-| `courier.handlers.registered`              | Quantidade de command/query handlers registrados|
-| `courier.notification.handlers.registered` | Quantidade de notification handlers registrados |
-| `courier.pipeline.behaviors.registered`    | Quantidade de pipeline behaviors registrados    |
+| Metric                                     | Description                                         |
+|--------------------------------------------|-----------------------------------------------------|
+| `courier.handlers.registered`              | Number of registered command/query handlers          |
+| `courier.notification.handlers.registered` | Number of registered notification handlers           |
+| `courier.pipeline.behaviors.registered`    | Number of registered pipeline behaviors              |
 
 #### 🏷️ Tags
 
-| Tag                  | Valores possíveis                   | Descrição                         |
-|----------------------|-------------------------------------|-----------------------------------|
-| `request.type`       | Nome simples da classe do request   | Ex: `CreateProductCommand`        |
-| `request.category`   | `command`, `query`, `request`       | Tipo do request (CQRS)            |
-| `notification.type`  | Nome simples da classe da notificação| Ex: `ProductCreatedEvent`        |
-| `outcome`            | `success`, `error`                  | Resultado da operação             |
-| `exception.type`     | Nome simples da exceção             | Tipo da exceção capturada         |
+| Tag                  | Possible Values                        | Description                       |
+|----------------------|----------------------------------------|-----------------------------------|
+| `request.type`       | Simple class name of the request       | E.g., `CreateProductCommand`      |
+| `request.category`   | `command`, `query`, `request`          | Request type (CQRS)               |
+| `notification.type`  | Simple class name of the notification  | E.g., `ProductCreatedEvent`       |
+| `outcome`            | `success`, `error`                     | Operation result                  |
+| `exception.type`     | Simple class name of the exception     | Captured exception type           |
 
-### Exemplo com Prometheus + Grafana
+### Example with Prometheus + Grafana
 
-1. Adicione `micrometer-registry-prometheus` à sua aplicação:
+1. Add `micrometer-registry-prometheus` to your application:
 
 ```xml
 <dependency>
@@ -317,7 +320,7 @@ spring.courier.metrics.enabled=false
 </dependency>
 ```
 
-2. Exponha o endpoint de métricas no `application.properties`:
+2. Expose the metrics endpoint in `application.properties`:
 
 ```properties
 management.endpoints.web.exposure.include=prometheus,health,metrics
@@ -325,81 +328,81 @@ management.metrics.export.prometheus.enabled=true
 spring.courier.metrics.enabled=true
 ```
 
-3. Configure o Prometheus para fazer scrape do endpoint `/actuator/prometheus`.
+3. Configure Prometheus to scrape the `/actuator/prometheus` endpoint.
 
-4. Importe o dashboard Grafana disponível em [`docs/grafana/courier-dashboard.json`](docs/grafana/courier-dashboard.json).
+4. Import the Grafana dashboard available at [`docs/grafana/courier-dashboard.json`](docs/grafana/courier-dashboard.json).
 
-> 📖 Consulte o [Guia de PromQL](docs/grafana/PROMQL_REFERENCE.md) para queries prontas para monitoramento.
+> 📖 See the [PromQL Guide](docs/grafana/PROMQL_REFERENCE.md) for ready-to-use monitoring queries.
 
-### 🔔 Alertas no Slack
+### 🔔 Slack Alerts
 
-#### Via Grafana (externa)
+#### Via Grafana (External)
 
-A partir da versão **1.6.0**, o Spring Courier inclui configurações prontas para alertas no **Slack** via **Grafana Unified Alerting**. Os alertas são baseados nas métricas exportadas pelo Micrometer e coletadas pelo Prometheus.
+Starting from version **1.6.0**, Spring Courier includes ready-made configurations for **Slack** alerts via **Grafana Unified Alerting**. The alerts are based on metrics exported by Micrometer and collected by Prometheus.
 
-1. Crie um [Slack Incoming Webhook](https://api.slack.com/messaging/webhooks) para o canal desejado
-2. Copie os arquivos de provisioning de `docs/grafana/provisioning/` para o diretório de provisioning do Grafana
-3. Reinicie o Grafana
+1. Create a [Slack Incoming Webhook](https://api.slack.com/messaging/webhooks) for the desired channel
+2. Copy the provisioning files from `docs/grafana/provisioning/` to the Grafana provisioning directory
+3. Restart Grafana
 
-> 📖 Consulte o [Guia completo de Slack Alerting](docs/grafana/SLACK_ALERTING.md) para instruções detalhadas de configuração.
+> 📖 See the [complete Slack Alerting Guide](docs/grafana/SLACK_ALERTING.md) for detailed setup instructions.
 
-#### 🆕 Via Spring Courier Nativo (sem Grafana)
+#### 🆕 Via Native Spring Courier (without Grafana)
 
-A partir da versão **1.7.0**, o Spring Courier traz **alertas nativos no Slack** — sem necessidade de Grafana, Prometheus Alertmanager ou qualquer infraestrutura de alerting externa. Basta configurar o webhook e a biblioteca avalia as métricas automaticamente, enviando notificações direto para o Slack.
+Starting from version **1.7.0**, Spring Courier provides **native Slack alerts** — no need for Grafana, Prometheus Alertmanager, or any external alerting infrastructure. Just configure the webhook and the library automatically evaluates metrics, sending notifications directly to Slack.
 
-**Ativação:**
+**Activation:**
 
-Adicione a configuração ao `application.properties`:
+Add the configuration to `application.properties`:
 
 ```properties
-# Obrigatório — ativa o alerting nativo
+# Required — enables native alerting
 spring.courier.slack.webhook-url=https://hooks.slack.com/services/T.../B.../xxx
 
-# Opcional — canal Slack (sobrescreve o default do webhook)
+# Optional — Slack channel (overrides the webhook default)
 spring.courier.slack.channel=#courier-alerts
 
-# Opcional — nome da aplicação nos alertas (default: Spring Courier)
-spring.courier.slack.app-name=minha-api
+# Optional — application name in alerts (default: Spring Courier)
+spring.courier.slack.app-name=my-api
 ```
 
-> ⚠️ Para o alerting nativo funcionar, o Micrometer (`spring-boot-starter-actuator`) precisa estar no classpath e `spring.courier.metrics.enabled=true` (habilitado por padrão).
+> ⚠️ For native alerting to work, Micrometer (`spring-boot-starter-actuator`) must be on the classpath and `spring.courier.metrics.enabled=true` (enabled by default).
 
-**Alertas Disponíveis:**
+**Available Alerts:**
 
-| Alerta | Condição | Severidade |
-|--------|----------|------------|
+| Alert | Condition | Severity |
+|-------|-----------|----------|
 | **High Error Ratio** | Error ratio > 5% | `warning` |
 | **High p99 Latency** | p99 send > 1s | `warning` |
-| **Handler Timeouts** | Timeouts detectados | `critical` |
-| **Validation Spike** | Falhas de validação > 10/s | `warning` |
-| **Throughput Drop** | Queda de throughput > 50% | `critical` |
+| **Handler Timeouts** | Timeouts detected | `critical` |
+| **Validation Spike** | Validation failures > 10/s | `warning` |
+| **Throughput Drop** | Throughput drop > 50% | `critical` |
 
-**Configurações Avançadas:**
+**Advanced Settings:**
 
 ```properties
-# Intervalo de avaliação das regras (10–3600s, default: 60s)
+# Rule evaluation interval (10–3600s, default: 60s)
 spring.courier.slack.evaluation-interval-seconds=60
 
-# Cooldown entre alertas repetidos do mesmo tipo (1–1440min, default: 15min)
+# Cooldown between repeated alerts of the same type (1–1440min, default: 15min)
 spring.courier.slack.cooldown-minutes=15
 
-# Tempo mínimo que a condição deve se manter antes de disparar (default: 300s)
+# Minimum time the condition must hold before firing (default: 300s)
 spring.courier.slack.for-duration-seconds=300
 
-# Thresholds personalizáveis
+# Customizable thresholds
 spring.courier.slack.thresholds.error-ratio=0.05
 spring.courier.slack.thresholds.p99-latency-seconds=1.0
 spring.courier.slack.thresholds.validation-rate=10.0
 spring.courier.slack.thresholds.throughput-drop-ratio=0.5
 ```
 
-**Ciclo de vida dos alertas:** `OK → PENDING → FIRING → RESOLVED`
+**Alert lifecycle:** `OK → PENDING → FIRING → RESOLVED`
 
-- **PENDING:** A condição foi detectada, mas ainda não atingiu o tempo mínimo (`for-duration-seconds`)
-- **FIRING:** A condição se manteve e uma notificação foi enviada ao Slack (com cooldown entre re-notificações)
-- **RESOLVED:** A condição normalizou — uma mensagem de resolução é enviada automaticamente
+- **PENDING:** The condition was detected, but has not yet reached the minimum time (`for-duration-seconds`)
+- **FIRING:** The condition held and a notification was sent to Slack (with cooldown between re-notifications)
+- **RESOLVED:** The condition normalized — a resolution message is automatically sent
 
-**Para desabilitar:**
+**To disable:**
 
 ```properties
 spring.courier.slack.enabled=false
@@ -407,97 +410,95 @@ spring.courier.slack.enabled=false
 
 ---
 
-## 🧩 Estrutura do Projeto
+## 🧩 Project Structure
 
 ```
 spring-courier/
- ├── src/main/java/dev/valossa/springcourier/
- │    ├── core/               # Contratos e abstrações principais
- │    ├── annotations/        # Anotações utilitárias
- │    └── config/             # Configurações da lib
- ├── docs/diagrams/           # Diagramas UML da arquitetura
+ ├── src/main/java/io/github/valossa515/spring_courier/
+ │    ├── core/               # Core contracts and abstractions
+ │    ├── annotations/        # Utility annotations
+ │    └── config/             # Library configurations
+ ├── docs/diagrams/           # UML architecture diagrams
  └── pom.xml
 ```
 
 ---
 
-## 📊 Diagramas e Arquitetura
+## 📊 Diagrams and Architecture
 
-Para entender melhor a arquitetura e funcionamento da biblioteca, consulte os **diagramas UML** disponíveis na pasta [`docs/diagrams/`](docs/diagrams/):
+To better understand the architecture and workings of the library, check the **UML diagrams** available in the [`docs/diagrams/`](docs/diagrams/) folder:
 
-- 🎯 **[Visão Geral da Arquitetura](docs/diagrams/architecture-overview.puml)** - Diagrama simplificado do fluxo principal
-- 🏗️ **[Diagrama de Classes](docs/diagrams/class-diagram.puml)** - Estrutura de classes e interfaces
-- 🔄 **[Diagrama de Sequência - Command/Query](docs/diagrams/sequence-diagram-command.puml)** - Fluxo de execução de commands e queries
-- 📢 **[Diagrama de Sequência - Notificações](docs/diagrams/sequence-diagram-notification.puml)** - Publicação de eventos
-- 📋 **[Diagrama de Atividades](docs/diagrams/activity-diagram.puml)** - Fluxo de processamento de requests
-- 👤 **[Diagrama de Casos de Uso](docs/diagrams/use-case-diagram.puml)** - Funcionalidades e casos de uso
-- 🧩 **[Diagrama de Componentes](docs/diagrams/component-diagram.puml)** - Arquitetura de componentes
-- 🚀 **[Diagrama de Implantação](docs/diagrams/deployment-diagram.puml)** - Estrutura de deployment
-- 🔀 **[Diagrama de Estados](docs/diagrams/state-diagram.puml)** - Ciclo de vida de requests
+- 🎯 **[Architecture Overview](docs/diagrams/architecture-overview.puml)** - Simplified main flow diagram
+- 🏗️ **[Class Diagram](docs/diagrams/class-diagram.puml)** - Class and interface structure
+- 🔄 **[Sequence Diagram - Command/Query](docs/diagrams/sequence-diagram-command.puml)** - Command and query execution flow
+- 📢 **[Sequence Diagram - Notifications](docs/diagrams/sequence-diagram-notification.puml)** - Event publishing
+- 📋 **[Activity Diagram](docs/diagrams/activity-diagram.puml)** - Request processing flow
+- 👤 **[Use Case Diagram](docs/diagrams/use-case-diagram.puml)** - Features and use cases
+- 🧩 **[Component Diagram](docs/diagrams/component-diagram.puml)** - Component architecture
+- 🚀 **[Deployment Diagram](docs/diagrams/deployment-diagram.puml)** - Deployment structure
+- 🔀 **[State Diagram](docs/diagrams/state-diagram.puml)** - Request lifecycle
 
-> 💡 Os diagramas estão em formato PlantUML. Veja o [README dos diagramas](docs/diagrams/README.md) para instruções de visualização.
-
----
-
-## 🧱 Integração com Spring Boot
-
-O Spring Courier possui **auto-configuração** habilitada por padrão. Basta adicionar a dependência e todos os handlers serão automaticamente descobertos e registrados.
-
-Todos os `CommandHandler`, `QueryHandler` e `NotificationHandler` anotados com `@Service` ou `@Component` são automaticamente registrados via IoC do Spring.
+> 💡 Diagrams are in PlantUML format. See the [diagrams README](docs/diagrams/README.md) for viewing instructions.
 
 ---
 
-## 🤝 Contribuindo
+## 🧱 Spring Boot Integration
 
-Contribuições são **muito bem-vindas**!  
-Siga os passos abaixo para contribuir:
+Spring Courier has **auto-configuration** enabled by default. Just add the dependency and all handlers will be automatically discovered and registered.
 
-1. Faça um fork do repositório
-2. Crie uma branch (`feature/nova-funcionalidade`)
-3. Faça suas alterações e adicione testes
-4. Envie um Pull Request 🚀
-
-Para mais informações sobre o processo de contribuição e publicação de releases, consulte o [CONTRIBUTING.md](CONTRIBUTING.md).
+All `CommandHandler`, `QueryHandler`, and `NotificationHandler` classes annotated with `@Service` or `@Component` are automatically registered via Spring's IoC container.
 
 ---
 
-## 📦 Releases e Publicação
+## 🤝 Contributing
 
-Este projeto utiliza **GitHub Actions** para automatizar completamente o processo de publicação no Maven Central.
+Contributions are **very welcome**!
+Follow the steps below to contribute:
 
-### Para Usuários
+1. Fork the repository
+2. Create a branch (`feature/new-feature`)
+3. Make your changes and add tests
+4. Submit a Pull Request 🚀
 
-As versões publicadas estão disponíveis no [Maven Central](https://central.sonatype.com/artifact/io.github.valossa515/spring-courier).
-
-### Para Maintainers
-
-Para publicar uma nova versão:
-
-1. **Atualize a versão** no `pom.xml`
-2. **Crie uma release** no GitHub com a tag correspondente (ex: `v1.0.0`)
-3. A **GitHub Action será disparada automaticamente** e publicará a biblioteca no Maven Central
-
-A action executa:
-- ✅ Build e testes
-- ✅ Geração de JARs (main, sources, javadocs)
-- ✅ Assinatura GPG de todos os artefatos
-- ✅ Geração de checksums (SHA1, MD5, SHA256, SHA512)
-- ✅ Criação do bundle Maven Central
-- ✅ Upload automático para o Sonatype Central Portal
-
-**Secrets necessários**: Consulte o [CONTRIBUTING.md](CONTRIBUTING.md#-processo-de-release-para-maintainers) para instruções detalhadas sobre a configuração dos secrets do GitHub.
+For more information about the contribution process and release publishing, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
-## 🧾 Licença
+## 📦 Releases and Publishing
 
-Distribuído sob a licença **MIT**.  
-Consulte o arquivo [LICENSE](LICENSE) para mais informações.
+This project uses **GitHub Actions** to fully automate the publishing process to Maven Central.
+
+### For Users
+
+Published versions are available on [Maven Central](https://central.sonatype.com/artifact/io.github.valossa515/spring-courier).
+
+### For Maintainers
+
+To publish a new version:
+
+1. **Update the version** in `pom.xml`
+2. **Create a release** on GitHub with the corresponding tag (e.g., `v1.0.0`)
+3. The **GitHub Action will be triggered automatically** and publish the library to Maven Central
+
+The action performs:
+- ✅ Build and tests
+- ✅ JAR generation (main, sources, javadocs)
+- ✅ GPG signing of all artifacts
+- ✅ Checksum generation (SHA1, MD5, SHA256, SHA512)
+- ✅ Maven Central bundle creation
+- ✅ Automatic upload to Sonatype Central Portal
+
+**Required secrets**: See [CONTRIBUTING.md](CONTRIBUTING.md#-release-process-for-maintainers) for detailed instructions on configuring GitHub secrets.
 
 ---
 
-## 💬 Autor
+## 🧾 License
 
-Desenvolvido com ❤️ por [**Felipe Martins**](https://github.com/Valossa515)
+Distributed under the **MIT** license.
+See the [LICENSE](LICENSE) file for more information.
 
 ---
+
+## 💬 Author
+
+Made with ❤️ by [**Felipe Martins**](https://github.com/Valossa515)
