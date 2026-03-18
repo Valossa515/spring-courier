@@ -35,22 +35,26 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
             );
 
             logger.debug("Pipeline behavior detected: {}", targetClass.getSimpleName());
-            registerPipelineBehavior(behavior, targetClass);
+            registerPipelineBehavior(behavior, targetClass, beanName);
         }
 
         return bean;
     }
 
-    private void registerPipelineBehavior(PipelineBehavior<?, ?> behavior, Class<?> behaviorClass) {
+    private void registerPipelineBehavior(PipelineBehavior<?, ?> behavior,
+                                          Class<?> behaviorClass, String beanName) {
         Class<?> requestType = extractRequestTypeFromBehavior(behaviorClass);
 
         if (requestType != null) {
             pipelineRegistry.registerBehavior(requestType, behavior);
-            logger.info("Pipeline behavior registered: {} -> {}",
-                    requestType.getSimpleName(), behaviorClass.getSimpleName());
+            logger.info("Pipeline behavior registered: {} -> {} (bean '{}')",
+                    requestType.getSimpleName(), behaviorClass.getName(), beanName);
         } else {
-            pipelineRegistry.registerGlobalBehavior(behavior);
-            logger.info("Global pipeline behavior registered: {}", behaviorClass.getSimpleName());
+            pipelineRegistry.registerGlobalBehavior(behavior, null);
+            logger.warn("Could not resolve request type for pipeline behavior '{}' [{}] (bean '{}'). "
+                            + "Registering as global (will not match any request). "
+                            + "Create a concrete subclass to preserve generic type information.",
+                    behaviorClass.getSimpleName(), behaviorClass.getName(), beanName);
         }
     }
 

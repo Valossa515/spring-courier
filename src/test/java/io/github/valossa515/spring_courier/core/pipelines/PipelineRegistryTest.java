@@ -38,17 +38,18 @@ class PipelineRegistryTest {
     }
 
     @Test
-    void incompatibleBehaviorsAreFilteredOut() {
-        IncompatibleBehavior incompatibleBehavior = new IncompatibleBehavior();
+    void behaviorRegisteredUnderKeyIsIncludedWithoutTypeReExtraction() {
+        IncompatibleBehavior wrongKeyBehavior = new IncompatibleBehavior();
         CompatibleBehavior compatibleBehavior = new CompatibleBehavior();
 
-        pipelineRegistry.registerBehavior(TestRequest.class, incompatibleBehavior);
+        // Registering under TestRequest key — even if the behavior's generics
+        // say AnotherRequest, the key takes precedence (proxy-safe).
+        pipelineRegistry.registerBehavior(TestRequest.class, wrongKeyBehavior);
         pipelineRegistry.registerBehavior(TestRequest.class, compatibleBehavior);
 
         List<PipelineBehavior<TestRequest, String>> behaviors = pipelineRegistry.getBehaviors(TestRequest.class);
 
-        assertEquals(1, behaviors.size());
-        assertSame(compatibleBehavior, behaviors.get(0));
+        assertEquals(2, behaviors.size(), "Both behaviors under the same key should be returned");
     }
 
     @Test
@@ -90,11 +91,12 @@ class PipelineRegistryTest {
     }
 
     @Test
-    void hasBehaviorsForReturnsTrueWhenGlobalBehaviorsExist() {
+    void hasBehaviorsForReturnsTrueWhenGlobalBehaviorsMatchRequestType() {
         pipelineRegistry.registerGlobalBehavior(new DefaultBehavior());
 
         assertTrue(pipelineRegistry.hasBehaviorsFor(TestRequest.class));
-        assertTrue(pipelineRegistry.hasBehaviorsFor(AnotherRequest.class));
+        // DefaultBehavior targets TestRequest, not AnotherRequest
+        assertFalse(pipelineRegistry.hasBehaviorsFor(AnotherRequest.class));
     }
 
     @Test
@@ -144,6 +146,41 @@ class PipelineRegistryTest {
 
         assertEquals(1, behaviors.size(), "Global behavior should appear for its own compatible request type");
         assertSame(globalForAnother, behaviors.get(0));
+    }
+
+    @Test
+    void typeErasedGlobalBehaviorIsExcludedFromAllRequests() {
+        // Simulates a @Bean factory method where generic type info is erased:
+        // registerGlobalBehavior(behavior, null) means type could not be resolved.
+        @SuppressWarnings("rawtypes")
+        PipelineBehavior erasedBehavior = new PipelineBehavior() {
+            @Override
+            public Object handle(IRequest request, Next next) {
+                return next.invoke();
+            }
+        };
+        @SuppressWarnings("unchecked")
+        PipelineBehavior<IRequest<Object>, Object> typed = erasedBehavior;
+        pipelineRegistry.registerGlobalBehavior(typed, null);
+
+        List<PipelineBehavior<TestRequest, String>> behaviors =
+                pipelineRegistry.getBehaviors(TestRequest.class);
+
+        assertTrue(behaviors.isEmpty(),
+                "Type-erased global behavior (null request type) must not match any request");
+    }
+
+    @Test
+    void globalBehaviorWithExplicitResolvedTypeIsIncluded() {
+        DefaultBehavior behavior = new DefaultBehavior();
+        // Simulates BehaviorDiscoveryPostProcessor passing the resolved type
+        pipelineRegistry.registerGlobalBehavior(behavior, TestRequest.class);
+
+        List<PipelineBehavior<TestRequest, String>> behaviors =
+                pipelineRegistry.getBehaviors(TestRequest.class);
+
+        assertEquals(1, behaviors.size());
+        assertSame(behavior, behaviors.get(0));
     }
 
     private static class TestRequest implements IRequest<String> {
