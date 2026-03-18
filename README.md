@@ -30,17 +30,17 @@ It provides infrastructure to decouple commands, queries, and events — enablin
 
 ## ✨ Features
 
-✅ **Command Handlers** and **Query Handlers** support
-✅ **Notification/Event Support** — Publish events to multiple handlers
-✅ **Validation Pipeline** — Validate requests before execution
-✅ Generic and flexible structure based on **interfaces**
-✅ Full integration with the **Spring Context**
-✅ **Request/Response Pattern** support
-✅ **Async Support** — Asynchronous publishing with **Virtual Threads** (Java 21)
-✅ Extensible for custom events and pipelines
-✅ Zero additional configuration — **plug and play**
-✅ **Native Slack Alerting** — Alerts directly to Slack without Grafana/Alertmanager
-✅ **Sealed Exception Hierarchy** — Sealed exception hierarchy for type safety
+- ✅ **Command Handlers** and **Query Handlers** support
+- ✅ **Notification/Event Support** — Publish events to multiple handlers
+- ✅ **Validation Pipeline** — Validate requests before execution
+- ✅ Generic and flexible structure based on **interfaces**
+- ✅ Full integration with the **Spring Context**
+- ✅ **Request/Response Pattern** support
+- ✅ **Async Support** — Asynchronous publishing with **Virtual Threads** (Java 21)
+- ✅ Extensible for custom events and pipelines
+- ✅ Zero additional configuration — **plug and play**
+- ✅ **Native Slack Alerting** — Alerts directly to Slack without Grafana/Alertmanager
+- ✅ **Sealed Exception Hierarchy** — Sealed exception hierarchy for type safety
 
 ---
 

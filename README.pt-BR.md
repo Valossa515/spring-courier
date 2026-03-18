@@ -30,17 +30,17 @@ Ela fornece uma infraestrutura para desacoplar comandos, consultas e eventos —
 
 ## ✨ Recursos
 
-✅ Suporte a **Command Handlers** e **Query Handlers**
-✅ **Notification/Event Support** — Publique eventos para múltiplos handlers
-✅ **Validation Pipeline** — Valide requests antes da execução
-✅ Estrutura genérica e flexível baseada em **interfaces**
-✅ Total integração com o **Spring Context**
-✅ Suporte a **Request/Response Pattern**
-✅ **Async Support** — Publicação assíncrona com **Virtual Threads** (Java 21)
-✅ Extensível para eventos e pipelines personalizados
-✅ Zero configuração adicional — **plug and play**
-✅ **Slack Alerting Nativo** — Alertas direto no Slack sem Grafana/Alertmanager
-✅ **Sealed Exception Hierarchy** — Hierarquia de exceções fechada para type safety
+- ✅ Suporte a **Command Handlers** e **Query Handlers**
+- ✅ **Notification/Event Support** — Publique eventos para múltiplos handlers
+- ✅ **Validation Pipeline** — Valide requests antes da execução
+- ✅ Estrutura genérica e flexível baseada em **interfaces**
+- ✅ Total integração com o **Spring Context**
+- ✅ Suporte a **Request/Response Pattern**
+- ✅ **Async Support** — Publicação assíncrona com **Virtual Threads** (Java 21)
+- ✅ Extensível para eventos e pipelines personalizados
+- ✅ Zero configuração adicional — **plug and play**
+- ✅ **Slack Alerting Nativo** — Alertas direto no Slack sem Grafana/Alertmanager
+- ✅ **Sealed Exception Hierarchy** — Hierarquia de exceções fechada para type safety
 
 ---
 
