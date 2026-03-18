@@ -21,13 +21,20 @@ public class Response<T> {
     private final String error;
     private final boolean success;
     private final int statusCode;
+    private final boolean validationFailure;
 
     // Private constructor to maintain immutability
     private Response(T data, String error, boolean success, int statusCode) {
+        this(data, error, success, statusCode, false);
+    }
+
+    private Response(T data, String error, boolean success, int statusCode,
+                     boolean validationFailure) {
         this.data = data;
         this.error = error;
         this.success = success;
         this.statusCode = statusCode;
+        this.validationFailure = validationFailure;
     }
 
     /**
@@ -68,6 +75,15 @@ public class Response<T> {
     @Contract(value = "_, _ -> new", pure = true)
     public static <T> @NotNull Response<T> error(String error, int statusCode) {
         return new Response<>(null, error, false, statusCode);
+    }
+
+    /**
+     * Creates a validation error response, marked so that metrics can
+     * distinguish pipeline validation failures from other 400 errors.
+     */
+    @Contract(value = "_, _ -> new", pure = true)
+    public static <T> @NotNull Response<T> validationError(String error, int statusCode) {
+        return new Response<>(null, error, false, statusCode, true);
     }
 
     /**
@@ -112,6 +128,15 @@ public class Response<T> {
 
     public int getStatusCode() {
         return statusCode;
+    }
+
+    /**
+     * Indicates whether this error response originated from the
+     * pipeline validation layer ({@link io.github.valossa515.spring_courier.core.validation.ValidationBehavior}).
+     */
+    @JsonIgnore
+    public boolean isValidationFailure() {
+        return validationFailure;
     }
 
     /**
@@ -166,13 +191,14 @@ public class Response<T> {
         Response<?> response = (Response<?>) o;
         return success == response.success &&
                 statusCode == response.statusCode &&
+                validationFailure == response.validationFailure &&
                 Objects.equals(data, response.data) &&
                 Objects.equals(error, response.error);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(data, error, success, statusCode);
+        return Objects.hash(data, error, success, statusCode, validationFailure);
     }
 
     @Override
@@ -182,6 +208,7 @@ public class Response<T> {
                 ", error='" + error + '\'' +
                 ", success=" + success +
                 ", statusCode=" + statusCode +
+                ", validationFailure=" + validationFailure +
                 '}';
     }
 
@@ -193,6 +220,7 @@ public class Response<T> {
         private String error;
         private boolean success;
         private int statusCode = 200;
+        private boolean validationFailure;
 
         public Builder<T> data(T data) {
             this.data = data;
@@ -214,6 +242,11 @@ public class Response<T> {
             return this;
         }
 
+        public Builder<T> validationFailure(boolean validationFailure) {
+            this.validationFailure = validationFailure;
+            return this;
+        }
+
         public Response<T> build() {
             if (success && error != null) {
                 throw new IllegalStateException(
@@ -223,7 +256,7 @@ public class Response<T> {
                 throw new IllegalStateException(
                         "Cannot build an error response with a 2xx status code");
             }
-            return new Response<>(data, error, success, statusCode);
+            return new Response<>(data, error, success, statusCode, validationFailure);
         }
     }
 

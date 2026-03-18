@@ -85,6 +85,13 @@ public class MeteredCourier extends Courier {
                         .tag(TAG_EXCEPTION_TYPE, "unknown")
                         .register(registry).increment();
 
+                if (response.isValidationFailure()) {
+                    Counter.builder(VALIDATION_FAILURES)
+                            .description("Number of validation failures")
+                            .tag(TAG_REQUEST_TYPE, requestType)
+                            .register(registry).increment();
+                }
+
                 if (response.getStatusCode() == 504) {
                     timeoutCounter.increment();
                 }

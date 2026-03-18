@@ -136,6 +136,55 @@ class MeteredCourierTest {
     }
 
     @Test
+    void sendRecordsValidationFailureCounterWhenResponseIsValidationError() {
+        handlerRegistry.registerHandler(TestCommand.class, new TestCommandHandler());
+
+        // Simulate ValidationBehavior returning Response.validationError(msg, 400)
+        PipelineExecutor mockExecutor = mock(PipelineExecutor.class);
+        when(mockExecutor.execute(any(), any()))
+                .thenReturn(Response.validationError("Validation errors: name: must not be blank; ", 400));
+
+        MeteredCourier validatingCourier = new MeteredCourier(
+                handlerRegistry, notificationRegistry,
+                mockExecutor, pipelineRegistry,
+                null, 30_000, meterRegistry);
+
+        Response<String> response = validatingCourier.send(new TestCommand());
+
+        assertFalse(response.isSuccess());
+        assertTrue(response.isValidationFailure());
+
+        double count = meterRegistry.find(VALIDATION_FAILURES)
+                .tag(TAG_REQUEST_TYPE, "TestCommand")
+                .counter().count();
+        assertEquals(1.0, count);
+    }
+
+    @Test
+    void sendDoesNotRecordValidationFailureForRegular400Error() {
+        handlerRegistry.registerHandler(TestCommand.class, new TestCommandHandler());
+
+        // A handler returning 400 for non-validation reasons
+        PipelineExecutor mockExecutor = mock(PipelineExecutor.class);
+        when(mockExecutor.execute(any(), any()))
+                .thenReturn(Response.error("Malformed input", 400));
+
+        MeteredCourier nonValidatingCourier = new MeteredCourier(
+                handlerRegistry, notificationRegistry,
+                mockExecutor, pipelineRegistry,
+                null, 30_000, meterRegistry);
+
+        Response<String> response = nonValidatingCourier.send(new TestCommand());
+
+        assertFalse(response.isSuccess());
+        assertFalse(response.isValidationFailure());
+
+        assertNull(meterRegistry.find(VALIDATION_FAILURES)
+                .tag(TAG_REQUEST_TYPE, "TestCommand")
+                .counter());
+    }
+
+    @Test
     void publishRecordsTimerAndCounter() {
         courier.publish(new TestNotification());
 

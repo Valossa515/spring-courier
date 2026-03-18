@@ -78,6 +78,6 @@ public class ValidationBehavior<T extends IRequest<R>, R>
         // R must be Response<?> — see class-level Javadoc.
         // Due to type erasure, the unchecked cast cannot fail here; it will
         // surface as a CCE at the call-site when R is not Response<?>.
-        return (R) Response.error(errorMessage.toString(), 400);
+        return (R) Response.validationError(errorMessage.toString(), 400);
     }
 }
