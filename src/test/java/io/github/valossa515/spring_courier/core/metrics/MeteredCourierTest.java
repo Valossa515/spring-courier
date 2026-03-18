@@ -136,6 +136,31 @@ class MeteredCourierTest {
     }
 
     @Test
+    void sendRecordsValidationFailureCounterWhenResponseHasStatus400() {
+        handlerRegistry.registerHandler(TestCommand.class, new TestCommandHandler());
+
+        // Simulate ValidationBehavior returning Response.error(msg, 400)
+        PipelineExecutor mockExecutor = mock(PipelineExecutor.class);
+        when(mockExecutor.execute(any(), any()))
+                .thenReturn(Response.error("Validation errors: name: must not be blank; ", 400));
+
+        MeteredCourier validatingCourier = new MeteredCourier(
+                handlerRegistry, notificationRegistry,
+                mockExecutor, pipelineRegistry,
+                null, 30_000, meterRegistry);
+
+        Response<String> response = validatingCourier.send(new TestCommand());
+
+        assertFalse(response.isSuccess());
+        assertEquals(400, response.getStatusCode());
+
+        double count = meterRegistry.find(VALIDATION_FAILURES)
+                .tag(TAG_REQUEST_TYPE, "TestCommand")
+                .counter().count();
+        assertEquals(1.0, count);
+    }
+
+    @Test
     void publishRecordsTimerAndCounter() {
         courier.publish(new TestNotification());
 
