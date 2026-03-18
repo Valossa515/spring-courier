@@ -1,3 +1,5 @@
+> 🌐 **Language / Idioma:** 🇧🇷 [Português](CONTRIBUTING.pt-BR.md) | 🇺🇸 **English** (current)
+
 # 🤝 Contributing to Spring Courier
 
 Thank you for considering contributing to Spring Courier! This document provides guidelines for contributions and the release process.

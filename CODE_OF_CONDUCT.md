@@ -1,3 +1,5 @@
+> 🌐 **Language / Idioma:** 🇧🇷 [Português](CODE_OF_CONDUCT.pt-BR.md) | 🇺🇸 **English** (current)
+
 # Contributor Covenant Code of Conduct
 
 ## Our Pledge

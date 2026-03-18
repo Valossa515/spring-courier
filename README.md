@@ -18,6 +18,9 @@
 
 ---
 
+> 🌐 **Language / Idioma:** 🇧🇷 [Português](README.pt-BR.md) | 🇺🇸 **English** (current)
+
+
 ## 🧠 About
 
 **Spring Courier** is a lightweight and extensible library that brings to the **Spring Boot** ecosystem the simplicity and power of .NET's **MediatR**.
