@@ -1,38 +1,38 @@
 # PromQL Reference — Spring Courier Metrics
 
-Guia de consultas PromQL prontas para monitoramento do Spring Courier com Prometheus e Grafana.
+Ready-to-use PromQL queries for monitoring Spring Courier with Prometheus and Grafana.
 
-> **Nota:** O Micrometer converte automaticamente os nomes das métricas de dot-notation (`courier.send.duration`) para o formato Prometheus com underscores (`courier_send_duration_seconds`).
+> **Note:** Micrometer automatically converts metric names from dot-notation (`courier.send.duration`) to Prometheus format with underscores (`courier_send_duration_seconds`).
 
 ---
 
 ## 📬 Throughput
 
-### Taxa de requests (send) por segundo
+### Request (send) rate per second
 
 ```promql
 sum(rate(courier_send_total[$__rate_interval]))
 ```
 
-### Taxa de requests por tipo
+### Request rate by type
 
 ```promql
 sum by(request_type) (rate(courier_send_total[$__rate_interval]))
 ```
 
-### Taxa de requests por categoria (command vs query)
+### Request rate by category (command vs query)
 
 ```promql
 sum by(request_category) (rate(courier_send_duration_seconds_count[$__rate_interval]))
 ```
 
-### Taxa de notificações publicadas por segundo
+### Published notifications per second
 
 ```promql
 sum(rate(courier_publish_total[$__rate_interval]))
 ```
 
-### Taxa de notificações por tipo
+### Notification rate by type
 
 ```promql
 sum by(notification_type) (rate(courier_publish_total[$__rate_interval]))
@@ -40,9 +40,9 @@ sum by(notification_type) (rate(courier_publish_total[$__rate_interval]))
 
 ---
 
-## ⏱️ Latência
+## ⏱️ Latency
 
-### p50 / p95 / p99 de `send()`
+### p50 / p95 / p99 for `send()`
 
 ```promql
 # p50
@@ -55,25 +55,25 @@ histogram_quantile(0.95, sum by(le) (rate(courier_send_duration_seconds_bucket[$
 histogram_quantile(0.99, sum by(le) (rate(courier_send_duration_seconds_bucket[$__rate_interval])))
 ```
 
-### p95 de `send()` por tipo de request
+### p95 for `send()` by request type
 
 ```promql
 histogram_quantile(0.95, sum by(le, request_type) (rate(courier_send_duration_seconds_bucket[$__rate_interval])))
 ```
 
-### p95 de `publish()` (notificações síncronas)
+### p95 for `publish()` (synchronous notifications)
 
 ```promql
 histogram_quantile(0.95, sum by(le) (rate(courier_publish_duration_seconds_bucket[$__rate_interval])))
 ```
 
-### p95 de `publishAsync()` (notificações assíncronas)
+### p95 for `publishAsync()` (asynchronous notifications)
 
 ```promql
 histogram_quantile(0.95, sum by(le) (rate(courier_publish_async_duration_seconds_bucket[$__rate_interval])))
 ```
 
-### Latência média de `send()`
+### Average `send()` latency
 
 ```promql
 rate(courier_send_duration_seconds_sum[$__rate_interval])
@@ -83,45 +83,45 @@ rate(courier_send_duration_seconds_count[$__rate_interval])
 
 ---
 
-## 🚨 Erros e Confiabilidade
+## 🚨 Errors and Reliability
 
-### Taxa de erros em handlers
+### Handler error rate
 
 ```promql
 sum(rate(courier_handler_errors_total[$__rate_interval]))
 ```
 
-### Erros por tipo de exceção
+### Errors by exception type
 
 ```promql
 sum by(exception_type) (rate(courier_handler_errors_total[$__rate_interval]))
 ```
 
-### Erros por tipo de request
+### Errors by request type
 
 ```promql
 sum by(request_type) (rate(courier_handler_errors_total[$__rate_interval]))
 ```
 
-### Taxa de falhas de validação
+### Validation failure rate
 
 ```promql
 sum(rate(courier_validation_failures_total[$__rate_interval]))
 ```
 
-### Falhas de validação por tipo de request
+### Validation failures by request type
 
 ```promql
 sum by(request_type) (rate(courier_validation_failures_total[$__rate_interval]))
 ```
 
-### Taxa de timeouts
+### Timeout rate
 
 ```promql
 sum(rate(courier_handler_timeouts_total[$__rate_interval]))
 ```
 
-### Error ratio (% de sends com erro)
+### Error ratio (% of sends with error)
 
 ```promql
 sum(rate(courier_send_total{outcome="error"}[$__rate_interval]))
@@ -133,19 +133,19 @@ sum(rate(courier_send_total[$__rate_interval]))
 
 ## 📦 Registry (Gauges)
 
-### Handlers registrados
+### Registered handlers
 
 ```promql
 courier_handlers_registered
 ```
 
-### Notification handlers registrados
+### Registered notification handlers
 
 ```promql
 courier_notification_handlers_registered
 ```
 
-### Pipeline behaviors registrados
+### Registered pipeline behaviors
 
 ```promql
 courier_pipeline_behaviors_registered
@@ -153,9 +153,9 @@ courier_pipeline_behaviors_registered
 
 ---
 
-## 🔔 Alertas Sugeridos (Alertmanager)
+## 🔔 Suggested Alerts (Alertmanager)
 
-### Error ratio acima de 5% por 5 minutos
+### Error ratio above 5% for 5 minutes
 
 ```yaml
 - alert: CourierHighErrorRatio
@@ -172,7 +172,7 @@ courier_pipeline_behaviors_registered
     description: "{{ $value | humanizePercentage }} of sends are failing."
 ```
 
-### p99 acima de 1 segundo por 5 minutos
+### p99 above 1 second for 5 minutes
 
 ```yaml
 - alert: CourierHighLatency
@@ -188,7 +188,7 @@ courier_pipeline_behaviors_registered
     description: "p99 send latency is {{ $value }}s."
 ```
 
-### Timeouts detectados
+### Timeouts detected
 
 ```yaml
 - alert: CourierHandlerTimeouts
@@ -216,48 +216,48 @@ courier_pipeline_behaviors_registered
 
 ---
 
-## 🏷️ Filtros Comuns
+## 🏷️ Common Filters
 
-Insira estes seletores de labels em qualquer query acima:
+Insert these label selectors into any query above:
 
 ```promql
-# Filtrar por aplicação
+# Filter by application
 {application="my-service"}
 
-# Filtrar por instância
+# Filter by instance
 {instance="my-service:8080"}
 
-# Apenas commands
+# Commands only
 {request_category="command"}
 
-# Apenas queries
+# Queries only
 {request_category="query"}
 
-# Apenas erros
+# Errors only
 {outcome="error"}
 
-# Apenas um tipo de request
+# Specific request type only
 {request_type="CreateProductCommand"}
 ```
 
 ---
 
-## � Alertas no Slack
+## 🔔 Slack Alerts
 
-Os alertas sugeridos acima estão disponíveis como **regras provisionáveis do Grafana** com integração Slack pronta para uso.
+The suggested alerts above are available as **provisionable Grafana rules** with ready-to-use Slack integration.
 
-Consulte o guia completo: **[SLACK_ALERTING.md](./SLACK_ALERTING.md)**
+See the full guide: **[SLACK_ALERTING.md](./SLACK_ALERTING.md)**
 
-Arquivos de provisioning:
+Provisioning files:
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `provisioning/alerting/courier-alert-rules.yml` | 6 regras de alerta (Grafana Unified Alerting) |
-| `provisioning/alerting/courier-slack-notifications.yml` | Contact points Slack + notification policies |
+| File | Description |
+|------|-------------|
+| `provisioning/alerting/courier-alert-rules.yml` | 6 alert rules (Grafana Unified Alerting) |
+| `provisioning/alerting/courier-slack-notifications.yml` | Slack contact points + notification policies |
 
 ---
 
-## 📖 Referências
+## 📖 References
 
 - [Micrometer Concepts](https://micrometer.io/docs/concepts)
 - [Prometheus Query Basics](https://prometheus.io/docs/prometheus/latest/querying/basics/)

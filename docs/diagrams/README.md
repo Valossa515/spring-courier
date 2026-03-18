@@ -1,186 +1,186 @@
-# 📊 Diagramas do Spring Courier
+# 📊 Spring Courier Diagrams
 
-Esta pasta contém os diagramas UML que representam a arquitetura e o funcionamento da biblioteca Spring Courier.
+This folder contains UML diagrams that represent the architecture and workings of the Spring Courier library.
 
-## 📋 Lista de Diagramas
+## 📋 Diagram List
 
-### 0. 🎯 Visão Geral da Arquitetura (`architecture-overview.puml`)
+### 0. 🎯 Architecture Overview (`architecture-overview.puml`)
 
-Diagrama simplificado mostrando o fluxo básico da biblioteca:
-- Cliente → Controller → Courier → Pipeline → Handler → Storage
-- Fluxo numerado de 12 passos
-- Notas explicativas sobre cada componente
+Simplified diagram showing the basic flow of the library:
+- Client → Controller → Courier → Pipeline → Handler → Storage
+- 12-step numbered flow
+- Explanatory notes about each component
 
-**Quando usar**: Como ponto de partida para entender rapidamente como a biblioteca funciona.
-
----
-
-### 1. 🏗️ Diagrama de Classes (`class-diagram.puml`)
-
-Representa a estrutura de classes e interfaces da biblioteca, mostrando:
-- Interfaces base: `IRequest`, `ICommand`, `IQuery`, `INotification`
-- Interfaces de handlers: `CommandHandler`, `QueryHandler`, `NotificationHandler`
-- Componentes core: `Courier`, `Response`, registries
-- Componentes de pipeline: `PipelineBehavior`, `PipelineExecutor`, `PipelineRegistry`
-- Componentes de validação: `ValidationBehavior`, `Validator`, `ValidationResult`
-- Componentes de descoberta: `HandlerDiscoveryPostProcessor`, `NotificationDiscoveryPostProcessor`, `BehaviorDiscoveryPostProcessor`
-- Configuração: `CourierAutoConfiguration`
-
-**Quando usar**: Para entender a estrutura geral da biblioteca e como as classes se relacionam.
+**When to use**: As a starting point to quickly understand how the library works.
 
 ---
 
-### 2. 🔄 Diagrama de Sequência - Command/Query (`sequence-diagram-command.puml`)
+### 1. 🏗️ Class Diagram (`class-diagram.puml`)
 
-Mostra o fluxo detalhado de execução de um Command ou Query, incluindo:
-- Cliente enviando request via Controller
-- Busca do handler no registry
-- Execução do pipeline de validação
-- Invocação do handler
-- Retorno da resposta
+Represents the class and interface structure of the library, showing:
+- Base interfaces: `IRequest`, `ICommand`, `IQuery`, `INotification`
+- Handler interfaces: `CommandHandler`, `QueryHandler`, `NotificationHandler`
+- Core components: `Courier`, `Response`, registries
+- Pipeline components: `PipelineBehavior`, `PipelineExecutor`, `PipelineRegistry`
+- Validation components: `ValidationBehavior`, `Validator`, `ValidationResult`
+- Discovery components: `HandlerDiscoveryPostProcessor`, `NotificationDiscoveryPostProcessor`, `BehaviorDiscoveryPostProcessor`
+- Configuration: `CourierAutoConfiguration`
 
-**Quando usar**: Para entender o fluxo completo de processamento de commands e queries.
-
----
-
-### 3. 📢 Diagrama de Sequência - Notificações (`sequence-diagram-notification.puml`)
-
-Demonstra como as notificações/eventos são publicados para múltiplos handlers:
-- Publicação síncrona (`publish`)
-- Publicação assíncrona (`publishAsync`)
-- Execução de múltiplos handlers
-- Tratamento de erros em handlers individuais
-
-**Quando usar**: Para entender como implementar event-driven architecture com a biblioteca.
+**When to use**: To understand the overall structure of the library and how classes relate to each other.
 
 ---
 
-### 4. 📋 Diagrama de Atividades (`activity-diagram.puml`)
+### 2. 🔄 Sequence Diagram - Command/Query (`sequence-diagram-command.puml`)
 
-Representa o fluxo de atividades no processamento de um request:
-- Recebimento do request
-- Validação no pipeline
-- Execução de behaviors
-- Invocação do handler
-- Tratamento de erros
-- Retorno da resposta
+Shows the detailed execution flow of a Command or Query, including:
+- Client sending request via Controller
+- Handler lookup in the registry
+- Validation pipeline execution
+- Handler invocation
+- Response return
 
-**Quando usar**: Para visualizar o fluxo lógico e decisões no processamento de requests.
-
----
-
-### 5. 👤 Diagrama de Casos de Uso (`use-case-diagram.puml`)
-
-Mostra os principais casos de uso da biblioteca do ponto de vista do desenvolvedor:
-- Operações CQRS (enviar commands, queries, notificações)
-- Gerenciamento de handlers
-- Configuração de pipeline
-- Validação
-- Integração com Spring
-
-**Quando usar**: Para entender as funcionalidades disponíveis e como utilizá-las.
+**When to use**: To understand the complete processing flow of commands and queries.
 
 ---
 
-### 6. 🧩 Diagrama de Componentes (`component-diagram.puml`)
+### 3. 📢 Sequence Diagram - Notifications (`sequence-diagram-notification.puml`)
 
-Representa a arquitetura de componentes e suas interações:
-- Aplicação Spring Boot
-- Componentes da biblioteca Spring Courier
+Demonstrates how notifications/events are published to multiple handlers:
+- Synchronous publishing (`publish`)
+- Asynchronous publishing (`publishAsync`)
+- Multiple handler execution
+- Error handling in individual handlers
+
+**When to use**: To understand how to implement event-driven architecture with the library.
+
+---
+
+### 4. 📋 Activity Diagram (`activity-diagram.puml`)
+
+Represents the activity flow in request processing:
+- Request reception
+- Pipeline validation
+- Behavior execution
+- Handler invocation
+- Error handling
+- Response return
+
+**When to use**: To visualize the logical flow and decisions in request processing.
+
+---
+
+### 5. 👤 Use Case Diagram (`use-case-diagram.puml`)
+
+Shows the main use cases of the library from the developer's perspective:
+- CQRS operations (send commands, queries, notifications)
+- Handler management
+- Pipeline configuration
+- Validation
+- Spring integration
+
+**When to use**: To understand the available features and how to use them.
+
+---
+
+### 6. 🧩 Component Diagram (`component-diagram.puml`)
+
+Represents the component architecture and their interactions:
+- Spring Boot application
+- Spring Courier library components
 - Spring Framework
-- Sistemas externos (database, email, cache, etc.)
-- Relacionamentos e dependências
+- External systems (database, email, cache, etc.)
+- Relationships and dependencies
 
-**Quando usar**: Para entender a arquitetura geral e como a biblioteca se integra com Spring Boot.
+**When to use**: To understand the overall architecture and how the library integrates with Spring Boot.
 
 ---
 
-### 7. 🚀 Diagrama de Implantação (`deployment-diagram.puml`)
+### 7. 🚀 Deployment Diagram (`deployment-diagram.puml`)
 
-Mostra como a biblioteca é implantada em um ambiente de produção:
-- Estrutura do JAR da aplicação
-- Dependências e bibliotecas
+Shows how the library is deployed in a production environment:
+- Application JAR structure
+- Dependencies and libraries
 - Runtime environment (JVM)
-- Integração com Maven Central
-- Sistemas externos
+- Maven Central integration
+- External systems
 
-**Quando usar**: Para entender como a biblioteca é distribuída e implantada.
-
----
-
-### 8. 🔀 Diagrama de Estados (`state-diagram.puml`)
-
-Representa o ciclo de vida de um request através dos diferentes estados:
-- Criação do request
-- Busca do handler
-- Execução do pipeline
-- Validação
-- Invocação do handler
-- Criação da resposta
-- Estados de sucesso e erro
-
-**Quando usar**: Para entender as transições de estado durante o processamento de requests.
+**When to use**: To understand how the library is distributed and deployed.
 
 ---
 
-## 🛠️ Como Visualizar os Diagramas
+### 8. 🔀 State Diagram (`state-diagram.puml`)
 
-Os diagramas estão em formato PlantUML (`.puml`). Para visualizá-los:
+Represents the lifecycle of a request through different states:
+- Request creation
+- Handler lookup
+- Pipeline execution
+- Validation
+- Handler invocation
+- Response creation
+- Success and error states
 
-### Opção 1: Online
-Use o [PlantUML Online Server](http://www.plantuml.com/plantuml/uml/):
-1. Copie o conteúdo do arquivo `.puml`
-2. Cole no editor online
-3. Visualize o diagrama renderizado
+**When to use**: To understand state transitions during request processing.
 
-### Opção 2: VS Code
-Instale a extensão [PlantUML para VS Code](https://marketplace.visualstudio.com/items?itemName=jebbs.plantuml):
-1. Abra o arquivo `.puml` no VS Code
-2. Use `Alt+D` para preview
-3. Ou clique com botão direito → "Preview Current Diagram"
+---
 
-### Opção 3: IntelliJ IDEA
-Instale o plugin [PlantUML Integration](https://plugins.jetbrains.com/plugin/7017-plantuml-integration):
-1. Abra o arquivo `.puml` no IntelliJ
-2. O preview aparecerá automaticamente ao lado
+## 🛠️ How to View the Diagrams
 
-### Opção 4: Linha de Comando
-Instale o PlantUML localmente:
+The diagrams are in PlantUML format (`.puml`). To view them:
+
+### Option 1: Online
+Use the [PlantUML Online Server](http://www.plantuml.com/plantuml/uml/):
+1. Copy the contents of the `.puml` file
+2. Paste it in the online editor
+3. View the rendered diagram
+
+### Option 2: VS Code
+Install the [PlantUML extension for VS Code](https://marketplace.visualstudio.com/items?itemName=jebbs.plantuml):
+1. Open the `.puml` file in VS Code
+2. Use `Alt+D` for preview
+3. Or right-click → "Preview Current Diagram"
+
+### Option 3: IntelliJ IDEA
+Install the [PlantUML Integration](https://plugins.jetbrains.com/plugin/7017-plantuml-integration) plugin:
+1. Open the `.puml` file in IntelliJ
+2. The preview will appear automatically beside it
+
+### Option 4: Command Line
+Install PlantUML locally:
 ```bash
-# Instalar PlantUML (requer Java)
+# Install PlantUML (requires Java)
 brew install plantuml  # macOS
 apt-get install plantuml  # Ubuntu/Debian
 
-# Gerar imagem PNG
+# Generate PNG image
 plantuml diagram.puml
 
-# Gerar SVG
+# Generate SVG
 plantuml -tsvg diagram.puml
 ```
 
 ---
 
-## 📚 Documentação Adicional
+## 📚 Additional Documentation
 
-Para mais informações sobre a biblioteca, consulte:
-- [README.md](../../README.md) - Documentação principal
-- [CONTRIBUTING.md](../../CONTRIBUTING.md) - Guia de contribuição
-- Código fonte em `src/main/java/io/github/valossa515/spring_courier/`
-
----
-
-## 🤝 Contribuindo com Diagramas
-
-Se você deseja adicionar ou melhorar os diagramas:
-
-1. Use PlantUML para manter consistência
-2. Siga o padrão de nomenclatura: `nome-descritivo.puml`
-3. Adicione uma descrição neste README
-4. Use temas simples e cores consistentes
-5. Adicione notas explicativas quando apropriado
+For more information about the library, see:
+- [README.md](../../README.md) - Main documentation
+- [CONTRIBUTING.md](../../CONTRIBUTING.md) - Contribution guide
+- Source code at `src/main/java/io/github/valossa515/spring_courier/`
 
 ---
 
-## 📝 Licença
+## 🤝 Contributing to Diagrams
 
-Os diagramas seguem a mesma licença MIT do projeto principal.
+If you wish to add or improve diagrams:
+
+1. Use PlantUML to maintain consistency
+2. Follow the naming pattern: `descriptive-name.puml`
+3. Add a description in this README
+4. Use simple themes and consistent colors
+5. Add explanatory notes where appropriate
+
+---
+
+## 📝 License
+
+The diagrams follow the same MIT license as the main project.

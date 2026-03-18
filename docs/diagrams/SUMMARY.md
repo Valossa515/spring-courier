@@ -1,26 +1,26 @@
-# 📊 Resumo dos Diagramas Criados
+# 📊 Summary of Created Diagrams
 
-## Objetivo
-Criar diagramas UML completos para representar o funcionamento da biblioteca Spring Courier, incluindo diagramas de classes, atividades, casos de uso, sequência, componentes, implantação e estados.
+## Objective
+Create comprehensive UML diagrams to represent the inner workings of the Spring Courier library, including class, activity, use case, sequence, component, deployment, and state diagrams.
 
-## Status: ✅ CONCLUÍDO
+## Status: ✅ COMPLETED
 
 ---
 
-## 📦 Diagramas Criados
+## 📦 Created Diagrams
 
-### 1. 🎯 Visão Geral da Arquitetura
-**Arquivo:** `architecture-overview.puml`
-- Diagrama simplificado do fluxo principal
-- 12 passos numerados do fluxo completo
-- Ideal para apresentações e introduções
+### 1. 🎯 Architecture Overview
+**File:** `architecture-overview.puml`
+- Simplified diagram of the main flow
+- 12 numbered steps of the complete flow
+- Ideal for presentations and introductions
 
-### 2. 🏗️ Diagrama de Classes
-**Arquivo:** `class-diagram.puml`
-- 227 linhas de código
-- Mostra todas as interfaces e classes principais
-- Relacionamentos e hierarquias
-- 8 packages organizados:
+### 2. 🏗️ Class Diagram
+**File:** `class-diagram.puml`
+- 227 lines of code
+- Shows all main interfaces and classes
+- Relationships and hierarchies
+- 8 organized packages:
   - Core Interfaces
   - Handler Interfaces
   - Core Components
@@ -30,141 +30,141 @@ Criar diagramas UML completos para representar o funcionamento da biblioteca Spr
   - Validation Components
   - Configuration
 
-### 3. 🔄 Diagramas de Sequência
+### 3. 🔄 Sequence Diagrams
 
 #### a) Command/Query Execution
-**Arquivo:** `sequence-diagram-command.puml`
-- Fluxo completo de execução
-- Validação no pipeline
-- Interação com database
-- Tratamento de erros
+**File:** `sequence-diagram-command.puml`
+- Complete execution flow
+- Pipeline validation
+- Database interaction
+- Error handling
 
 #### b) Notification Publishing
-**Arquivo:** `sequence-diagram-notification.puml`
-- Publicação síncrona
-- Publicação assíncrona
-- Múltiplos handlers
-- Execução de EmailHandler, CacheHandler, LogHandler
+**File:** `sequence-diagram-notification.puml`
+- Synchronous publishing
+- Asynchronous publishing
+- Multiple handlers
+- Execution of EmailHandler, CacheHandler, LogHandler
 
-### 4. 📋 Diagrama de Atividades
-**Arquivo:** `activity-diagram.puml`
-- 97 linhas
-- Fluxo completo de processamento
-- Decisões e branches
-- Validação e tratamento de erros
+### 4. 📋 Activity Diagram
+**File:** `activity-diagram.puml`
+- 97 lines
+- Complete processing flow
+- Decisions and branches
+- Validation and error handling
 
-### 5. 👤 Diagrama de Casos de Uso
-**Arquivo:** `use-case-diagram.puml`
-- 124 linhas
-- 5 packages de funcionalidades:
+### 5. 👤 Use Case Diagram
+**File:** `use-case-diagram.puml`
+- 124 lines
+- 5 feature packages:
   - CQRS Operations
   - Handler Management
   - Pipeline Configuration
   - Validation
   - Spring Integration
-- 17 casos de uso documentados
+- 17 documented use cases
 
-### 6. 🧩 Diagrama de Componentes
-**Arquivo:** `component-diagram.puml`
-- 158 linhas
-- Arquitetura em camadas
-- Integração com Spring Framework
-- Conexões com sistemas externos
-- Notas explicativas
+### 6. 🧩 Component Diagram
+**File:** `component-diagram.puml`
+- 158 lines
+- Layered architecture
+- Spring Framework integration
+- External system connections
+- Explanatory notes
 
-### 7. 🚀 Diagrama de Implantação
-**Arquivo:** `deployment-diagram.puml`
-- 136 linhas
-- Estrutura do JAR
+### 7. 🚀 Deployment Diagram
+**File:** `deployment-diagram.puml`
+- 136 lines
+- JAR structure
 - Runtime environment
 - Maven Central integration
-- Sistemas externos
+- External systems
 
-### 8. 🔀 Diagrama de Estados
-**Arquivo:** `state-diagram.puml`
-- 146 linhas
-- Ciclo de vida completo de um request
-- Estados aninhados
-- Transições síncronas e assíncronas
-- Estados de sucesso e erro
+### 8. 🔀 State Diagram
+**File:** `state-diagram.puml`
+- 146 lines
+- Complete request lifecycle
+- Nested states
+- Synchronous and asynchronous transitions
+- Success and error states
 
 ---
 
-## 📚 Documentação Criada
+## 📚 Documentation Created
 
 ### 1. README.md (diagrams)
-- 5,369 caracteres
-- Descrição detalhada de cada diagrama
-- Instruções de visualização
-- 4 opções de visualização
-- Guia de contribuição
+- 5,369 characters
+- Detailed description of each diagram
+- Viewing instructions
+- 4 viewing options
+- Contribution guide
 
 ### 2. QUICK_START.md
-- 5,657 caracteres
-- Guia rápido em Português
-- Links diretos para visualização
-- Comandos práticos
+- 5,657 characters
+- Quick start guide
+- Direct viewing links
+- Practical commands
 - Troubleshooting
 
-### 3. README.md (principal) - Atualizado
-- Adicionada seção "📊 Diagramas e Arquitetura"
-- Links para todos os diagramas
-- Estrutura do projeto atualizada
+### 3. README.md (main) - Updated
+- Added "📊 Diagrams and Architecture" section
+- Links to all diagrams
+- Updated project structure
 
 ---
 
-## 📊 Estatísticas
+## 📊 Statistics
 
-- **Total de arquivos criados:** 12
-- **Total de linhas de código PlantUML:** 1,187
-- **Total de linhas de documentação:** ~300
-- **Diagramas UML:** 9
-- **Tipos de diagramas:** 8 diferentes
-- **Commits realizados:** 3
-
----
-
-## 🎯 Cobertura
-
-### Diagramas Solicitados ✅
-- ✅ Diagrama de Classes
-- ✅ Diagrama de Atividades
-- ✅ Diagrama de Casos de Uso
-- ✅ Diagrama de Sequência (2 variantes)
-- ✅ Diagrama de Componentes
-- ✅ Diagrama de Implantação
-- ✅ Diagrama de Estados
-
-### Extras Adicionados 🌟
-- ✅ Visão Geral da Arquitetura
-- ✅ Guia Rápido em Português
-- ✅ Links diretos para visualização
+- **Total files created:** 12
+- **Total lines of PlantUML code:** 1,187
+- **Total lines of documentation:** ~300
+- **UML diagrams:** 9
+- **Diagram types:** 8 different
+- **Commits made:** 3
 
 ---
 
-## 🔧 Tecnologias Utilizadas
+## 🎯 Coverage
 
-- **PlantUML:** Linguagem de modelagem
-- **UML 2.0:** Padrão de diagramação
-- **Markdown:** Documentação
-- **Git:** Controle de versão
+### Requested Diagrams ✅
+- ✅ Class Diagram
+- ✅ Activity Diagram
+- ✅ Use Case Diagram
+- ✅ Sequence Diagram (2 variants)
+- ✅ Component Diagram
+- ✅ Deployment Diagram
+- ✅ State Diagram
+
+### Extras Added 🌟
+- ✅ Architecture Overview
+- ✅ Quick Start Guide
+- ✅ Direct viewing links
 
 ---
 
-## 📖 Como Usar
+## 🔧 Technologies Used
 
-### Visualização Online (Mais Rápido)
+- **PlantUML:** Modeling language
+- **UML 2.0:** Diagramming standard
+- **Markdown:** Documentation
+- **Git:** Version control
+
+---
+
+## 📖 How to Use
+
+### Online Viewing (Fastest)
 ```
 http://www.plantuml.com/plantuml/uml/
 ```
-Copie e cole o conteúdo de qualquer arquivo `.puml`
+Copy and paste the contents of any `.puml` file
 
-### Visualização Local (VS Code)
-1. Instalar extensão PlantUML
-2. Abrir arquivo `.puml`
-3. Pressionar `Alt+D`
+### Local Viewing (VS Code)
+1. Install the PlantUML extension
+2. Open a `.puml` file
+3. Press `Alt+D`
 
-### Gerar Imagens
+### Generate Images
 ```bash
 cd docs/diagrams
 plantuml *.puml           # PNG
@@ -174,85 +174,26 @@ plantuml -tpdf *.puml     # PDF
 
 ---
 
-## 🎨 Características dos Diagramas
+## 🎨 Diagram Characteristics
 
-### Consistência
-- ✅ Tema unificado (`!theme plain`)
-- ✅ Sem sombras (`skinparam shadowing false`)
-- ✅ Fundo branco
-- ✅ Estilo profissional
+### Consistency
+- ✅ Unified theme (`!theme plain`)
+- ✅ No shadows (`skinparam shadowing false`)
+- ✅ White background
+- ✅ Professional style
 
-### Qualidade
-- ✅ Notas explicativas em Português
-- ✅ Cores semânticas
-- ✅ Agrupamento lógico
-- ✅ Hierarquia visual clara
+### Quality
+- ✅ Explanatory notes
+- ✅ Semantic colors
+- ✅ Logical grouping
+- ✅ Clear visual hierarchy
 
-### Documentação
-- ✅ Comentários inline
-- ✅ Notas de contexto
-- ✅ Exemplos de uso
-- ✅ Referências cruzadas
-
----
-
-## 🚀 Benefícios
-
-1. **Para Desenvolvedores**
-   - Entender rapidamente a arquitetura
-   - Visualizar fluxos de execução
-   - Identificar pontos de extensão
-
-2. **Para Arquitetos**
-   - Documentação visual da solução
-   - Padrões de design evidenciados
-   - Integração com Spring Boot clara
-
-3. **Para Novos Contribuidores**
-   - Onboarding facilitado
-   - Compreensão rápida do código
-   - Referência sempre atualizada
-
-4. **Para Usuários da Biblioteca**
-   - Como usar cada funcionalidade
-   - Casos de uso práticos
-   - Fluxos de integração
+### Documentation
+- ✅ Inline comments
+- ✅ Context notes
+- ✅ Usage examples
+- ✅ Cross-references
 
 ---
 
-## 📌 Próximos Passos (Opcional)
-
-Sugestões para o futuro:
-- [ ] Gerar PNG/SVG automaticamente no CI/CD
-- [ ] Adicionar diagramas de performance/scalability
-- [ ] Criar diagramas de cenários específicos
-- [ ] Adicionar exemplos de código nos diagramas
-- [ ] Criar apresentação PowerPoint a partir dos diagramas
-
----
-
-## ✅ Revisões
-
-- ✅ Code Review: Sem issues encontradas
-- ✅ CodeQL: Sem problemas de segurança (somente documentação)
-- ✅ Qualidade: Todos os diagramas validados
-- ✅ Completude: Todos os requisitos atendidos
-
----
-
-## 📝 Conclusão
-
-Foram criados **9 diagramas UML completos** em formato PlantUML, cobrindo todos os aspectos da biblioteca Spring Courier:
-- Estrutura (Classes)
-- Comportamento (Sequência, Atividades, Estados)
-- Organização (Componentes, Implantação)
-- Funcionalidade (Casos de Uso)
-- Visão Geral (Arquitetura)
-
-Toda a documentação está em **Português** e inclui **instruções completas de visualização**, tornando os diagramas acessíveis para todos os desenvolvedores.
-
----
-
-**Status:** ✅ PRONTO PARA MERGE
-
-Desenvolvido para o projeto Spring Courier
+## 🚀 Benefits

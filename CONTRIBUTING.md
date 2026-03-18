@@ -1,198 +1,198 @@
 # 🤝 Contributing to Spring Courier
 
-Obrigado por considerar contribuir com o Spring Courier! Este documento fornece diretrizes para contribuições e o processo de release.
+Thank you for considering contributing to Spring Courier! This document provides guidelines for contributions and the release process.
 
-## 🚀 Como Contribuir
+## 🚀 How to Contribute
 
-### 1. Fork e Clone
+### 1. Fork and Clone
 ```bash
-git clone https://github.com/seu-usuario/spring-courier.git
+git clone https://github.com/your-username/spring-courier.git
 cd spring-courier
 ```
 
-### 2. Crie uma Branch
+### 2. Create a Branch
 ```bash
-git checkout -b feature/nova-funcionalidade
+git checkout -b feature/new-feature
 ```
 
-### 3. Faça suas Alterações
-- Escreva código limpo e bem documentado
-- Adicione testes para novas funcionalidades
-- Siga as convenções de código existentes
+### 3. Make Your Changes
+- Write clean, well-documented code
+- Add tests for new features
+- Follow existing code conventions
 
-### 4. Teste suas Alterações
+### 4. Test Your Changes
 ```bash
 ./mvnw clean test
 ```
 
-### 5. Commit e Push
+### 5. Commit and Push
 ```bash
-git commit -m "feat: adiciona nova funcionalidade"
-git push origin feature/nova-funcionalidade
+git commit -m "feat: add new feature"
+git push origin feature/new-feature
 ```
 
-### 6. Abra um Pull Request
-Descreva suas alterações e o problema que elas resolvem.
+### 6. Open a Pull Request
+Describe your changes and the problem they solve.
 
 ---
 
-## 📦 Processo de Release (Para Maintainers)
+## 📦 Release Process (For Maintainers)
 
-### Pré-requisitos
+### Prerequisites
 
-Para publicar uma nova versão no Maven Central, você precisa configurar os seguintes **GitHub Secrets** no repositório:
+To publish a new version to Maven Central, you need to configure the following **GitHub Secrets** in the repository:
 
-| Secret | Descrição | Como Obter |
-|--------|-----------|------------|
-| `GPG_PRIVATE_KEY` | Chave GPG privada em formato ASCII armored | Exportar sua chave GPG (veja abaixo) |
-| `GPG_PASSPHRASE` | Senha da chave GPG | A senha que você definiu ao criar a chave GPG |
-| `SONATYPE_TOKEN` | Token de acesso do Sonatype Central Portal | Gerar em https://central.sonatype.com/account |
+| Secret | Description | How to Obtain |
+|--------|-------------|---------------|
+| `GPG_PRIVATE_KEY` | GPG private key in ASCII armored format | Export your GPG key (see below) |
+| `GPG_PASSPHRASE` | GPG key passphrase | The passphrase you set when creating the GPG key |
+| `SONATYPE_TOKEN` | Sonatype Central Portal access token | Generate at https://central.sonatype.com/account |
 
-### 🔐 Configurando a Chave GPG
+### 🔐 Setting Up the GPG Key
 
-#### 1. Gerar uma Chave GPG (se ainda não tiver)
+#### 1. Generate a GPG Key (if you don't have one yet)
 
 ```bash
 gpg --full-generate-key
 ```
 
-Escolha:
-- Tipo: RSA and RSA
-- Tamanho: 4096 bits
-- Validade: 0 (não expira) ou o período desejado
-- Nome e e-mail: Use os mesmos do perfil Maven Central
+Choose:
+- Type: RSA and RSA
+- Size: 4096 bits
+- Validity: 0 (does not expire) or your desired period
+- Name and email: Use the same ones from your Maven Central profile
 
-#### 2. Listar Chaves GPG
+#### 2. List GPG Keys
 
 ```bash
 gpg --list-secret-keys --keyid-format=long
 ```
 
-Saída exemplo:
+Example output:
 ```
 sec   rsa4096/ABCD1234EFGH5678 2024-01-01 [SC]
       1234567890ABCDEF1234567890ABCDEF12345678
-uid                 [ultimate] Seu Nome <seu@email.com>
+uid                 [ultimate] Your Name <your@email.com>
 ```
 
-O ID da chave é `ABCD1234EFGH5678`.
+The key ID is `ABCD1234EFGH5678`.
 
-#### 3. Exportar a Chave Privada
+#### 3. Export the Private Key
 
 ```bash
 gpg --armor --export-secret-keys ABCD1234EFGH5678 > private-key.asc
 ```
 
-#### 4. Publicar a Chave Pública (Necessário para Maven Central)
+#### 4. Publish the Public Key (Required for Maven Central)
 
 ```bash
 gpg --keyserver keyserver.ubuntu.com --send-keys ABCD1234EFGH5678
 gpg --keyserver keys.openpgp.org --send-keys ABCD1234EFGH5678
 ```
 
-#### 5. Adicionar ao GitHub Secrets
+#### 5. Add to GitHub Secrets
 
-1. Vá em: `Settings` > `Secrets and variables` > `Actions`
-2. Clique em `New repository secret`
-3. Adicione cada secret:
-   - **Nome**: `GPG_PRIVATE_KEY`
-   - **Value**: Cole o conteúdo completo do arquivo `private-key.asc`
+1. Go to: `Settings` > `Secrets and variables` > `Actions`
+2. Click `New repository secret`
+3. Add each secret:
+   - **Name**: `GPG_PRIVATE_KEY`
+   - **Value**: Paste the full contents of the `private-key.asc` file
 
-### 🎯 Configurando Sonatype Central Portal
+### 🎯 Setting Up Sonatype Central Portal
 
-#### 1. Criar Conta
+#### 1. Create an Account
 
-1. Acesse https://central.sonatype.com/
-2. Faça login com GitHub, Google ou crie uma conta
-3. Verifique seu domínio (ex: `io.github.valossa515`)
+1. Go to https://central.sonatype.com/
+2. Log in with GitHub, Google, or create an account
+3. Verify your domain (e.g., `io.github.valossa515`)
 
-#### 2. Gerar Token de Acesso
+#### 2. Generate an Access Token
 
-1. Vá em: https://central.sonatype.com/account
-2. Clique em "Generate User Token"
-3. Copie o Token gerado
-4. Adicione ao GitHub Secrets como `SONATYPE_TOKEN`
+1. Go to: https://central.sonatype.com/account
+2. Click "Generate User Token"
+3. Copy the generated token
+4. Add it to GitHub Secrets as `SONATYPE_TOKEN`
 
-### 📋 Fazendo uma Release
+### 📋 Making a Release
 
-#### Opção 1: Via GitHub Release (Recomendado)
+#### Option 1: Via GitHub Release (Recommended)
 
-1. **Atualize a versão no `pom.xml`**:
+1. **Update the version in `pom.xml`**:
    ```xml
    <version>1.0.0</version>
    ```
 
-2. **Commit e Push**:
+2. **Commit and Push**:
    ```bash
    git add pom.xml
    git commit -m "chore: bump version to 1.0.0"
    git push origin main
    ```
 
-3. **Crie uma Release no GitHub**:
-   - Vá em: `Releases` > `Create a new release`
+3. **Create a GitHub Release**:
+   - Go to: `Releases` > `Create a new release`
    - Tag: `v1.0.0`
    - Title: `Spring Courier v1.0.0`
-   - Description: Descreva as mudanças
-   - Clique em `Publish release`
+   - Description: Describe the changes
+   - Click `Publish release`
 
-4. **GitHub Action será disparada automaticamente** e publicará no Maven Central.
+4. **The GitHub Action will be triggered automatically** and publish to Maven Central.
 
-#### Opção 2: Via Workflow Dispatch (Manual)
+#### Option 2: Via Workflow Dispatch (Manual)
 
-1. Vá em: `Actions` > `Publish to Maven Central`
-2. Clique em `Run workflow`
-3. Opcionalmente, especifique a versão
-4. Clique em `Run workflow`
+1. Go to: `Actions` > `Publish to Maven Central`
+2. Click `Run workflow`
+3. Optionally, specify the version
+4. Click `Run workflow`
 
-### ✅ Verificar Publicação
+### ✅ Verify Publication
 
-Após a execução do workflow:
+After the workflow completes:
 
-1. Verifique o status em: https://central.sonatype.com/publishing
-2. A publicação pode levar de 15 minutos a algumas horas para aparecer no Maven Central
-3. Verifique em: https://central.sonatype.com/artifact/io.github.valossa515/spring-courier
+1. Check the status at: https://central.sonatype.com/publishing
+2. Publication may take from 15 minutes to a few hours to appear on Maven Central
+3. Verify at: https://central.sonatype.com/artifact/io.github.valossa515/spring-courier
 
-### 📝 Checklist de Release
+### 📝 Release Checklist
 
-- [ ] Todas as alterações foram testadas
-- [ ] A versão foi atualizada no `pom.xml`
-- [ ] O CHANGELOG foi atualizado (se houver)
-- [ ] Os testes estão passando
-- [ ] A release foi criada no GitHub
-- [ ] O workflow de publicação foi executado com sucesso
-- [ ] A nova versão aparece no Maven Central
-
----
-
-## 🐛 Reportando Bugs
-
-Use as [GitHub Issues](https://github.com/Valossa515/spring-courier/issues) para reportar bugs. Inclua:
-
-- Descrição detalhada do problema
-- Passos para reproduzir
-- Versão do Spring Courier
-- Versão do Java e Spring Boot
-- Stack trace (se aplicável)
+- [ ] All changes have been tested
+- [ ] The version has been updated in `pom.xml`
+- [ ] The CHANGELOG has been updated (if applicable)
+- [ ] Tests are passing
+- [ ] The release has been created on GitHub
+- [ ] The publish workflow has been executed successfully
+- [ ] The new version appears on Maven Central
 
 ---
 
-## 💡 Sugestões de Funcionalidades
+## 🐛 Reporting Bugs
 
-Sugestões são bem-vindas! Abra uma [Issue](https://github.com/Valossa515/spring-courier/issues) descrevendo:
+Use [GitHub Issues](https://github.com/Valossa515/spring-courier/issues) to report bugs. Include:
 
-- O problema que a funcionalidade resolve
-- Como a funcionalidade deveria funcionar
-- Exemplos de uso (se possível)
-
----
-
-## 📜 Código de Conduta
-
-Seja respeitoso e construtivo em todas as interações. Contribuições de todos são bem-vindas!
+- Detailed description of the problem
+- Steps to reproduce
+- Spring Courier version
+- Java and Spring Boot version
+- Stack trace (if applicable)
 
 ---
 
-## ❤️ Obrigado!
+## 💡 Feature Suggestions
 
-Suas contribuições ajudam a tornar o Spring Courier melhor para todos!
+Suggestions are welcome! Open an [Issue](https://github.com/Valossa515/spring-courier/issues) describing:
+
+- The problem the feature solves
+- How the feature should work
+- Usage examples (if possible)
+
+---
+
+## 📜 Code of Conduct
+
+Be respectful and constructive in all interactions. Contributions from everyone are welcome!
+
+---
+
+## ❤️ Thank You!
+
+Your contributions help make Spring Courier better for everyone!
