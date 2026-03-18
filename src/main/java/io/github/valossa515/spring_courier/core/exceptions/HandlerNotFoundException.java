@@ -5,7 +5,7 @@ package io.github.valossa515.spring_courier.core.exceptions;
  * It allows consumers to detect incomplete pipeline configurations and react by
  * registering the missing handler or handling the absence accordingly.
  */
-public class HandlerNotFoundException extends CourierException {
+public final class HandlerNotFoundException extends CourierException {
 
     /**
      * Creates the exception with a descriptive message about the problem.

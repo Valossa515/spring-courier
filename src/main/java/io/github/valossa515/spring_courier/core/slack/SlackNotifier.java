@@ -134,9 +134,9 @@ public class SlackNotifier {
                     }
                 })
                 .exceptionally(ex -> {
-                    if (ex.getCause() instanceof IOException) {
+                    if (ex.getCause() instanceof IOException ioEx) {
                         logger.error("Failed to send Slack alert (I/O): {}",
-                                ex.getCause().getMessage());
+                                ioEx.getMessage());
                     } else {
                         logger.error("Failed to send Slack alert: {}",
                                 ex.getMessage());
@@ -163,23 +163,12 @@ public class SlackNotifier {
         for (int i = 0; i < value.length(); i++) {
             char c = value.charAt(i);
             switch (c) {
-                case '"':
-                    sb.append("\\\"");
-                    break;
-                case '\\':
-                    sb.append("\\\\");
-                    break;
-                case '\n':
-                    sb.append("\\n");
-                    break;
-                case '\r':
-                    sb.append("\\r");
-                    break;
-                case '\t':
-                    sb.append("\\t");
-                    break;
-                default:
-                    sb.append(c);
+                case '"'  -> sb.append("\\\"");
+                case '\\' -> sb.append("\\\\");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                case '\t' -> sb.append("\\t");
+                default   -> sb.append(c);
             }
         }
         sb.append('"');

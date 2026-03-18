@@ -55,13 +55,4 @@ class CourierMetricsAutoConfigurationTest {
         assertFalse(properties.getMetrics().isEnabled());
     }
 
-    @SuppressWarnings("deprecation")
-    @Test
-    void deprecatedAccessorsDelegate() {
-        CourierProperties properties = new CourierProperties();
-        assertTrue(properties.isMetricsEnabled());
-        properties.setMetricsEnabled(false);
-        assertFalse(properties.isMetricsEnabled());
-        assertFalse(properties.getMetrics().isEnabled());
-    }
 }

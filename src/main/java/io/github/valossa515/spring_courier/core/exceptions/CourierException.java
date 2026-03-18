@@ -3,7 +3,8 @@ package io.github.valossa515.spring_courier.core.exceptions;
 /**
  * Base exception for all Courier-related errors.
  */
-public class CourierException extends RuntimeException {
+public sealed class CourierException extends RuntimeException
+        permits HandlerNotFoundException, ValidationException {
 
     public CourierException(String message) {
         super(message);
