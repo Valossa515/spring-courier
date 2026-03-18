@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Spring Courier is a **Java library** (not an application) that provides a **CQRS + Mediator pattern** infrastructure for Spring Boot applications. It is distributed via **Maven Central** and targets Spring Boot 3.x with Java 17+.
+Spring Courier is a **Java library** (not an application) that provides a **CQRS + Mediator pattern** infrastructure for Spring Boot applications. It is distributed via **Maven Central** and targets Spring Boot 3.x with Java 21+.
 
 - **GroupId:** `io.github.valossa515`
 - **ArtifactId:** `spring-courier`
@@ -70,7 +70,7 @@ spring-courier/
 
 ### Key Maven Configuration
 
-- **Java:** 17 (required minimum; compile target is `--release 17`)
+- **Java:** 21 (required minimum; compile target is `--release 21`)
 - **Spring Boot:** 3.5.5 (provided scope — not bundled in library JAR)
 - **Checkstyle:** Enforced; build **fails on violations** (`failOnViolation=true`)
 - **JaCoCo:** Generates XML + HTML coverage reports
@@ -312,9 +312,9 @@ JaCoCo is configured to generate reports at `target/site/jacoco/`. Coverage excl
 
 ```
 RuntimeException
-└── CourierException
-    ├── HandlerNotFoundException   — No handler registered for request type
-    └── ValidationException        — Validation pipeline failure
+└── CourierException (sealed)
+    ├── HandlerNotFoundException (final)  — No handler registered for request type
+    └── ValidationException (final)      — Validation pipeline failure
 ```
 
 ---

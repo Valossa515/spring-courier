@@ -19,9 +19,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Dispatches requests through the CQRS pipeline, invoking synchronous or
@@ -58,7 +58,13 @@ public class Courier {
                 }
             });
 
-    private static final AtomicBoolean COMMON_POOL_WARNING_LOGGED = new AtomicBoolean(false);
+    /**
+     * Default executor for {@link #publishAsync} when no custom executor is
+     * provided. Uses Java 21 virtual threads for lightweight, scalable
+     * asynchronous execution without blocking platform threads.
+     */
+    private static final Executor VIRTUAL_THREAD_EXECUTOR =
+            Executors.newVirtualThreadPerTaskExecutor();
 
     private final HandlerRegistry handlerRegistry;
     private final NotificationRegistry notificationRegistry;
@@ -247,12 +253,7 @@ public class Courier {
         if (asyncExecutor != null) {
             return CompletableFuture.runAsync(() -> publish(notification), asyncExecutor);
         }
-        if (COMMON_POOL_WARNING_LOGGED.compareAndSet(false, true)) {
-            logger.warn("publishAsync() is using the ForkJoinPool common pool because no "
-                    + "asyncExecutor was configured. This may starve other application work. "
-                    + "Configure a dedicated executor via the Courier constructor.");
-        }
-        return CompletableFuture.runAsync(() -> publish(notification));
+        return CompletableFuture.runAsync(() -> publish(notification), VIRTUAL_THREAD_EXECUTOR);
     }
 
     /**

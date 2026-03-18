@@ -186,12 +186,10 @@ public class MeteredCourier extends Courier {
     }
 
     private String resolveCategory(IRequest<?> request) {
-        if (request instanceof ICommand) {
-            return CATEGORY_COMMAND;
-        }
-        if (request instanceof IQuery) {
-            return CATEGORY_QUERY;
-        }
-        return CATEGORY_GENERIC;
+        return switch (request) {
+            case ICommand<?> ignored -> CATEGORY_COMMAND;
+            case IQuery<?> ignored   -> CATEGORY_QUERY;
+            default                  -> CATEGORY_GENERIC;
+        };
     }
 }

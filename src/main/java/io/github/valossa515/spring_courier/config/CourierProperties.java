@@ -65,25 +65,6 @@ public class CourierProperties {
     }
 
     /**
-     * Whether Micrometer metrics instrumentation is enabled.
-     *
-     * @return {@code true} if metrics are enabled
-     * @deprecated Use {@link #getMetrics()}.{@link Metrics#isEnabled() isEnabled()} instead.
-     */
-    @Deprecated(since = "1.4.0", forRemoval = true)
-    public boolean isMetricsEnabled() {
-        return metrics.isEnabled();
-    }
-
-    /**
-     * @deprecated Use {@link #getMetrics()}.{@link Metrics#setEnabled(boolean) setEnabled(boolean)} instead.
-     */
-    @Deprecated(since = "1.4.0", forRemoval = true)
-    public void setMetricsEnabled(boolean metricsEnabled) {
-        metrics.setEnabled(metricsEnabled);
-    }
-
-    /**
      * Metrics sub-properties (prefix {@code spring.courier.metrics}).
      */
     public static class Metrics {

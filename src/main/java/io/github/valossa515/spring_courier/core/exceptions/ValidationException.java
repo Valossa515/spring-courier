@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * Exception thrown when request validation fails.
  */
-public class ValidationException extends CourierException {
+public final class ValidationException extends CourierException {
     @Serial
     private static final long serialVersionUID = 1L;
 

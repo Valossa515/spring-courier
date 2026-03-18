@@ -12,7 +12,7 @@
   <a href="https://central.sonatype.com/artifact/io.github.valossa515/spring-courier"><img src="https://img.shields.io/maven-central/v/io.github.valossa515/spring-courier" alt="Maven Central"/></a>
   <a href="https://github.com/Valossa515/spring-courier/actions/workflows/publish-maven-central.yml"><img src="https://github.com/Valossa515/spring-courier/actions/workflows/publish-maven-central.yml/badge.svg" alt="Publish to Maven Central"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"/></a>
-  <a href="https://openjdk.org/projects/jdk/17/"><img src="https://img.shields.io/badge/java-17%2B-orange" alt="Java"/></a>
+  <a href="https://openjdk.org/projects/jdk/21/"><img src="https://img.shields.io/badge/java-21%2B-orange" alt="Java"/></a>
   <a href="https://spring.io/projects/spring-boot"><img src="https://img.shields.io/badge/spring--boot-3.5.x-brightgreen" alt="Spring Boot"/></a>
 </p>
 
@@ -27,16 +27,70 @@ Ela fornece uma infraestrutura para desacoplar comandos, consultas e eventos —
 
 ## ✨ Recursos
 
-✅ Suporte a **Command Handlers** e **Query Handlers**  
-✅ **Notification/Event Support** — Publique eventos para múltiplos handlers  
-✅ **Validation Pipeline** — Valide requests antes da execução  
-✅ Estrutura genérica e flexível baseada em **interfaces**  
-✅ Total integração com o **Spring Context**  
-✅ Suporte a **Request/Response Pattern**  
-✅ **Async Support** — Publicação assíncrona de notificações  
-✅ Extensível para eventos e pipelines personalizados  
-✅ Zero configuração adicional — **plug and play**  
+✅ Suporte a **Command Handlers** e **Query Handlers**
+✅ **Notification/Event Support** — Publique eventos para múltiplos handlers
+✅ **Validation Pipeline** — Valide requests antes da execução
+✅ Estrutura genérica e flexível baseada em **interfaces**
+✅ Total integração com o **Spring Context**
+✅ Suporte a **Request/Response Pattern**
+✅ **Async Support** — Publicação assíncrona com **Virtual Threads** (Java 21)
+✅ Extensível para eventos e pipelines personalizados
+✅ Zero configuração adicional — **plug and play**
 ✅ **Slack Alerting Nativo** — Alertas direto no Slack sem Grafana/Alertmanager
+✅ **Sealed Exception Hierarchy** — Hierarquia de exceções fechada para type safety
+
+---
+
+## ☕ Java 21 — O que mudou
+
+A partir da versão **2.0.0**, o Spring Courier requer **Java 21+** (LTS). Essa atualização traz melhorias significativas de performance e type safety:
+
+### 🧵 Virtual Threads
+
+O `publishAsync()` agora utiliza **Virtual Threads** por padrão quando nenhum executor customizado é configurado. Isso substitui o `ForkJoinPool` common pool e oferece:
+
+- **Escalabilidade massiva** — milhares de notificações assíncronas sem thread starvation
+- **Custo mínimo** — virtual threads são ordens de magnitude mais leves que platform threads
+- **Zero configuração** — funciona out-of-the-box; você ainda pode fornecer seu próprio `Executor` se preferir
+
+```java
+// Usa virtual threads automaticamente (Java 21)
+courier.publishAsync(new ProductCreatedEvent(id, name));
+
+// Ou com executor customizado (opcional)
+@Bean
+public Executor courierAsyncExecutor() {
+    return Executors.newFixedThreadPool(10);
+}
+```
+
+### 🔒 Sealed Exception Hierarchy
+
+A hierarquia de exceções agora é **selada** (`sealed`), garantindo que apenas `HandlerNotFoundException` e `ValidationException` estendam `CourierException`:
+
+```java
+public sealed class CourierException extends RuntimeException
+        permits HandlerNotFoundException, ValidationException { }
+```
+
+Isso permite **pattern matching exaustivo** no tratamento de erros:
+
+```java
+try {
+    courier.send(command);
+} catch (CourierException ex) {
+    switch (ex) {
+        case HandlerNotFoundException e -> log.error("Handler não encontrado: {}", e.getMessage());
+        case ValidationException e      -> log.warn("Validação falhou: {} erros", e.getErrors().size());
+    }
+}
+```
+
+### 🔀 Pattern Matching & Switch Expressions
+
+O código interno da biblioteca foi refatorado para utilizar **pattern matching in switch** e **switch expressions** do Java 21, tornando o código mais conciso e seguro.
+
+> ⚠️ **Breaking change:** Se sua aplicação roda em Java 17, 18, 19 ou 20, permaneça na versão **1.x** do Spring Courier.
 
 ---
 
@@ -48,15 +102,15 @@ Adicione a dependência no seu `pom.xml` ou `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>1.7.2</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier:1.7.2")
+implementation("io.github.valossa515:spring-courier:2.0.0")
 ```
 
-> 🔧 É necessário ter o **Java 17+** e **Spring Boot 3.x+**.
+> 🔧 É necessário ter o **Java 21+** e **Spring Boot 3.x+**.
 
 ---
 
