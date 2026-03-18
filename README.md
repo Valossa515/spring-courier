@@ -414,7 +414,7 @@ spring.courier.slack.enabled=false
 
 ```
 spring-courier/
- ├── src/main/java/dev/valossa/springcourier/
+ ├── src/main/java/io/github/valossa515/spring_courier/
  │    ├── core/               # Core contracts and abstractions
  │    ├── annotations/        # Utility annotations
  │    └── config/             # Library configurations
