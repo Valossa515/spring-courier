@@ -19,7 +19,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -60,11 +59,16 @@ public class Courier {
 
     /**
      * Default executor for {@link #publishAsync} when no custom executor is
-     * provided. Uses Java 21 virtual threads for lightweight, scalable
+     * provided. Starts a new virtual thread per task for lightweight, scalable
      * asynchronous execution without blocking platform threads.
+     *
+     * <p>Unlike {@code Executors.newVirtualThreadPerTaskExecutor()}, this
+     * implementation does not hold any resources that require shutdown,
+     * making it safe to store as a static field and compatible with
+     * classloader unloading.
      */
     private static final Executor VIRTUAL_THREAD_EXECUTOR =
-            Executors.newVirtualThreadPerTaskExecutor();
+            runnable -> Thread.ofVirtual().start(runnable);
 
     private final HandlerRegistry handlerRegistry;
     private final NotificationRegistry notificationRegistry;
@@ -240,9 +244,10 @@ public class Courier {
     /**
      * Publishes a notification asynchronously to all registered handlers.
      *
-     * <p>If no dedicated async executor was configured, the ForkJoinPool common
-     * pool is used and a one-time warning is logged advising operators to
-     * configure a dedicated executor.
+     * <p>If a dedicated async executor was configured via the constructor, it
+     * is used to run the notification dispatch. Otherwise, a new
+     * <strong>virtual thread</strong> (Java 21) is started per invocation,
+     * providing lightweight concurrency without blocking platform threads.
      *
      * @param notification the notification to publish; must not be {@code null}
      * @return CompletableFuture that completes when all handlers finish
