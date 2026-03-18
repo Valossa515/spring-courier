@@ -48,13 +48,13 @@ class PipelineRegistryFreezeTest {
     }
 
     @Test
-    void getBehaviorsFiltersNonParameterizedTypes() {
+    void getBehaviorsIncludesKeyMatchedBehaviorRegardlessOfTypeInfo() {
         PipelineRegistry registry = new PipelineRegistry();
         registry.registerBehavior(TestReq.class, new RawBehavior());
 
         List<PipelineBehavior<TestReq, String>> behaviors = registry.getBehaviors(TestReq.class);
-        // RawBehavior doesn't have parameterized type info, so it may be filtered
-        assertTrue(behaviors.isEmpty() || !behaviors.isEmpty());
+        // Registered under the correct key — included without re-extraction.
+        assertEquals(1, behaviors.size());
     }
 
     private static class TestReq implements IRequest<String> { }

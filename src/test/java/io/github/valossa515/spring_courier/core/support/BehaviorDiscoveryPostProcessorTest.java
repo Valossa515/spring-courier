@@ -40,7 +40,7 @@ class BehaviorDiscoveryPostProcessorTest {
         postProcessor.postProcessAfterInitialization(behavior, "genericBehavior");
 
         verify(pipelineRegistry, never()).registerBehavior(any(), any());
-        verify(pipelineRegistry).registerGlobalBehavior(behavior);
+        verify(pipelineRegistry).registerGlobalBehavior(behavior, null);
     }
 
     @Test
@@ -50,7 +50,7 @@ class BehaviorDiscoveryPostProcessorTest {
         postProcessor.postProcessAfterInitialization(behavior, "noTypeBehavior");
 
         verify(pipelineRegistry, never()).registerBehavior(any(), any());
-        verify(pipelineRegistry).registerGlobalBehavior(behavior);
+        verify(pipelineRegistry).registerGlobalBehavior(behavior, null);
     }
 
     private static class SampleRequest implements IRequest<String> {
