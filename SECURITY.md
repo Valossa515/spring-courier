@@ -4,11 +4,12 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.3.x   | ✅ Yes             |
-| 1.2.x   | ✅ Yes             |
-| < 1.2   | ❌ No              |
+| Version | Supported                     |
+| ------- | ----------------------------- |
+| 2.0.x   | ✅ Yes (actively supported)   |
+| 1.3.x   | ✅ Security fixes only        |
+| 1.2.x   | ❌ No                         |
+| < 1.2   | ❌ No                         |
 
 ## Reporting a Vulnerability
 
