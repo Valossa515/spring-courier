@@ -22,19 +22,26 @@ public class Response<T> {
     private final boolean success;
     private final int statusCode;
     private final boolean validationFailure;
+    private final String exceptionType;
 
     // Private constructor to maintain immutability
     private Response(T data, String error, boolean success, int statusCode) {
-        this(data, error, success, statusCode, false);
+        this(data, error, success, statusCode, false, null);
     }
 
     private Response(T data, String error, boolean success, int statusCode,
                      boolean validationFailure) {
+        this(data, error, success, statusCode, validationFailure, null);
+    }
+
+    private Response(T data, String error, boolean success, int statusCode,
+                     boolean validationFailure, String exceptionType) {
         this.data = data;
         this.error = error;
         this.success = success;
         this.statusCode = statusCode;
         this.validationFailure = validationFailure;
+        this.exceptionType = exceptionType;
     }
 
     /**
@@ -97,7 +104,8 @@ public class Response<T> {
         String message = (throwable instanceof CourierException)
                 ? throwable.getMessage()
                 : GENERIC_ERROR_MESSAGE;
-        return new Response<>(null, message, false, 500);
+        return new Response<>(null, message, false, 500, false,
+                throwable.getClass().getSimpleName());
     }
 
     /**
@@ -110,7 +118,8 @@ public class Response<T> {
         String message = (throwable instanceof CourierException)
                 ? throwable.getMessage()
                 : GENERIC_ERROR_MESSAGE;
-        return new Response<>(null, message, false, statusCode);
+        return new Response<>(null, message, false, statusCode, false,
+                throwable.getClass().getSimpleName());
     }
 
     // Getters
@@ -137,6 +146,16 @@ public class Response<T> {
     @JsonIgnore
     public boolean isValidationFailure() {
         return validationFailure;
+    }
+
+    /**
+     * Returns the simple class name of the exception that caused this error
+     * response, or {@code null} if the response was not created from a
+     * {@link Throwable}.
+     */
+    @JsonIgnore
+    public String getExceptionType() {
+        return exceptionType;
     }
 
     /**
@@ -193,12 +212,13 @@ public class Response<T> {
                 statusCode == response.statusCode &&
                 validationFailure == response.validationFailure &&
                 Objects.equals(data, response.data) &&
-                Objects.equals(error, response.error);
+                Objects.equals(error, response.error) &&
+                Objects.equals(exceptionType, response.exceptionType);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(data, error, success, statusCode, validationFailure);
+        return Objects.hash(data, error, success, statusCode, validationFailure, exceptionType);
     }
 
     @Override
@@ -209,6 +229,7 @@ public class Response<T> {
                 ", success=" + success +
                 ", statusCode=" + statusCode +
                 ", validationFailure=" + validationFailure +
+                ", exceptionType='" + exceptionType + '\'' +
                 '}';
     }
 

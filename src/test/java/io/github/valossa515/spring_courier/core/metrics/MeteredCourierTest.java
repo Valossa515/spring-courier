@@ -102,6 +102,7 @@ class MeteredCourierTest {
 
         double errors = meterRegistry.find(HANDLER_ERRORS)
                 .tag(TAG_REQUEST_TYPE, "TestCommand")
+                .tag(TAG_EXCEPTION_TYPE, "RuntimeException")
                 .counter().count();
         assertEquals(1.0, errors);
 
