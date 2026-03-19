@@ -87,18 +87,6 @@ rate(courier_send_duration_seconds_count[$__rate_interval])
 
 ## 🚨 Errors and Reliability
 
-### Total request failure rate (handler errors + validation failures)
-
-```promql
-  sum(rate(courier_handler_errors_total[$__rate_interval]))
-+ sum(rate(courier_validation_failures_total[$__rate_interval]))
-```
-
-> **Note:** Since v2.0.5, `courier.handler.errors` and
-> `courier.validation.failures` are mutually exclusive — a failed request
-> increments one **or** the other, never both. Use the composite query above
-> when you need a single "all failures" time series.
-
 ### Handler error rate
 
 ```promql

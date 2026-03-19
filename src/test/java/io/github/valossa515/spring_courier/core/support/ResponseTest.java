@@ -179,23 +179,6 @@ class ResponseTest {
     }
 
     @Test
-    void errorWithExplicitExceptionTypePreservesIt() {
-        Response<String> resp = Response.error("timeout", 504, "TimeoutException");
-        assertFalse(resp.isSuccess());
-        assertEquals("timeout", resp.getError());
-        assertEquals(504, resp.getStatusCode());
-        assertEquals("TimeoutException", resp.getExceptionType());
-    }
-
-    @Test
-    void validationErrorCarriesExceptionType() {
-        Response<String> resp = Response.validationError("field: must not be blank", 400);
-        assertFalse(resp.isSuccess());
-        assertTrue(resp.isValidationFailure());
-        assertEquals("ValidationException", resp.getExceptionType());
-    }
-
-    @Test
     void exceptionTypeIsNullForSuccessFactories() {
         Response<String> resp = Response.success("data");
         assertNull(resp.getExceptionType());

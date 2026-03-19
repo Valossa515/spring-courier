@@ -153,12 +153,12 @@
       "id": 3,
       "type": "stat",
       "title": "Error Rate",
-      "description": "Total request failures per second (handler errors + validation failures)",
+      "description": "Handler errors per second",
       "datasource": "${DS_PROMETHEUS}",
       "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
       "targets": [
         {
-          "expr": "sum(rate(courier_handler_errors_total{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval])) + sum(rate(courier_validation_failures_total{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum(rate(courier_handler_errors_total{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "errors/s"
         }
       ],
