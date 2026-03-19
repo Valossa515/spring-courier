@@ -45,13 +45,13 @@ class BehaviorDiscoveryPostProcessorTest {
     }
 
     @Test
-    void registersParameterizedBehaviorWithResolvedRawType() {
+    void registersParameterizedBehaviorAsGlobalWithResolvedType() {
         PipelineBehavior<?, ?> behavior = new BehaviorWithoutGeneric();
 
         postProcessor.postProcessAfterInitialization(behavior, "noTypeBehavior");
 
-        verify(pipelineRegistry).registerBehavior(IRequest.class, behavior);
-        verify(pipelineRegistry, never()).registerGlobalBehavior(any(), any());
+        verify(pipelineRegistry, never()).registerBehavior(any(), any());
+        verify(pipelineRegistry).registerGlobalBehavior(behavior, IRequest.class);
     }
 
     private static class SampleRequest implements IRequest<String> {
@@ -65,13 +65,13 @@ class BehaviorDiscoveryPostProcessorTest {
     }
 
     @Test
-    void registersWildcardBehaviorWithResolvedRawType() {
+    void registersWildcardBehaviorAsGlobalWithResolvedType() {
         WildcardResponseBehavior behavior = new WildcardResponseBehavior();
 
         postProcessor.postProcessAfterInitialization(behavior, "wildcardBehavior");
 
-        verify(pipelineRegistry).registerBehavior(IRequest.class, behavior);
-        verify(pipelineRegistry, never()).registerGlobalBehavior(any(), any());
+        verify(pipelineRegistry, never()).registerBehavior(any(), any());
+        verify(pipelineRegistry).registerGlobalBehavior(behavior, IRequest.class);
     }
 
     private abstract static class GenericBehavior implements PipelineBehavior<IRequest<String>, String> {
