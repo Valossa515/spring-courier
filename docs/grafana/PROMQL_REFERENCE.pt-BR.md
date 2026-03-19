@@ -87,6 +87,18 @@ rate(courier_send_duration_seconds_count[$__rate_interval])
 
 ## 🚨 Erros e Confiabilidade
 
+### Taxa total de falhas em requests (erros de handler + falhas de validação)
+
+```promql
+  sum(rate(courier_handler_errors_total[$__rate_interval]))
++ sum(rate(courier_validation_failures_total[$__rate_interval]))
+```
+
+> **Nota:** A partir da v2.0.5, `courier.handler.errors` e
+> `courier.validation.failures` são mutuamente exclusivos — um request com
+> falha incrementa um **ou** outro, nunca ambos. Use a query composta acima
+> quando precisar de uma série temporal única de "todas as falhas".
+
 ### Taxa de erros em handlers
 
 ```promql
