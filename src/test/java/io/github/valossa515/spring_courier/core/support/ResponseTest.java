@@ -139,10 +139,12 @@ class ResponseTest {
         Response<String> resp = Response.error(ce);
         assertEquals("courier-specific error", resp.getError());
         assertEquals(500, resp.getStatusCode());
+        assertEquals("CourierException", resp.getExceptionType());
 
         Response<String> respWithStatus = Response.error(ce, 422);
         assertEquals("courier-specific error", respWithStatus.getError());
         assertEquals(422, respWithStatus.getStatusCode());
+        assertEquals("CourierException", respWithStatus.getExceptionType());
     }
 
     @Test
@@ -150,9 +152,55 @@ class ResponseTest {
         RuntimeException re = new RuntimeException("sensitive internal detail");
         Response<String> resp = Response.error(re);
         assertEquals("An internal error occurred", resp.getError());
+        assertEquals("RuntimeException", resp.getExceptionType());
 
         Response<String> respWithStatus = Response.error(re, 502);
         assertEquals("An internal error occurred", respWithStatus.getError());
+        assertEquals("RuntimeException", respWithStatus.getExceptionType());
+    }
+
+    @Test
+    void errorFromThrowablePreservesExceptionType() {
+        IllegalArgumentException iae = new IllegalArgumentException("bad arg");
+        Response<String> resp = Response.error(iae);
+        assertEquals("IllegalArgumentException", resp.getExceptionType());
+
+        Response<String> respWithStatus = Response.error(iae, 400);
+        assertEquals("IllegalArgumentException", respWithStatus.getExceptionType());
+    }
+
+    @Test
+    void exceptionTypeIsNullForStringErrorFactories() {
+        Response<String> withMessage = Response.error("problem");
+        assertNull(withMessage.getExceptionType());
+
+        Response<String> withStatus = Response.error("problem", 400);
+        assertNull(withStatus.getExceptionType());
+    }
+
+    @Test
+    void exceptionTypeIsNullForSuccessFactories() {
+        Response<String> resp = Response.success("data");
+        assertNull(resp.getExceptionType());
+    }
+
+    @Test
+    void equalityIgnoresExceptionType() {
+        Response<String> fromRuntime = Response.error(new RuntimeException("a"));
+        Response<String> fromIllegal = Response.error(new IllegalArgumentException("b"));
+
+        // Both are error responses with generic message and 500 status
+        assertEquals(fromRuntime, fromIllegal,
+                "exceptionType is diagnostic and should not affect equality");
+    }
+
+    @Test
+    void anonymousExceptionTypeResolvesToUnknown() {
+        // Anonymous class has empty getSimpleName()
+        RuntimeException anonymous = new RuntimeException("anon") { };
+        Response<String> resp = Response.error(anonymous);
+        assertEquals("unknown", resp.getExceptionType(),
+                "Empty simpleName from anonymous class should fall back to unknown");
     }
 
     @Test

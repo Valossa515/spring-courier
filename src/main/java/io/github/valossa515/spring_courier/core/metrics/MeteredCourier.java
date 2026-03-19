@@ -79,10 +79,13 @@ public class MeteredCourier extends Courier {
                     .register(registry).increment();
 
             if (!response.isSuccess()) {
+                String exType = response.getExceptionType();
                 Counter.builder(HANDLER_ERRORS)
                         .description("Number of handler errors")
                         .tag(TAG_REQUEST_TYPE, requestType)
-                        .tag(TAG_EXCEPTION_TYPE, "unknown")
+                        .tag(TAG_EXCEPTION_TYPE,
+                                exType != null && !exType.isBlank()
+                                        ? exType : "unknown")
                         .register(registry).increment();
 
                 if (response.isValidationFailure()) {

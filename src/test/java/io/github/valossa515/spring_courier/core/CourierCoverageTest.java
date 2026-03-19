@@ -55,6 +55,8 @@ class CourierCoverageTest {
         Response<String> resp = fixture.courier().send(new FailFutureReq());
         assertFalse(resp.isSuccess());
         assertNotNull(resp.getError());
+        assertEquals("RuntimeException", resp.getExceptionType(),
+                "Should unwrap ExecutionException to the real cause");
     }
 
     @Test
