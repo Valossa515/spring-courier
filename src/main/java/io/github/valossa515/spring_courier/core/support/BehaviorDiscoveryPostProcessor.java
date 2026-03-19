@@ -1,5 +1,6 @@
 package io.github.valossa515.spring_courier.core.support;
 
+import io.github.valossa515.spring_courier.core.pipelines.BehaviorTypeResolver;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineBehavior;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
 import org.jetbrains.annotations.NotNull;
@@ -9,8 +10,6 @@ import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.Objects;
 
 /**
@@ -45,10 +44,15 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
                                           Class<?> behaviorClass, String beanName) {
         Class<?> requestType = extractRequestTypeFromBehavior(behaviorClass);
 
-        if (requestType != null) {
+        if (requestType != null && !requestType.isInterface()) {
             pipelineRegistry.registerBehavior(requestType, behavior);
             logger.info("Pipeline behavior registered: {} -> {} (bean '{}')",
                     requestType.getSimpleName(), behaviorClass.getName(), beanName);
+        } else if (requestType != null) {
+            pipelineRegistry.registerGlobalBehavior(behavior, requestType);
+            logger.info("Global pipeline behavior registered: {} (matches {}) -> {} (bean '{}')",
+                    behaviorClass.getSimpleName(), requestType.getSimpleName(),
+                    behaviorClass.getName(), beanName);
         } else {
             pipelineRegistry.registerGlobalBehavior(behavior, null);
             logger.warn("Could not resolve request type for pipeline behavior '{}' [{}] (bean '{}'). "
@@ -59,31 +63,6 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
     }
 
     private Class<?> extractRequestTypeFromBehavior(Class<?> behaviorClass) {
-        Type[] genericInterfaces = behaviorClass.getGenericInterfaces();
-        for (Type genericInterface : genericInterfaces) {
-            Class<?> requestType = extractRequestTypeFromParameterizedType(genericInterface);
-            if (requestType != null) {
-                return requestType;
-            }
-        }
-
-        Type genericSuperclass = behaviorClass.getGenericSuperclass();
-        return extractRequestTypeFromParameterizedType(genericSuperclass);
-    }
-
-    private Class<?> extractRequestTypeFromParameterizedType(Type type) {
-        if (type instanceof ParameterizedType parameterizedType) {
-            Type rawType = parameterizedType.getRawType();
-
-            if (rawType instanceof Class<?> rawClass
-                    && PipelineBehavior.class.isAssignableFrom(rawClass)) {
-
-                Type[] typeArguments = parameterizedType.getActualTypeArguments();
-                if (typeArguments.length > 0 && typeArguments[0] instanceof Class<?> requestType) {
-                    return requestType;
-                }
-            }
-        }
-        return null;
+        return BehaviorTypeResolver.extractRequestType(behaviorClass);
     }
 }

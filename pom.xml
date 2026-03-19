@@ -5,7 +5,7 @@
 
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>2.0.2</version>
+    <version>2.0.3</version>
     <name>Spring Courier</name>
     <description>Lib CQRS leve para Spring Boot, inspirada no MediatR (.NET)</description>
     <url>https://github.com/valossa515/spring-courier</url>

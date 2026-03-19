@@ -183,6 +183,22 @@ class PipelineRegistryTest {
         assertSame(behavior, behaviors.get(0));
     }
 
+    @Test
+    void wildcardGlobalBehaviorResolvesToIRequestAndMatchesAllRequestTypes() {
+        WildcardBehavior wildcardBehavior = new WildcardBehavior();
+        pipelineRegistry.registerGlobalBehavior(wildcardBehavior);
+
+        List<PipelineBehavior<TestRequest, String>> testBehaviors =
+                pipelineRegistry.getBehaviors(TestRequest.class);
+        List<PipelineBehavior<AnotherRequest, String>> anotherBehaviors =
+                pipelineRegistry.getBehaviors(AnotherRequest.class);
+
+        assertEquals(1, testBehaviors.size(),
+                "Wildcard behavior should match TestRequest via IRequest.isAssignableFrom");
+        assertEquals(1, anotherBehaviors.size(),
+                "Wildcard behavior should match AnotherRequest via IRequest.isAssignableFrom");
+    }
+
     private static class TestRequest implements IRequest<String> {
     }
 
@@ -226,6 +242,14 @@ class PipelineRegistryTest {
     private static class IncompatibleBehavior implements PipelineBehavior<AnotherRequest, String> {
         @Override
         public String handle(AnotherRequest request, Next<String> next) {
+            return next.invoke();
+        }
+    }
+
+    private static class WildcardBehavior
+            implements PipelineBehavior<IRequest<String>, String> {
+        @Override
+        public String handle(IRequest<String> request, Next<String> next) {
             return next.invoke();
         }
     }
