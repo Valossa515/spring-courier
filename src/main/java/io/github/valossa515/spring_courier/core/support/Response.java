@@ -1,12 +1,14 @@
 package io.github.valossa515.spring_courier.core.support;
 
 import io.github.valossa515.spring_courier.core.exceptions.CourierException;
+import io.github.valossa515.spring_courier.core.exceptions.ValidationException;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.http.ResponseEntity;
 
 import java.util.Objects;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Immutable value object that represents the result of an operation, including
@@ -85,12 +87,23 @@ public class Response<T> {
     }
 
     /**
+     * Creates an error response with message, status code, and an explicit
+     * exception type name for metrics tagging.
+     */
+    @Contract(value = "_, _, _ -> new", pure = true)
+    public static <T> @NotNull Response<T> error(String error, int statusCode,
+                                                  @NotNull String exceptionType) {
+        return new Response<>(null, error, false, statusCode, false, exceptionType);
+    }
+
+    /**
      * Creates a validation error response, marked so that metrics can
      * distinguish pipeline validation failures from other 400 errors.
      */
     @Contract(value = "_, _ -> new", pure = true)
     public static <T> @NotNull Response<T> validationError(String error, int statusCode) {
-        return new Response<>(null, error, false, statusCode, true);
+        return new Response<>(null, error, false, statusCode, true,
+                ValidationException.class.getSimpleName());
     }
 
     /**
@@ -155,8 +168,12 @@ public class Response<T> {
 
     /**
      * Returns the simple class name of the exception that caused this error
-     * response, or {@code null} if the response was not created from a
-     * {@link Throwable}.
+     * response, or {@code null} if the response was created via the simple
+     * string-based factories ({@link #error(String)} / {@link #error(String, int)}).
+     *
+     * <p>This value is set automatically when a {@link Throwable} is provided,
+     * or explicitly by factories such as {@link #error(String, int, String)}
+     * and {@link #validationError(String, int)}.
      */
     @JsonIgnore
     public String getExceptionType() {

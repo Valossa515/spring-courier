@@ -287,9 +287,11 @@ spring.courier.metrics.enabled=false
 |--------------------------------|-----------------------------------------|------------------------------------|
 | `courier.send`                 | Total de requests despachados           | `request.type`, `outcome`          |
 | `courier.publish`              | Total de notificações publicadas        | `notification.type`                |
-| `courier.handler.errors`       | Erros em handlers                       | `request.type`, `exception.type`   |
+| `courier.handler.errors`       | Erros em handlers (exclui validação)    | `request.type`, `exception.type`   |
 | `courier.handler.timeouts`     | Timeouts de handlers async              | —                                  |
 | `courier.validation.failures`  | Falhas de validação no pipeline         | `request.type`                     |
+
+> **Nota:** `handler.errors` e `validation.failures` são mutuamente exclusivos — um request com falha incrementa um ou outro, nunca ambos.
 
 #### 📊 Gauges (estado do registro)
 
