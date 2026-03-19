@@ -105,7 +105,7 @@ public class Response<T> {
                 ? throwable.getMessage()
                 : GENERIC_ERROR_MESSAGE;
         return new Response<>(null, message, false, 500, false,
-                throwable.getClass().getSimpleName());
+                resolveExceptionType(throwable));
     }
 
     /**
@@ -119,7 +119,12 @@ public class Response<T> {
                 ? throwable.getMessage()
                 : GENERIC_ERROR_MESSAGE;
         return new Response<>(null, message, false, statusCode, false,
-                throwable.getClass().getSimpleName());
+                resolveExceptionType(throwable));
+    }
+
+    private static @NotNull String resolveExceptionType(@NotNull Throwable throwable) {
+        String name = throwable.getClass().getSimpleName();
+        return (name == null || name.isBlank()) ? "unknown" : name;
     }
 
     // Getters
@@ -212,13 +217,12 @@ public class Response<T> {
                 statusCode == response.statusCode &&
                 validationFailure == response.validationFailure &&
                 Objects.equals(data, response.data) &&
-                Objects.equals(error, response.error) &&
-                Objects.equals(exceptionType, response.exceptionType);
+                Objects.equals(error, response.error);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(data, error, success, statusCode, validationFailure, exceptionType);
+        return Objects.hash(data, error, success, statusCode, validationFailure);
     }
 
     @Override

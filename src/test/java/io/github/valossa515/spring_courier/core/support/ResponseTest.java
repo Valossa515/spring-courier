@@ -185,6 +185,25 @@ class ResponseTest {
     }
 
     @Test
+    void equalityIgnoresExceptionType() {
+        Response<String> fromRuntime = Response.error(new RuntimeException("a"));
+        Response<String> fromIllegal = Response.error(new IllegalArgumentException("b"));
+
+        // Both are error responses with generic message and 500 status
+        assertEquals(fromRuntime, fromIllegal,
+                "exceptionType is diagnostic and should not affect equality");
+    }
+
+    @Test
+    void anonymousExceptionTypeResolvesToUnknown() {
+        // Anonymous class has empty getSimpleName()
+        RuntimeException anonymous = new RuntimeException("anon") { };
+        Response<String> resp = Response.error(anonymous);
+        assertEquals("unknown", resp.getExceptionType(),
+                "Empty simpleName from anonymous class should fall back to unknown");
+    }
+
+    @Test
     void toStringMasksDataField() {
         Response<String> withData = Response.success("secret-token-123");
         String str = withData.toString();
