@@ -159,6 +159,11 @@ class MeteredCourierTest {
                 .tag(TAG_REQUEST_TYPE, "TestCommand")
                 .counter().count();
         assertEquals(1.0, count);
+
+        // Validation failures must NOT produce handler_errors metrics
+        assertNull(meterRegistry.find(HANDLER_ERRORS)
+                .tag(TAG_REQUEST_TYPE, "TestCommand")
+                .counter());
     }
 
     @Test

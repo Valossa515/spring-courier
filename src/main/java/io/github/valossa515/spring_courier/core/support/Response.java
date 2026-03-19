@@ -85,12 +85,22 @@ public class Response<T> {
     }
 
     /**
+     * Creates an error response with message, status code, and an explicit
+     * exception type name for metrics tagging.
+     */
+    @Contract(value = "_, _, _ -> new", pure = true)
+    public static <T> @NotNull Response<T> error(String error, int statusCode,
+                                                  @NotNull String exceptionType) {
+        return new Response<>(null, error, false, statusCode, false, exceptionType);
+    }
+
+    /**
      * Creates a validation error response, marked so that metrics can
      * distinguish pipeline validation failures from other 400 errors.
      */
     @Contract(value = "_, _ -> new", pure = true)
     public static <T> @NotNull Response<T> validationError(String error, int statusCode) {
-        return new Response<>(null, error, false, statusCode, true);
+        return new Response<>(null, error, false, statusCode, true, "ValidationException");
     }
 
     /**
