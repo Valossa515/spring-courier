@@ -3,6 +3,7 @@ package io.github.valossa515.spring_courier.core.support;
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineBehavior;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
+import io.github.valossa515.spring_courier.core.support.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -44,13 +45,13 @@ class BehaviorDiscoveryPostProcessorTest {
     }
 
     @Test
-    void registersGlobalBehaviorWhenTypeCannotBeResolved() {
+    void registersParameterizedBehaviorWithResolvedRawType() {
         PipelineBehavior<?, ?> behavior = new BehaviorWithoutGeneric();
 
         postProcessor.postProcessAfterInitialization(behavior, "noTypeBehavior");
 
-        verify(pipelineRegistry, never()).registerBehavior(any(), any());
-        verify(pipelineRegistry).registerGlobalBehavior(behavior, null);
+        verify(pipelineRegistry).registerBehavior(IRequest.class, behavior);
+        verify(pipelineRegistry, never()).registerGlobalBehavior(any(), any());
     }
 
     private static class SampleRequest implements IRequest<String> {
@@ -63,12 +64,30 @@ class BehaviorDiscoveryPostProcessorTest {
         }
     }
 
+    @Test
+    void registersWildcardBehaviorWithResolvedRawType() {
+        WildcardResponseBehavior behavior = new WildcardResponseBehavior();
+
+        postProcessor.postProcessAfterInitialization(behavior, "wildcardBehavior");
+
+        verify(pipelineRegistry).registerBehavior(IRequest.class, behavior);
+        verify(pipelineRegistry, never()).registerGlobalBehavior(any(), any());
+    }
+
     private abstract static class GenericBehavior implements PipelineBehavior<IRequest<String>, String> {
     }
 
     private static class BehaviorWithoutGeneric implements PipelineBehavior<IRequest<Object>, Object> {
         @Override
         public Object handle(IRequest<Object> request, Next<Object> next) {
+            return next.invoke();
+        }
+    }
+
+    private static class WildcardResponseBehavior
+            implements PipelineBehavior<IRequest<Response<?>>, Response<?>> {
+        @Override
+        public Response<?> handle(IRequest<Response<?>> request, Next<Response<?>> next) {
             return next.invoke();
         }
     }

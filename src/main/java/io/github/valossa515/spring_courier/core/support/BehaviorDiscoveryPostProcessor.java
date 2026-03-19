@@ -79,10 +79,21 @@ public class BehaviorDiscoveryPostProcessor implements BeanPostProcessor {
                     && PipelineBehavior.class.isAssignableFrom(rawClass)) {
 
                 Type[] typeArguments = parameterizedType.getActualTypeArguments();
-                if (typeArguments.length > 0 && typeArguments[0] instanceof Class<?> requestType) {
-                    return requestType;
+                if (typeArguments.length > 0) {
+                    return resolveClassFromTypeArgument(typeArguments[0]);
                 }
             }
+        }
+        return null;
+    }
+
+    private Class<?> resolveClassFromTypeArgument(Type typeArg) {
+        if (typeArg instanceof Class<?> clazz) {
+            return clazz;
+        }
+        if (typeArg instanceof ParameterizedType pt
+                && pt.getRawType() instanceof Class<?> rawClass) {
+            return rawClass;
         }
         return null;
     }
