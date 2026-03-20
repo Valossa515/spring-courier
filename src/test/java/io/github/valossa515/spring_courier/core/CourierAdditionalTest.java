@@ -148,6 +148,34 @@ class CourierAdditionalTest {
         assertTrue(resp.getError().contains("1ms"));
     }
 
+    @Test
+    void courierTimesOutSynchronousHandlerThatBlocks() {
+        HandlerRegistry registry = new HandlerRegistry();
+        NotificationRegistry notifReg = new NotificationRegistry();
+        PipelineExecutor exec = new PipelineExecutor(new PipelineRegistry());
+        // 50ms timeout — the blocking sync handler sleeps for 10s
+        Courier courier = new Courier(registry, notifReg, exec, null, 50);
+
+        registry.registerHandler(SyncSlowRequest.class, new SyncSlowHandler());
+        Response<String> resp = courier.send(new SyncSlowRequest());
+
+        assertFalse(resp.isSuccess());
+        assertEquals(504, resp.getStatusCode());
+        assertTrue(resp.getError().contains("timed out"));
+        assertTrue(resp.getError().contains("50ms"));
+    }
+
+    static class SyncSlowRequest implements IRequest<String> {}
+    @SuppressWarnings("unused")
+    static class SyncSlowHandler {
+        public String handle(SyncSlowRequest r) {
+            try { Thread.sleep(10_000); } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return "too-late";
+        }
+    }
+
     static class SlowRequest implements IRequest<String> {}
     static class SlowHandler {
         public CompletableFuture<String> handle(SlowRequest r) {
