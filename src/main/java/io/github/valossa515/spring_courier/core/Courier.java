@@ -164,14 +164,7 @@ public class Courier {
 
             if (result instanceof CompletableFuture<?> future) {
                 long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-                long remainingMs = asyncTimeoutMs - elapsedMs;
-                if (remainingMs <= 0) {
-                    future.cancel(true);
-                    logger.error("Handler timed out after {}ms: {}", asyncTimeoutMs,
-                            handler.getClass().getSimpleName());
-                    return Response.error("Handler timed out after " + asyncTimeoutMs + "ms",
-                            504, TimeoutException.class.getSimpleName());
-                }
+                long remainingMs = Math.max(asyncTimeoutMs - elapsedMs, 1);
                 try {
                     result = future.get(remainingMs, TimeUnit.MILLISECONDS);
                 } catch (TimeoutException e) {
@@ -206,9 +199,6 @@ public class Courier {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             logger.error("Handler interrupted: {}", e.getMessage(), e);
-            return Response.error(e);
-        } catch (Exception e) {
-            logger.error("Failed to invoke handler: {}", e.getMessage(), e);
             return Response.error(e);
         }
     }
