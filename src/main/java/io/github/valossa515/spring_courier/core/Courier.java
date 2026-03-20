@@ -181,7 +181,7 @@ public class Courier {
                     return Response.error("Handler timed out after " + asyncTimeoutMs + "ms",
                             504, TimeoutException.class.getSimpleName());
                 } catch (ExecutionException e) {
-                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    Throwable cause = unwrapExecutionCause(e);
                     logger.error("Async handler error: {}", cause.getMessage(), cause);
                     return Response.error(cause);
                 }

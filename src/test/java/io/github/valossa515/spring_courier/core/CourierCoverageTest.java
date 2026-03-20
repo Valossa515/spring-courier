@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -175,5 +176,51 @@ class CourierCoverageTest {
         public String handle(String notARequest) { return "wrong"; }
         // Correct: "handle" with 1 IRequest-assignable param
         public String handle(MultiMethodReq req) { return "correct"; }
+    }
+
+    // --- Coverage: unwrapExecutionCause branches ---
+
+    @Test
+    void sendUnwrapsCompletionExceptionWithNullCause() {
+        CourierTestFixture fixture = CourierTestFixture.create();
+        fixture.handlerRegistry().registerHandler(
+                CeNullCauseReq.class, new CeNullCauseHandler());
+
+        Response<String> resp = fixture.courier().send(new CeNullCauseReq());
+        assertFalse(resp.isSuccess());
+        assertEquals("CompletionException", resp.getExceptionType());
+    }
+
+    @Test
+    void sendHandlesAsyncHandlerWithCompletionExceptionError() {
+        CourierTestFixture fixture = CourierTestFixture.create();
+        fixture.handlerRegistry().registerHandler(
+                AsyncCeReq.class, new AsyncCeHandler());
+
+        Response<String> resp = fixture.courier().send(new AsyncCeReq());
+        assertFalse(resp.isSuccess());
+        assertEquals("ArithmeticException", resp.getExceptionType());
+    }
+
+    static class CeNullCauseReq implements IRequest<String> {}
+    @SuppressWarnings("unused")
+    static class CeNullCauseHandler {
+        public CompletableFuture<String> handle(CeNullCauseReq req) {
+            CompletableFuture<String> future = new CompletableFuture<>();
+            // CompletionException wrapping null — edge case for unwrapExecutionCause
+            future.completeExceptionally(new CompletionException(null));
+            return future;
+        }
+    }
+
+    static class AsyncCeReq implements IRequest<String> {}
+    @SuppressWarnings("unused")
+    static class AsyncCeHandler {
+        public CompletableFuture<String> handle(AsyncCeReq req) {
+            CompletableFuture<String> future = new CompletableFuture<>();
+            future.completeExceptionally(
+                    new CompletionException(new ArithmeticException("div by zero")));
+            return future;
+        }
     }
 }

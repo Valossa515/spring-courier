@@ -51,18 +51,26 @@ awk -v old="$CURRENT_VERSION" -v new="$NEW_VERSION" '
 ' "$REPO_ROOT/pom.xml" > "$REPO_ROOT/pom.xml.tmp" && mv "$REPO_ROOT/pom.xml.tmp" "$REPO_ROOT/pom.xml"
 echo "  ✓ pom.xml"
 
+# Portable in-place sed: writes to temp file and moves, avoiding
+# the BSD vs GNU sed -i incompatibility.
+portable_sed() {
+  local pattern="$1" file="$2"
+  awk -v pat="$pattern" 'BEGIN{} { print }' "$file" > /dev/null  # validate file exists
+  sed "$pattern" "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+}
+
 # 2) README.md — Maven and Gradle dependency snippets
-sed -i '' "s/<version>${CURRENT_VERSION}<\/version>/<version>${NEW_VERSION}<\/version>/g" "$REPO_ROOT/README.md"
-sed -i '' "s/spring-courier:${CURRENT_VERSION}/spring-courier:${NEW_VERSION}/g" "$REPO_ROOT/README.md"
+portable_sed "s/<version>${CURRENT_VERSION}<\/version>/<version>${NEW_VERSION}<\/version>/g" "$REPO_ROOT/README.md"
+portable_sed "s/spring-courier:${CURRENT_VERSION}/spring-courier:${NEW_VERSION}/g" "$REPO_ROOT/README.md"
 echo "  ✓ README.md"
 
 # 3) README.pt-BR.md — same dependency snippets
-sed -i '' "s/<version>${CURRENT_VERSION}<\/version>/<version>${NEW_VERSION}<\/version>/g" "$REPO_ROOT/README.pt-BR.md"
-sed -i '' "s/spring-courier:${CURRENT_VERSION}/spring-courier:${NEW_VERSION}/g" "$REPO_ROOT/README.pt-BR.md"
+portable_sed "s/<version>${CURRENT_VERSION}<\/version>/<version>${NEW_VERSION}<\/version>/g" "$REPO_ROOT/README.pt-BR.md"
+portable_sed "s/spring-courier:${CURRENT_VERSION}/spring-courier:${NEW_VERSION}/g" "$REPO_ROOT/README.pt-BR.md"
 echo "  ✓ README.pt-BR.md"
 
 # 4) CLAUDE.md — Current Version line (matches any version number)
-sed -i '' "s/\*\*Current Version:\*\* [0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^ ]*/**Current Version:** ${NEW_VERSION}/g" "$REPO_ROOT/CLAUDE.md"
+portable_sed "s/\*\*Current Version:\*\* [0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^ ]*/**Current Version:** ${NEW_VERSION}/g" "$REPO_ROOT/CLAUDE.md"
 echo "  ✓ CLAUDE.md"
 
 echo ""

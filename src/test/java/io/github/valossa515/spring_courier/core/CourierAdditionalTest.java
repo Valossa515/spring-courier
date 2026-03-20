@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -183,6 +184,60 @@ class CourierAdditionalTest {
                 try { Thread.sleep(5_000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
                 return "too-late";
             });
+        }
+    }
+
+    // --- Coverage: inner CompletableFuture timeout (handler returns slow CF) ---
+
+    @Test
+    void courierTimesOutWhenReturnedCompletableFutureExceedsRemainingBudget() {
+        HandlerRegistry registry = new HandlerRegistry();
+        NotificationRegistry notifReg = new NotificationRegistry();
+        PipelineExecutor exec = new PipelineExecutor(new PipelineRegistry());
+        // 100ms timeout — handler returns instantly but CF takes 10s
+        Courier courier = new Courier(registry, notifReg, exec, null, 100);
+
+        registry.registerHandler(SlowCfRequest.class, new SlowCfInnerHandler());
+        Response<String> resp = courier.send(new SlowCfRequest());
+
+        assertFalse(resp.isSuccess());
+        assertEquals(504, resp.getStatusCode());
+        assertTrue(resp.getError().contains("timed out"));
+    }
+
+    @Test
+    void courierReturnsErrorWhenReturnedCompletableFutureFailsWithException() {
+        CourierTestFixture fixture = CourierTestFixture.create();
+        fixture.handlerRegistry().registerHandler(FailInnerCfRequest.class, new FailInnerCfHandler());
+
+        Response<String> resp = fixture.courier().send(new FailInnerCfRequest());
+
+        assertFalse(resp.isSuccess());
+        assertNotNull(resp.getError());
+        assertEquals("IllegalStateException", resp.getExceptionType());
+    }
+
+    static class SlowCfRequest implements IRequest<String> {}
+    @SuppressWarnings("unused")
+    static class SlowCfInnerHandler {
+        public CompletableFuture<String> handle(SlowCfRequest r) {
+            // Returns a future that completes after 10s — will exceed timeout budget
+            return CompletableFuture.supplyAsync(() -> {
+                try { Thread.sleep(10_000); } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return "too-late";
+            });
+        }
+    }
+
+    static class FailInnerCfRequest implements IRequest<String> {}
+    @SuppressWarnings("unused")
+    static class FailInnerCfHandler {
+        public CompletableFuture<String> handle(FailInnerCfRequest r) {
+            CompletableFuture<String> future = new CompletableFuture<>();
+            future.completeExceptionally(new IllegalStateException("inner failure"));
+            return future;
         }
     }
 }
