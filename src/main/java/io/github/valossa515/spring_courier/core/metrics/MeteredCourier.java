@@ -67,6 +67,7 @@ public class MeteredCourier extends Courier {
             sample.stop(Timer.builder(SEND_DURATION)
                     .description("Time spent dispatching requests")
                     .publishPercentiles(0.5, 0.95, 0.99)
+                    .publishPercentileHistogram(true)
                     .tag(TAG_REQUEST_TYPE, requestType)
                     .tag(TAG_REQUEST_CATEGORY, category)
                     .tag(TAG_OUTCOME, outcome)
@@ -106,6 +107,7 @@ public class MeteredCourier extends Courier {
             sample.stop(Timer.builder(SEND_DURATION)
                     .description("Time spent dispatching requests")
                     .publishPercentiles(0.5, 0.95, 0.99)
+                    .publishPercentileHistogram(true)
                     .tag(TAG_REQUEST_TYPE, requestType)
                     .tag(TAG_REQUEST_CATEGORY, category)
                     .tag(TAG_OUTCOME, OUTCOME_ERROR)
@@ -128,6 +130,7 @@ public class MeteredCourier extends Courier {
             sample.stop(Timer.builder(SEND_DURATION)
                     .description("Time spent dispatching requests")
                     .publishPercentiles(0.5, 0.95, 0.99)
+                    .publishPercentileHistogram(true)
                     .tag(TAG_REQUEST_TYPE, requestType)
                     .tag(TAG_REQUEST_CATEGORY, category)
                     .tag(TAG_OUTCOME, OUTCOME_ERROR)
@@ -159,6 +162,7 @@ public class MeteredCourier extends Courier {
         sample.stop(Timer.builder(PUBLISH_DURATION)
                 .description("Time spent publishing notifications")
                 .publishPercentiles(0.5, 0.95, 0.99)
+                .publishPercentileHistogram(true)
                 .tag(TAG_NOTIFICATION_TYPE, notificationType)
                 .register(registry));
 
@@ -177,6 +181,7 @@ public class MeteredCourier extends Courier {
             sample.stop(Timer.builder(PUBLISH_ASYNC_DURATION)
                     .description("Time spent publishing notifications asynchronously")
                     .publishPercentiles(0.5, 0.95, 0.99)
+                    .publishPercentileHistogram(true)
                     .tag(TAG_NOTIFICATION_TYPE, notificationType)
                     .register(registry));
             // Note: PUBLISH_TOTAL counter is already incremented by publish()
