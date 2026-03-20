@@ -18,9 +18,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -128,6 +129,13 @@ public class Courier {
     /**
      * Invokes the handler, transparently supporting "handle" and "execute"
      * method conventions.
+     *
+     * <p>The handler invocation is always submitted to a virtual thread so
+     * that the configured {@code asyncTimeoutMs} is enforced regardless of
+     * whether the handler returns a direct value or a
+     * {@link CompletableFuture}. If the handler returns a
+     * {@code CompletableFuture}, the remaining timeout budget is applied to
+     * the inner future as well.
      */
     @SuppressWarnings("unchecked")
     private <R> Response<R> invokeHandler(Object handler, IRequest<R> request) {
@@ -135,18 +143,38 @@ public class Courier {
             Method method = getCachedMethod(handler.getClass());
             long start = System.nanoTime();
 
-            Object result = method.invoke(handler, request);
+            CompletableFuture<Object> invocationFuture = CompletableFuture.supplyAsync(
+                    () -> reflectiveInvoke(method, handler, request),
+                    VIRTUAL_THREAD_EXECUTOR);
+
+            Object result;
+            try {
+                result = invocationFuture.get(asyncTimeoutMs, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException e) {
+                invocationFuture.cancel(true);
+                logger.error("Handler timed out after {}ms: {}", asyncTimeoutMs,
+                        handler.getClass().getSimpleName());
+                return Response.error("Handler timed out after " + asyncTimeoutMs + "ms",
+                        504, TimeoutException.class.getSimpleName());
+            } catch (ExecutionException e) {
+                Throwable cause = unwrapExecutionCause(e);
+                logger.error("Handler error: {}", cause.getMessage(), cause);
+                return Response.error(cause);
+            }
 
             if (result instanceof CompletableFuture<?> future) {
+                long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+                long remainingMs = Math.max(asyncTimeoutMs - elapsedMs, 1);
                 try {
-                    result = future.get(asyncTimeoutMs, TimeUnit.MILLISECONDS);
+                    result = future.get(remainingMs, TimeUnit.MILLISECONDS);
                 } catch (TimeoutException e) {
+                    future.cancel(true);
                     logger.error("Handler timed out after {}ms: {}", asyncTimeoutMs,
                             handler.getClass().getSimpleName());
                     return Response.error("Handler timed out after " + asyncTimeoutMs + "ms",
                             504, TimeoutException.class.getSimpleName());
                 } catch (ExecutionException e) {
-                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                    Throwable cause = unwrapExecutionCause(e);
                     logger.error("Async handler error: {}", cause.getMessage(), cause);
                     return Response.error(cause);
                 }
@@ -165,10 +193,6 @@ public class Courier {
 
             return Response.success((R) result);
 
-        } catch (InvocationTargetException e) {
-            Throwable target = e.getTargetException();
-            logger.error("Handler error: {}", target.getMessage(), target);
-            return Response.error(target);
         } catch (RuntimeException e) {
             logger.error("Courier runtime error: {}", e.getMessage(), e);
             return Response.error(e);
@@ -176,10 +200,36 @@ public class Courier {
             Thread.currentThread().interrupt();
             logger.error("Handler interrupted: {}", e.getMessage(), e);
             return Response.error(e);
-        } catch (Exception e) {
-            logger.error("Failed to invoke handler: {}", e.getMessage(), e);
-            return Response.error(e);
         }
+    }
+
+    /**
+     * Reflective method invocation helper used inside
+     * {@link CompletableFuture#supplyAsync}. Checked exceptions thrown by
+     * {@link Method#invoke} are wrapped in {@link CompletionException} so
+     * they propagate correctly through the future chain.
+     */
+    private static Object reflectiveInvoke(Method method, Object handler, Object request) {
+        try {
+            return method.invoke(handler, request);
+        } catch (InvocationTargetException e) {
+            throw new CompletionException(
+                    e.getTargetException() != null ? e.getTargetException() : e);
+        } catch (ReflectiveOperationException e) {
+            throw new CompletionException(e);
+        }
+    }
+
+    /**
+     * Unwraps the real cause from an {@link ExecutionException}, stripping
+     * an intermediate {@link CompletionException} wrapper when present.
+     */
+    private static Throwable unwrapExecutionCause(ExecutionException e) {
+        Throwable cause = e.getCause();
+        if (cause instanceof CompletionException ce) {
+            return ce.getCause() != null ? ce.getCause() : ce;
+        }
+        return cause != null ? cause : e;
     }
 
     /**
