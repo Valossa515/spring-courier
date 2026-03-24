@@ -1,9 +1,11 @@
 package io.github.valossa515.spring_courier.config;
 
 import io.github.valossa515.spring_courier.core.Courier;
+import io.github.valossa515.spring_courier.core.interfaces.ResponseEntityConverter;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
 import io.github.valossa515.spring_courier.core.support.BehaviorDiscoveryPostProcessor;
+import io.github.valossa515.spring_courier.core.support.DefaultResponseEntityConverter;
 import io.github.valossa515.spring_courier.core.support.HandlerDiscoveryPostProcessor;
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.NotificationDiscoveryPostProcessor;
@@ -15,6 +17,7 @@ import org.springframework.context.ApplicationContext;
 import java.util.concurrent.Executor;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -116,5 +119,14 @@ class CourierAutoConfigurationTest {
 
         assertNotNull(courier);
         verify(executorProvider).getIfUnique();
+    }
+
+    @Test
+    void buildsResponseEntityConverter() {
+        CourierAutoConfiguration configuration = new CourierAutoConfiguration();
+        ResponseEntityConverter converter = configuration.responseEntityConverter();
+
+        assertNotNull(converter);
+        assertTrue(converter instanceof DefaultResponseEntityConverter);
     }
 }

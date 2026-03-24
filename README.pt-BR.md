@@ -41,6 +41,7 @@ Ela fornece uma infraestrutura para desacoplar comandos, consultas e eventos —
 - ✅ Zero configuração adicional — **plug and play**
 - ✅ **Slack Alerting Nativo** — Alertas direto no Slack sem Grafana/Alertmanager
 - ✅ **Sealed Exception Hierarchy** — Hierarquia de exceções fechada para type safety
+- ✅ **Response Entity Converter** — `ResponseEntityConverter` plugável para mapeamento customizado de respostas HTTP
 
 ---
 
@@ -105,12 +106,12 @@ Adicione a dependência no seu `pom.xml` ou `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>2.0.7</version>
+    <version>2.1.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier:2.0.7")
+implementation("io.github.valossa515:spring-courier:2.1.0")
 ```
 
 > 🔧 É necessário ter o **Java 21+** e **Spring Boot 3.x+**.
@@ -244,6 +245,64 @@ public class CreateProductValidator implements Validator<CreateProductCommand> {
 @Bean
 public ValidationBehavior<CreateProductCommand, CreateProductResponse> productValidationBehavior() {
     return new ValidationBehavior<>(List.of(new CreateProductValidator()));
+}
+```
+
+---
+
+### 6️⃣ Conversão de Response
+
+O Spring Courier oferece dois mecanismos para converter `Response<T>` no `ResponseEntity` do Spring:
+
+#### Conversão direta com `toEntity()`
+
+```java
+@PostMapping
+public ResponseEntity<Response<CreateProductResponse>> create(@RequestBody CreateProductCommand cmd) {
+    return courier.send(cmd).toEntity();        // 200 com body
+}
+
+@DeleteMapping("/{id}")
+public ResponseEntity<Response<Void>> delete(@PathVariable UUID id) {
+    return courier.send(new DeleteProductCommand(id)).toEntity(false); // 204 No Content
+}
+```
+
+O overload `toEntity(boolean includeBody)` retorna `204 No Content` quando `includeBody` é `false` e a resposta é sucesso — ideal para operações de escrita que não produzem payload.
+
+#### Conversão plugável com `ResponseEntityConverter`
+
+Um bean `ResponseEntityConverter` é autoconfigurado e pode ser injetado nos controllers:
+
+```java
+@RestController
+@RequestMapping("/products")
+@RequiredArgsConstructor
+public class ProductController {
+
+    private final Courier courier;
+    private final ResponseEntityConverter converter;
+
+    @PostMapping
+    public ResponseEntity<?> create(@RequestBody CreateProductCommand cmd) {
+        return converter.convert(courier.send(cmd));
+    }
+}
+```
+
+Para customizar a conversão globalmente, declare seu próprio bean — o padrão é substituído automaticamente:
+
+```java
+@Bean
+public ResponseEntityConverter customConverter() {
+    return response -> {
+        if (!response.isSuccess()) {
+            return ResponseEntity.status(response.getStatusCode())
+                .header("X-Error-Type", response.getExceptionType())
+                .body(response);
+        }
+        return response.toEntity();
+    };
 }
 ```
 

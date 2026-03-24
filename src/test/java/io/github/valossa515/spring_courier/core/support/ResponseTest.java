@@ -269,4 +269,28 @@ class ResponseTest {
         assertEquals("fail", resp.getError());
         assertEquals(400, resp.getStatusCode());
     }
+
+    @Test
+    void toEntityWithBodyTrueIncludesBodyOnSuccess() {
+        Response<String> resp = Response.success("ok", 200);
+        var entity = resp.toEntity(true);
+        assertEquals(200, entity.getStatusCode().value());
+        assertSame(resp, entity.getBody());
+    }
+
+    @Test
+    void toEntityWithBodyFalseReturnsNoContentOnSuccess() {
+        Response<String> resp = Response.success("ok", 200);
+        var entity = resp.toEntity(false);
+        assertEquals(204, entity.getStatusCode().value());
+        assertNull(entity.getBody());
+    }
+
+    @Test
+    void toEntityWithBodyFalseStillIncludesBodyOnError() {
+        Response<String> resp = Response.error("fail", 400);
+        var entity = resp.toEntity(false);
+        assertEquals(400, entity.getStatusCode().value());
+        assertSame(resp, entity.getBody());
+    }
 }
