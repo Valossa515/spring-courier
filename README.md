@@ -250,7 +250,63 @@ public ValidationBehavior<CreateProductCommand, CreateProductResponse> productVa
 
 ---
 
-### 6️⃣ Response Conversion
+### 6️⃣ Response API
+
+`Response<T>` is an immutable value object that wraps every operation result. It carries the payload, an optional error message, a success flag, and an HTTP status code.
+
+#### Factory Methods
+
+| Method | Status Code | Description |
+|--------|-------------|-------------|
+| `Response.success(data)` | `200` | Successful response with payload |
+| `Response.success(data, statusCode)` | custom | Successful response with custom status (e.g., `201 Created`) |
+| `Response.success()` | `200` | Successful response without payload |
+| `Response.error(message)` | `500` | Error response with message |
+| `Response.error(message, statusCode)` | custom | Error response with custom status (e.g., `400`, `404`) |
+| `Response.error(throwable)` | `500` | Error response from exception |
+| `Response.error(throwable, statusCode)` | custom | Error response from exception with custom status |
+| `Response.validationError(message, statusCode)` | custom | Validation error (marked for metrics) |
+
+> **Security note:** Only `CourierException` messages are propagated to the response. All other exception types receive a generic `"An internal error occurred"` message to prevent information leakage.
+
+#### Usage Examples
+
+```java
+// Inside a handler — return different status codes based on business logic
+@Component
+public class CreateProductHandler implements CommandHandler<CreateProductCommand, Response<Product>> {
+
+    @Override
+    public Response<Product> handle(CreateProductCommand cmd) {
+        if (cmd.getName() == null || cmd.getName().isBlank()) {
+            return Response.error("Product name is required", 400);  // Bad Request
+        }
+
+        if (productRepository.existsByName(cmd.getName())) {
+            return Response.error("Product already exists", 409);    // Conflict
+        }
+
+        Product product = productRepository.save(new Product(cmd.getName()));
+        return Response.success(product, 201);                       // Created
+    }
+}
+```
+
+#### Inspection Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `isSuccess()` | `boolean` | Whether the operation succeeded |
+| `hasData()` | `boolean` | Whether the response contains a payload |
+| `hasError()` | `boolean` | Whether the response contains an error message |
+| `getData()` | `T` | The payload (may be `null`) |
+| `getError()` | `String` | The error message (may be `null`) |
+| `getStatusCode()` | `int` | The HTTP status code |
+| `getDataOrThrow()` | `T` | Returns data or throws `ResponseException` on error |
+
+---
+
+### 7️⃣ Response Conversion
 
 Spring Courier provides two mechanisms for converting `Response<T>` to Spring's `ResponseEntity`:
 

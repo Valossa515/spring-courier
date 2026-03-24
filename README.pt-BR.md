@@ -250,7 +250,63 @@ public ValidationBehavior<CreateProductCommand, CreateProductResponse> productVa
 
 ---
 
-### 6️⃣ Conversão de Response
+### 6️⃣ API do Response
+
+`Response<T>` é um value object imutável que encapsula o resultado de cada operação. Ele carrega o payload, uma mensagem de erro opcional, um flag de sucesso e um código de status HTTP.
+
+#### Factory Methods
+
+| Método | Status Code | Descrição |
+|--------|-------------|--------|
+| `Response.success(data)` | `200` | Resposta de sucesso com payload |
+| `Response.success(data, statusCode)` | customizado | Resposta de sucesso com status customizado (ex: `201 Created`) |
+| `Response.success()` | `200` | Resposta de sucesso sem payload |
+| `Response.error(message)` | `500` | Resposta de erro com mensagem |
+| `Response.error(message, statusCode)` | customizado | Resposta de erro com status customizado (ex: `400`, `404`) |
+| `Response.error(throwable)` | `500` | Resposta de erro a partir de exceção |
+| `Response.error(throwable, statusCode)` | customizado | Resposta de erro a partir de exceção com status customizado |
+| `Response.validationError(message, statusCode)` | customizado | Erro de validação (marcado para métricas) |
+
+> **Nota de segurança:** Apenas mensagens de `CourierException` são propagadas na resposta. Todos os outros tipos de exceção recebem uma mensagem genérica `"An internal error occurred"` para evitar vazamento de informações.
+
+#### Exemplos de Uso
+
+```java
+// Dentro de um handler — retorne diferentes status codes baseado na lógica de negócio
+@Component
+public class CreateProductHandler implements CommandHandler<CreateProductCommand, Response<Product>> {
+
+    @Override
+    public Response<Product> handle(CreateProductCommand cmd) {
+        if (cmd.getName() == null || cmd.getName().isBlank()) {
+            return Response.error("Product name is required", 400);  // Bad Request
+        }
+
+        if (productRepository.existsByName(cmd.getName())) {
+            return Response.error("Product already exists", 409);    // Conflict
+        }
+
+        Product product = productRepository.save(new Product(cmd.getName()));
+        return Response.success(product, 201);                       // Created
+    }
+}
+```
+
+#### Métodos de Inspeção
+
+| Método | Retorno | Descrição |
+|--------|---------|--------|
+| `isSuccess()` | `boolean` | Se a operação foi bem-sucedida |
+| `hasData()` | `boolean` | Se a resposta contém payload |
+| `hasError()` | `boolean` | Se a resposta contém mensagem de erro |
+| `getData()` | `T` | O payload (pode ser `null`) |
+| `getError()` | `String` | A mensagem de erro (pode ser `null`) |
+| `getStatusCode()` | `int` | O código de status HTTP |
+| `getDataOrThrow()` | `T` | Retorna os dados ou lança `ResponseException` em caso de erro |
+
+---
+
+### 7️⃣ Conversão de Response
 
 O Spring Courier oferece dois mecanismos para converter `Response<T>` no `ResponseEntity` do Spring:
 
