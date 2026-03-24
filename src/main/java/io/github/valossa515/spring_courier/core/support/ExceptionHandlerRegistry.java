@@ -45,22 +45,16 @@ public class ExceptionHandlerRegistry {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public <T, R> List<IRequestExceptionHandler<T, R, Exception>> getHandlers(
-            Class<T> requestType) {
-        List<IRequestExceptionHandler<T, R, Exception>> result =
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public List<IRequestExceptionHandler<?, ?, ?>> getHandlers(
+            Class<?> requestType) {
+        List<IRequestExceptionHandler<?, ?, ?>> result =
                 new java.util.ArrayList<>();
-        for (IRequestExceptionHandler<?, ?, ?> global : globalHandlers) {
-            result.add(
-                    (IRequestExceptionHandler<T, R, Exception>) global);
-        }
+        result.addAll(globalHandlers);
         List<IRequestExceptionHandler<?, ?, ?>> specific =
                 handlers.get(requestType);
         if (specific != null) {
-            for (IRequestExceptionHandler<?, ?, ?> h : specific) {
-                result.add(
-                        (IRequestExceptionHandler<T, R, Exception>) h);
-            }
+            result.addAll(specific);
         }
         return Collections.unmodifiableList(result);
     }

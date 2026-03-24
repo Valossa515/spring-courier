@@ -43,17 +43,16 @@ public class PostProcessorRegistry {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public <T, R> List<IRequestPostProcessor<T, R>> getProcessors(Class<T> requestType) {
-        List<IRequestPostProcessor<T, R>> result = new java.util.ArrayList<>();
-        for (IRequestPostProcessor<?, ?> global : globalProcessors) {
-            result.add((IRequestPostProcessor<T, R>) global);
-        }
-        List<IRequestPostProcessor<?, ?>> specific = processors.get(requestType);
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public List<IRequestPostProcessor<?, ?>> getProcessors(
+            Class<?> requestType) {
+        List<IRequestPostProcessor<?, ?>> result =
+                new java.util.ArrayList<>();
+        result.addAll(globalProcessors);
+        List<IRequestPostProcessor<?, ?>> specific =
+                processors.get(requestType);
         if (specific != null) {
-            for (IRequestPostProcessor<?, ?> p : specific) {
-                result.add((IRequestPostProcessor<T, R>) p);
-            }
+            result.addAll(specific);
         }
         return Collections.unmodifiableList(result);
     }

@@ -163,8 +163,7 @@ public class Courier {
             result = pipelineExecutor.execute(
                     request, () -> invokeHandler(handler, request));
         } catch (RuntimeException ex) {
-            Response<R> handled = tryExceptionHandlers(
-                    (IRequest<Object>) request, ex);
+            Response<R> handled = tryExceptionHandlers(request, ex);
             if (handled != null) {
                 return handled;
             }
@@ -195,15 +194,14 @@ public class Courier {
         return CompletableFuture.supplyAsync(() -> send(request), executor);
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private <R> void runPreProcessors(IRequest<R> request) {
         if (preProcessorRegistry == null) {
             return;
         }
-        List<IRequestPreProcessor<IRequest<R>>> processors =
-                preProcessorRegistry.getProcessors(
-                        (Class<IRequest<R>>) request.getClass());
-        for (IRequestPreProcessor<IRequest<R>> processor : processors) {
+        List<IRequestPreProcessor<?>> processors =
+                preProcessorRegistry.getProcessors(request.getClass());
+        for (IRequestPreProcessor processor : processors) {
             try {
                 processor.process(request);
             } catch (Exception e) {
@@ -215,16 +213,15 @@ public class Courier {
         }
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private <R> void runPostProcessors(IRequest<R> request,
                                        Response<R> response) {
         if (postProcessorRegistry == null) {
             return;
         }
-        List<IRequestPostProcessor<IRequest<R>, R>> processors =
-                postProcessorRegistry.getProcessors(
-                        (Class<IRequest<R>>) request.getClass());
-        for (IRequestPostProcessor<IRequest<R>, R> processor : processors) {
+        List<IRequestPostProcessor<?, ?>> processors =
+                postProcessorRegistry.getProcessors(request.getClass());
+        for (IRequestPostProcessor processor : processors) {
             try {
                 processor.process(request, response);
             } catch (Exception e) {
@@ -236,18 +233,17 @@ public class Courier {
         }
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private <R> Response<R> tryExceptionHandlers(
-            IRequest<Object> request, RuntimeException ex) {
+            IRequest<?> request, RuntimeException ex) {
         if (exceptionHandlerRegistry == null) {
             return null;
         }
-        List<IRequestExceptionHandler<IRequest<Object>, Object, Exception>>
-                handlers = exceptionHandlerRegistry.getHandlers(
-                (Class<IRequest<Object>>) request.getClass());
-        for (var handler : handlers) {
+        List<IRequestExceptionHandler<?, ?, ?>> handlers =
+                exceptionHandlerRegistry.getHandlers(request.getClass());
+        for (IRequestExceptionHandler handler : handlers) {
             try {
-                Response<Object> result = handler.handle(request, ex);
+                Response result = handler.handle(request, ex);
                 if (result != null) {
                     return (Response<R>) result;
                 }

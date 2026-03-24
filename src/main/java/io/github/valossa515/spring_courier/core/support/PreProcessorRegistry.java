@@ -43,17 +43,13 @@ public class PreProcessorRegistry {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public <T> List<IRequestPreProcessor<T>> getProcessors(Class<T> requestType) {
-        List<IRequestPreProcessor<T>> result = new java.util.ArrayList<>();
-        for (IRequestPreProcessor<?> global : globalProcessors) {
-            result.add((IRequestPreProcessor<T>) global);
-        }
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public List<IRequestPreProcessor<?>> getProcessors(Class<?> requestType) {
+        List<IRequestPreProcessor<?>> result = new java.util.ArrayList<>();
+        result.addAll(globalProcessors);
         List<IRequestPreProcessor<?>> specific = processors.get(requestType);
         if (specific != null) {
-            for (IRequestPreProcessor<?> p : specific) {
-                result.add((IRequestPreProcessor<T>) p);
-            }
+            result.addAll(specific);
         }
         return Collections.unmodifiableList(result);
     }
