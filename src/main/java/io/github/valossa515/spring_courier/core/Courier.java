@@ -1,10 +1,17 @@
 package io.github.valossa515.spring_courier.core;
 
+import io.github.valossa515.spring_courier.config.CourierProperties;
 import io.github.valossa515.spring_courier.core.interfaces.INotification;
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
+import io.github.valossa515.spring_courier.core.interfaces.IRequestExceptionHandler;
+import io.github.valossa515.spring_courier.core.interfaces.IRequestPostProcessor;
+import io.github.valossa515.spring_courier.core.interfaces.IRequestPreProcessor;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
+import io.github.valossa515.spring_courier.core.support.ExceptionHandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
+import io.github.valossa515.spring_courier.core.support.PostProcessorRegistry;
+import io.github.valossa515.spring_courier.core.support.PreProcessorRegistry;
 import io.github.valossa515.spring_courier.core.support.Response;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -12,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,7 +35,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * Dispatches requests through the CQRS pipeline, invoking synchronous or
  * asynchronous handlers as needed. Also supports publishing notifications
- * to multiple handlers.
+ * to multiple handlers with configurable strategies.
  */
 public class Courier {
     private static final Logger logger = LoggerFactory.getLogger(Courier.class);
@@ -63,11 +71,6 @@ public class Courier {
      * Default executor for {@link #publishAsync} when no custom executor is
      * provided. Starts a new virtual thread per task for lightweight, scalable
      * asynchronous execution without blocking platform threads.
-     *
-     * <p>Unlike {@code Executors.newVirtualThreadPerTaskExecutor()}, this
-     * implementation does not hold any resources that require shutdown,
-     * making it safe to store as a static field and compatible with
-     * classloader unloading.
      */
     private static final Executor VIRTUAL_THREAD_EXECUTOR =
             runnable -> Thread.ofVirtual().start(runnable);
@@ -77,18 +80,26 @@ public class Courier {
     private final PipelineExecutor pipelineExecutor;
     private final Executor asyncExecutor;
     private final long asyncTimeoutMs;
+    private final PreProcessorRegistry preProcessorRegistry;
+    private final PostProcessorRegistry postProcessorRegistry;
+    private final ExceptionHandlerRegistry exceptionHandlerRegistry;
+    private final CourierProperties.PublishStrategy publishStrategy;
 
     public Courier(@NotNull HandlerRegistry handlerRegistry,
                    @NotNull NotificationRegistry notificationRegistry,
                    @NotNull PipelineExecutor pipelineExecutor) {
-        this(handlerRegistry, notificationRegistry, pipelineExecutor, null, DEFAULT_ASYNC_TIMEOUT_MS);
+        this(handlerRegistry, notificationRegistry, pipelineExecutor,
+                null, DEFAULT_ASYNC_TIMEOUT_MS, null, null, null,
+                CourierProperties.PublishStrategy.SEQUENTIAL);
     }
 
     public Courier(@NotNull HandlerRegistry handlerRegistry,
                    @NotNull NotificationRegistry notificationRegistry,
                    @NotNull PipelineExecutor pipelineExecutor,
                    Executor asyncExecutor) {
-        this(handlerRegistry, notificationRegistry, pipelineExecutor, asyncExecutor, DEFAULT_ASYNC_TIMEOUT_MS);
+        this(handlerRegistry, notificationRegistry, pipelineExecutor,
+                asyncExecutor, DEFAULT_ASYNC_TIMEOUT_MS, null, null, null,
+                CourierProperties.PublishStrategy.SEQUENTIAL);
     }
 
     public Courier(@NotNull HandlerRegistry handlerRegistry,
@@ -96,13 +107,40 @@ public class Courier {
                    @NotNull PipelineExecutor pipelineExecutor,
                    Executor asyncExecutor,
                    long asyncTimeoutMs) {
-        this.handlerRegistry = Objects.requireNonNull(handlerRegistry, "handlerRegistry must not be null");
-        this.notificationRegistry = Objects.requireNonNull(notificationRegistry, "notificationRegistry must not be null");
-        this.pipelineExecutor = Objects.requireNonNull(pipelineExecutor, "pipelineExecutor must not be null");
+        this(handlerRegistry, notificationRegistry, pipelineExecutor,
+                asyncExecutor, asyncTimeoutMs, null, null, null,
+                CourierProperties.PublishStrategy.SEQUENTIAL);
+    }
+
+    @SuppressWarnings("java:S107")
+    public Courier(@NotNull HandlerRegistry handlerRegistry,
+                   @NotNull NotificationRegistry notificationRegistry,
+                   @NotNull PipelineExecutor pipelineExecutor,
+                   Executor asyncExecutor,
+                   long asyncTimeoutMs,
+                   PreProcessorRegistry preProcessorRegistry,
+                   PostProcessorRegistry postProcessorRegistry,
+                   ExceptionHandlerRegistry exceptionHandlerRegistry,
+                   CourierProperties.PublishStrategy publishStrategy) {
+        this.handlerRegistry = Objects.requireNonNull(
+                handlerRegistry, "handlerRegistry must not be null");
+        this.notificationRegistry = Objects.requireNonNull(
+                notificationRegistry, "notificationRegistry must not be null");
+        this.pipelineExecutor = Objects.requireNonNull(
+                pipelineExecutor, "pipelineExecutor must not be null");
         this.asyncExecutor = asyncExecutor;
-        this.asyncTimeoutMs = asyncTimeoutMs > 0 ? asyncTimeoutMs : DEFAULT_ASYNC_TIMEOUT_MS;
-        logger.info("Courier initialized with {} registered handlers (asyncTimeoutMs={})",
-                handlerRegistry.getHandlerCount(), this.asyncTimeoutMs);
+        this.asyncTimeoutMs = asyncTimeoutMs > 0
+                ? asyncTimeoutMs : DEFAULT_ASYNC_TIMEOUT_MS;
+        this.preProcessorRegistry = preProcessorRegistry;
+        this.postProcessorRegistry = postProcessorRegistry;
+        this.exceptionHandlerRegistry = exceptionHandlerRegistry;
+        this.publishStrategy = publishStrategy != null
+                ? publishStrategy
+                : CourierProperties.PublishStrategy.SEQUENTIAL;
+        logger.info("Courier initialized with {} registered handlers "
+                        + "(asyncTimeoutMs={}, publishStrategy={})",
+                handlerRegistry.getHandlerCount(), this.asyncTimeoutMs,
+                this.publishStrategy);
     }
 
     /**
@@ -111,78 +149,182 @@ public class Courier {
      * @param request the request to dispatch; must not be {@code null}
      * @throws NullPointerException if {@code request} is {@code null}
      */
+    @SuppressWarnings("unchecked")
     public <R> Response<R> send(@NotNull IRequest<R> request) {
         Objects.requireNonNull(request, "request must not be null");
         logger.debug("Sending request: {}", request.getClass().getSimpleName());
 
+        runPreProcessors(request);
+
         Object handler = handlerRegistry.getHandler(request.getClass());
 
-        Response<R> result = pipelineExecutor.execute(request, () -> invokeHandler(handler, request));
-
-        if (result == null) {
-            return Response.success(null);
+        Response<R> result;
+        try {
+            result = pipelineExecutor.execute(
+                    request, () -> invokeHandler(handler, request));
+        } catch (RuntimeException ex) {
+            Response<R> handled = tryExceptionHandlers(
+                    (IRequest<Object>) request, ex);
+            if (handled != null) {
+                return handled;
+            }
+            throw ex;
         }
 
+        if (result == null) {
+            result = Response.success(null);
+        }
+
+        runPostProcessors(request, result);
         return result;
+    }
+
+    /**
+     * Sends a request asynchronously and returns a
+     * {@link CompletableFuture} wrapping the typed {@link Response}.
+     *
+     * @param request the request to dispatch; must not be {@code null}
+     * @return a future that completes with the response
+     * @throws NullPointerException if {@code request} is {@code null}
+     */
+    public <R> CompletableFuture<Response<R>> sendAsync(
+            @NotNull IRequest<R> request) {
+        Objects.requireNonNull(request, "request must not be null");
+        Executor executor = asyncExecutor != null
+                ? asyncExecutor : VIRTUAL_THREAD_EXECUTOR;
+        return CompletableFuture.supplyAsync(() -> send(request), executor);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <R> void runPreProcessors(IRequest<R> request) {
+        if (preProcessorRegistry == null) {
+            return;
+        }
+        List<IRequestPreProcessor<IRequest<R>>> processors =
+                preProcessorRegistry.getProcessors(
+                        (Class<IRequest<R>>) request.getClass());
+        for (IRequestPreProcessor<IRequest<R>> processor : processors) {
+            try {
+                processor.process(request);
+            } catch (Exception e) {
+                logger.error("Pre-processor {} failed for {}: {}",
+                        processor.getClass().getSimpleName(),
+                        request.getClass().getSimpleName(),
+                        e.getMessage(), e);
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <R> void runPostProcessors(IRequest<R> request,
+                                       Response<R> response) {
+        if (postProcessorRegistry == null) {
+            return;
+        }
+        List<IRequestPostProcessor<IRequest<R>, R>> processors =
+                postProcessorRegistry.getProcessors(
+                        (Class<IRequest<R>>) request.getClass());
+        for (IRequestPostProcessor<IRequest<R>, R> processor : processors) {
+            try {
+                processor.process(request, response);
+            } catch (Exception e) {
+                logger.error("Post-processor {} failed for {}: {}",
+                        processor.getClass().getSimpleName(),
+                        request.getClass().getSimpleName(),
+                        e.getMessage(), e);
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <R> Response<R> tryExceptionHandlers(
+            IRequest<Object> request, RuntimeException ex) {
+        if (exceptionHandlerRegistry == null) {
+            return null;
+        }
+        List<IRequestExceptionHandler<IRequest<Object>, Object, Exception>>
+                handlers = exceptionHandlerRegistry.getHandlers(
+                (Class<IRequest<Object>>) request.getClass());
+        for (var handler : handlers) {
+            try {
+                Response<Object> result = handler.handle(request, ex);
+                if (result != null) {
+                    return (Response<R>) result;
+                }
+            } catch (Exception e) {
+                logger.error("Exception handler {} failed: {}",
+                        handler.getClass().getSimpleName(),
+                        e.getMessage(), e);
+            }
+        }
+        return null;
     }
 
     /**
      * Invokes the handler, transparently supporting "handle" and "execute"
      * method conventions.
-     *
-     * <p>The handler invocation is always submitted to a virtual thread so
-     * that the configured {@code asyncTimeoutMs} is enforced regardless of
-     * whether the handler returns a direct value or a
-     * {@link CompletableFuture}. If the handler returns a
-     * {@code CompletableFuture}, the remaining timeout budget is applied to
-     * the inner future as well.
      */
     @SuppressWarnings("unchecked")
-    private <R> Response<R> invokeHandler(Object handler, IRequest<R> request) {
+    private <R> Response<R> invokeHandler(Object handler,
+                                          IRequest<R> request) {
         try {
             Method method = getCachedMethod(handler.getClass());
             long start = System.nanoTime();
 
-            CompletableFuture<Object> invocationFuture = CompletableFuture.supplyAsync(
-                    () -> reflectiveInvoke(method, handler, request),
-                    VIRTUAL_THREAD_EXECUTOR);
+            CompletableFuture<Object> invocationFuture =
+                    CompletableFuture.supplyAsync(
+                            () -> reflectiveInvoke(method, handler, request),
+                            VIRTUAL_THREAD_EXECUTOR);
 
             Object result;
             try {
-                result = invocationFuture.get(asyncTimeoutMs, TimeUnit.MILLISECONDS);
+                result = invocationFuture.get(
+                        asyncTimeoutMs, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
                 invocationFuture.cancel(true);
-                logger.error("Handler timed out after {}ms: {}", asyncTimeoutMs,
+                logger.error("Handler timed out after {}ms: {}",
+                        asyncTimeoutMs,
                         handler.getClass().getSimpleName());
-                return Response.error("Handler timed out after " + asyncTimeoutMs + "ms",
+                return Response.error(
+                        "Handler timed out after " + asyncTimeoutMs + "ms",
                         504, TimeoutException.class.getSimpleName());
             } catch (ExecutionException e) {
                 Throwable cause = unwrapExecutionCause(e);
-                logger.error("Handler error: {}", cause.getMessage(), cause);
+                logger.error("Handler error: {}",
+                        cause.getMessage(), cause);
                 return Response.error(cause);
             }
 
             if (result instanceof CompletableFuture<?> future) {
-                long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-                long remainingMs = Math.max(asyncTimeoutMs - elapsedMs, 1);
+                long elapsedMs = TimeUnit.NANOSECONDS.toMillis(
+                        System.nanoTime() - start);
+                long remainingMs = Math.max(
+                        asyncTimeoutMs - elapsedMs, 1);
                 try {
-                    result = future.get(remainingMs, TimeUnit.MILLISECONDS);
+                    result = future.get(
+                            remainingMs, TimeUnit.MILLISECONDS);
                 } catch (TimeoutException e) {
                     future.cancel(true);
-                    logger.error("Handler timed out after {}ms: {}", asyncTimeoutMs,
+                    logger.error("Handler timed out after {}ms: {}",
+                            asyncTimeoutMs,
                             handler.getClass().getSimpleName());
-                    return Response.error("Handler timed out after " + asyncTimeoutMs + "ms",
+                    return Response.error(
+                            "Handler timed out after "
+                                    + asyncTimeoutMs + "ms",
                             504, TimeoutException.class.getSimpleName());
                 } catch (ExecutionException e) {
                     Throwable cause = unwrapExecutionCause(e);
-                    logger.error("Async handler error: {}", cause.getMessage(), cause);
+                    logger.error("Async handler error: {}",
+                            cause.getMessage(), cause);
                     return Response.error(cause);
                 }
             }
 
-            long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+            long durationMs = TimeUnit.NANOSECONDS.toMillis(
+                    System.nanoTime() - start);
             logger.debug("Handler executed in {}ms: {} -> {}", durationMs,
-                    request.getClass().getSimpleName(), handler.getClass().getSimpleName());
+                    request.getClass().getSimpleName(),
+                    handler.getClass().getSimpleName());
 
             if (result == null) {
                 return Response.success(null);
@@ -205,24 +347,23 @@ public class Courier {
 
     /**
      * Reflective method invocation helper used inside
-     * {@link CompletableFuture#supplyAsync}. Checked exceptions thrown by
-     * {@link Method#invoke} are wrapped in {@link CompletionException} so
-     * they propagate correctly through the future chain.
+     * {@link CompletableFuture#supplyAsync}.
      */
-    private static Object reflectiveInvoke(Method method, Object handler, Object request) {
+    private static Object reflectiveInvoke(Method method,
+                                           Object handler, Object request) {
         try {
             return method.invoke(handler, request);
         } catch (InvocationTargetException e) {
             throw new CompletionException(
-                    e.getTargetException() != null ? e.getTargetException() : e);
+                    e.getTargetException() != null
+                            ? e.getTargetException() : e);
         } catch (ReflectiveOperationException e) {
             throw new CompletionException(e);
         }
     }
 
     /**
-     * Unwraps the real cause from an {@link ExecutionException}, stripping
-     * an intermediate {@link CompletionException} wrapper when present.
+     * Unwraps the real cause from an {@link ExecutionException}.
      */
     private static Throwable unwrapExecutionCause(ExecutionException e) {
         Throwable cause = e.getCause();
@@ -233,96 +374,140 @@ public class Courier {
     }
 
     /**
-     * Returns a cached Method for the given handler class, resolving and caching
-     * on first access. The method is made accessible once during caching, which
-     * avoids repeated setAccessible calls on concurrent invocations.
-     *
-     * <p>Only methods whose single parameter is assignable from {@link IRequest}
-     * are matched, preventing unrelated methods from being invoked via reflection.
+     * Returns a cached Method for the given handler class.
      */
     @SuppressWarnings("java:S3011")
-    private @NotNull Method getCachedMethod(@NotNull Class<?> handlerClass) {
+    private @NotNull Method getCachedMethod(
+            @NotNull Class<?> handlerClass) {
         Method cached = REQUEST_METHOD_CACHE.get(handlerClass);
         if (cached != null) {
             return cached;
         }
         for (Method method : handlerClass.getMethods()) {
-            if ((method.getName().equals("handle") || method.getName().equals("execute"))
+            if ((method.getName().equals("handle")
+                    || method.getName().equals("execute"))
                     && method.getParameterCount() == 1
-                    && IRequest.class.isAssignableFrom(method.getParameterTypes()[0])) {
+                    && IRequest.class.isAssignableFrom(
+                    method.getParameterTypes()[0])) {
                 method.setAccessible(true);
                 REQUEST_METHOD_CACHE.put(handlerClass, method);
                 return method;
             }
         }
-        throw new HandlerMethodNotFoundException(handlerClass.getName(), "handle/execute");
+        throw new HandlerMethodNotFoundException(
+                handlerClass.getName(), "handle/execute");
     }
 
     /**
-     * Publishes a notification to all registered handlers.
+     * Publishes a notification to all registered handlers using the
+     * configured {@link CourierProperties.PublishStrategy}.
      *
-     * <p><strong>Execution model:</strong> handlers are invoked <em>sequentially</em>
-     * in the order they were registered. If a handler throws an exception,
-     * it will be logged at {@code ERROR} level but <strong>not propagated</strong>,
-     * so subsequent handlers are still executed.
-     *
-     * <p>If no handler is registered for the given notification type, a {@code WARN}
-     * message is logged and the method returns immediately.
-     *
-     * @param notification the notification to publish; must not be {@code null}
+     * @param notification the notification to publish
      * @throws NullPointerException if {@code notification} is {@code null}
-     * @see #publishAsync(INotification) for non-blocking variant
      */
     public void publish(@NotNull INotification notification) {
         Objects.requireNonNull(notification, "notification must not be null");
-        logger.debug("Publishing notification: {}", notification.getClass().getSimpleName());
+        logger.debug("Publishing notification: {}",
+                notification.getClass().getSimpleName());
 
-        List<Object> handlers = notificationRegistry.getHandlers(notification.getClass());
+        List<Object> handlers = notificationRegistry.getHandlers(
+                notification.getClass());
 
         if (handlers.isEmpty()) {
-            logger.warn("No handler registered for notification: {}", notification.getClass().getSimpleName());
+            logger.warn("No handler registered for notification: {}",
+                    notification.getClass().getSimpleName());
             return;
         }
 
+        switch (publishStrategy) {
+            case PARALLEL_WHEN_ALL ->
+                    publishParallel(notification, handlers);
+            case STOP_ON_FIRST_ERROR ->
+                    publishStopOnFirstError(notification, handlers);
+            default ->
+                    publishSequential(notification, handlers);
+        }
+    }
+
+    private void publishSequential(INotification notification,
+                                   List<Object> handlers) {
+        for (Object handler : handlers) {
+            invokeNotificationHandler(notification, handler);
+        }
+    }
+
+    private void publishParallel(INotification notification,
+                                 List<Object> handlers) {
+        Executor executor = asyncExecutor != null
+                ? asyncExecutor : VIRTUAL_THREAD_EXECUTOR;
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (Object handler : handlers) {
+            futures.add(CompletableFuture.runAsync(
+                    () -> invokeNotificationHandler(
+                            notification, handler), executor));
+        }
+        CompletableFuture.allOf(
+                futures.toArray(new CompletableFuture[0])).join();
+    }
+
+    private void publishStopOnFirstError(INotification notification,
+                                         List<Object> handlers) {
         for (Object handler : handlers) {
             try {
                 Method method = getCachedHandleMethod(handler.getClass());
                 method.invoke(handler, notification);
                 logger.debug("Notification handler executed: {} -> {}",
-                        notification.getClass().getSimpleName(), handler.getClass().getSimpleName());
+                        notification.getClass().getSimpleName(),
+                        handler.getClass().getSimpleName());
             } catch (Exception e) {
-                logger.error("Error executing notification handler {}: {}",
-                        handler.getClass().getSimpleName(), e.getMessage(), e);
+                logger.error(
+                        "Notification handler {} failed, stopping: {}",
+                        handler.getClass().getSimpleName(),
+                        e.getMessage(), e);
+                return;
             }
+        }
+    }
+
+    private void invokeNotificationHandler(INotification notification,
+                                           Object handler) {
+        try {
+            Method method = getCachedHandleMethod(handler.getClass());
+            method.invoke(handler, notification);
+            logger.debug("Notification handler executed: {} -> {}",
+                    notification.getClass().getSimpleName(),
+                    handler.getClass().getSimpleName());
+        } catch (Exception e) {
+            logger.error("Error executing notification handler {}: {}",
+                    handler.getClass().getSimpleName(),
+                    e.getMessage(), e);
         }
     }
 
     /**
      * Publishes a notification asynchronously to all registered handlers.
      *
-     * <p>If a dedicated async executor was configured via the constructor, it
-     * is used to run the notification dispatch. Otherwise, a new
-     * <strong>virtual thread</strong> (Java 21) is started per invocation,
-     * providing lightweight concurrency without blocking platform threads.
-     *
-     * @param notification the notification to publish; must not be {@code null}
+     * @param notification the notification to publish
      * @return CompletableFuture that completes when all handlers finish
      * @throws NullPointerException if {@code notification} is {@code null}
      */
-    public CompletableFuture<Void> publishAsync(@NotNull INotification notification) {
+    public CompletableFuture<Void> publishAsync(
+            @NotNull INotification notification) {
         Objects.requireNonNull(notification, "notification must not be null");
         if (asyncExecutor != null) {
-            return CompletableFuture.runAsync(() -> publish(notification), asyncExecutor);
+            return CompletableFuture.runAsync(
+                    () -> publish(notification), asyncExecutor);
         }
-        return CompletableFuture.runAsync(() -> publish(notification), VIRTUAL_THREAD_EXECUTOR);
+        return CompletableFuture.runAsync(
+                () -> publish(notification), VIRTUAL_THREAD_EXECUTOR);
     }
 
     /**
-     * Returns a cached Method for notification handlers. Only methods whose
-     * single parameter is assignable from {@link INotification} are matched.
+     * Returns a cached Method for notification handlers.
      */
     @SuppressWarnings("java:S3011")
-    private @NotNull Method getCachedHandleMethod(@NotNull Class<?> handlerClass) {
+    private @NotNull Method getCachedHandleMethod(
+            @NotNull Class<?> handlerClass) {
         Method cached = NOTIFICATION_METHOD_CACHE.get(handlerClass);
         if (cached != null) {
             return cached;
@@ -330,13 +515,15 @@ public class Courier {
         for (Method method : handlerClass.getMethods()) {
             if (method.getName().equals("handle")
                     && method.getParameterCount() == 1
-                    && INotification.class.isAssignableFrom(method.getParameterTypes()[0])) {
+                    && INotification.class.isAssignableFrom(
+                    method.getParameterTypes()[0])) {
                 method.setAccessible(true);
                 NOTIFICATION_METHOD_CACHE.put(handlerClass, method);
                 return method;
             }
         }
-        throw new HandlerMethodNotFoundException(handlerClass.getName(), "handle");
+        throw new HandlerMethodNotFoundException(
+                handlerClass.getName(), "handle");
     }
 
     /**
@@ -351,9 +538,12 @@ public class Courier {
     /**
      * Exception for missing handler methods.
      */
-    public static class HandlerMethodNotFoundException extends RuntimeException {
-        public HandlerMethodNotFoundException(String handlerClassName, String expectedMethod) {
-            super("No handle method (" + expectedMethod + ") found in handler: " + handlerClassName);
+    public static class HandlerMethodNotFoundException
+            extends RuntimeException {
+        public HandlerMethodNotFoundException(String handlerClassName,
+                                              String expectedMethod) {
+            super("No handle method (" + expectedMethod
+                    + ") found in handler: " + handlerClassName);
         }
     }
 }

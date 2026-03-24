@@ -26,9 +26,19 @@ public class CourierProperties {
     private long asyncTimeoutMs = 30_000;
 
     /**
+     * Logging behavior configuration group.
+     */
+    private Logging logging = new Logging();
+
+    /**
      * Metrics configuration group.
      */
     private Metrics metrics = new Metrics();
+
+    /**
+     * Notification publishing strategy configuration group.
+     */
+    private Notifications notifications = new Notifications();
 
     /**
      * Slack alerting configuration group.
@@ -48,6 +58,14 @@ public class CourierProperties {
         this.asyncTimeoutMs = asyncTimeoutMs;
     }
 
+    public Logging getLogging() {
+        return logging;
+    }
+
+    public void setLogging(Logging logging) {
+        this.logging = logging;
+    }
+
     public Metrics getMetrics() {
         return metrics;
     }
@@ -56,12 +74,78 @@ public class CourierProperties {
         this.metrics = metrics;
     }
 
+    public Notifications getNotifications() {
+        return notifications;
+    }
+
+    public void setNotifications(Notifications notifications) {
+        this.notifications = notifications;
+    }
+
     public Slack getSlack() {
         return slack;
     }
 
     public void setSlack(Slack slack) {
         this.slack = slack;
+    }
+
+    /**
+     * Logging behavior sub-properties (prefix {@code spring.courier.logging}).
+     */
+    public static class Logging {
+
+        /**
+         * Whether the built-in {@code LoggingBehavior} pipeline is enabled.
+         * Defaults to {@code false}.
+         */
+        private boolean enabled = false;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+    }
+
+    /**
+     * Notification publishing sub-properties (prefix {@code spring.courier.notifications}).
+     */
+    public static class Notifications {
+
+        /**
+         * Strategy used when publishing notifications to multiple handlers.
+         * Defaults to {@code SEQUENTIAL}.
+         */
+        private PublishStrategy publishStrategy = PublishStrategy.SEQUENTIAL;
+
+        public PublishStrategy getPublishStrategy() {
+            return publishStrategy;
+        }
+
+        public void setPublishStrategy(PublishStrategy publishStrategy) {
+            this.publishStrategy = publishStrategy;
+        }
+    }
+
+    /**
+     * Notification publishing strategies.
+     */
+    public enum PublishStrategy {
+
+        /** Handlers are invoked one by one in registration order. */
+        SEQUENTIAL,
+
+        /** Handlers are invoked in parallel; waits for all to complete. */
+        PARALLEL_WHEN_ALL,
+
+        /**
+         * Handlers are invoked sequentially but execution stops
+         * immediately when the first handler throws an exception.
+         */
+        STOP_ON_FIRST_ERROR
     }
 
     /**

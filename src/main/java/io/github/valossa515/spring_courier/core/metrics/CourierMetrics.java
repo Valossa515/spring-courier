@@ -25,6 +25,9 @@ public final class CourierMetrics {
     public static final String HANDLER_TIMEOUTS = "courier.handler.timeouts";
     public static final String VALIDATION_FAILURES = "courier.validation.failures";
 
+    // ── Long-task timers ────────────────────────────────────────────────
+    public static final String SEND_ACTIVE = "courier.send.active";
+
     // ── Gauges ──────────────────────────────────────────────────────────
     public static final String HANDLERS_REGISTERED = "courier.handlers.registered";
     public static final String NOTIFICATION_HANDLERS_REGISTERED =

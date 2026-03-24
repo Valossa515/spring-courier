@@ -4,8 +4,11 @@ import io.github.valossa515.spring_courier.core.Courier;
 import io.github.valossa515.spring_courier.core.metrics.MeteredCourier;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
+import io.github.valossa515.spring_courier.core.support.ExceptionHandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
+import io.github.valossa515.spring_courier.core.support.PostProcessorRegistry;
+import io.github.valossa515.spring_courier.core.support.PreProcessorRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
@@ -22,22 +25,6 @@ import java.util.concurrent.Executor;
 /**
  * Auto-configuration that replaces the default {@link Courier} bean with a
  * {@link MeteredCourier} when Micrometer is on the classpath.
- *
- * <p>Activates when:
- * <ul>
- *   <li>{@code MeterRegistry} is available on the classpath</li>
- *   <li>{@code spring.courier.metrics.enabled} is {@code true} (the default)</li>
- * </ul>
- *
- * <p>Because this configuration is ordered <em>before</em>
- * {@link CourierAutoConfiguration}, the {@code MeteredCourier} bean satisfies
- * the {@code @ConditionalOnMissingBean(Courier.class)} guard in the base
- * configuration, preventing a plain {@code Courier} from being created.
- *
- * <p>Must run <em>after</em> Spring Boot Actuator’s
- * {@code CompositeMeterRegistryAutoConfiguration} so the
- * {@code MeterRegistry} bean already exists when
- * {@code @ConditionalOnBean} is evaluated.
  */
 @Configuration
 @ConditionalOnClass(MeterRegistry.class)
@@ -51,20 +38,24 @@ public class CourierMetricsAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(Courier.class)
-    public MeteredCourier meteredCourier(HandlerRegistry handlerRegistry,
-                                         NotificationRegistry notificationRegistry,
-                                         PipelineExecutor pipelineExecutor,
-                                         PipelineRegistry pipelineRegistry,
-                                         CourierProperties properties,
-                                         ObjectProvider<Executor> asyncExecutor,
-                                         MeterRegistry meterRegistry) {
+    public MeteredCourier meteredCourier(
+            HandlerRegistry handlerRegistry,
+            NotificationRegistry notificationRegistry,
+            PipelineExecutor pipelineExecutor,
+            PipelineRegistry pipelineRegistry,
+            CourierProperties properties,
+            ObjectProvider<Executor> asyncExecutor,
+            MeterRegistry meterRegistry,
+            PreProcessorRegistry preProcessorRegistry,
+            PostProcessorRegistry postProcessorRegistry,
+            ExceptionHandlerRegistry exceptionHandlerRegistry) {
         return new MeteredCourier(
-                handlerRegistry,
-                notificationRegistry,
-                pipelineExecutor,
-                pipelineRegistry,
+                handlerRegistry, notificationRegistry,
+                pipelineExecutor, pipelineRegistry,
                 asyncExecutor.getIfUnique(),
-                properties.getAsyncTimeoutMs(),
-                meterRegistry);
+                properties.getAsyncTimeoutMs(), meterRegistry,
+                preProcessorRegistry, postProcessorRegistry,
+                exceptionHandlerRegistry,
+                properties.getNotifications().getPublishStrategy());
     }
 }
