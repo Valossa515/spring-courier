@@ -13,27 +13,37 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Thread-safe registry for {@link IRequestPreProcessor} instances.
+ * Global processors are stored with their resolved request type so
+ * that only type-compatible processors are returned at lookup time.
  */
 public class PreProcessorRegistry {
-    private static final Logger logger = LoggerFactory.getLogger(PreProcessorRegistry.class);
+    private static final Logger logger =
+            LoggerFactory.getLogger(PreProcessorRegistry.class);
     private final Map<Class<?>, List<IRequestPreProcessor<?>>> processors =
             new ConcurrentHashMap<>();
-    private final List<IRequestPreProcessor<?>> globalProcessors =
+    private final List<GlobalEntry> globalProcessors =
             new CopyOnWriteArrayList<>();
     private volatile boolean frozen = false;
 
-    public void register(Class<?> requestType, IRequestPreProcessor<?> processor) {
+    record GlobalEntry(IRequestPreProcessor<?> processor,
+                       Class<?> requestType) {
+    }
+
+    public void register(Class<?> requestType,
+                         IRequestPreProcessor<?> processor) {
         Objects.requireNonNull(requestType, "requestType must not be null");
         Objects.requireNonNull(processor, "processor must not be null");
         if (frozen) {
             throw new IllegalStateException(
-                    "PreProcessorRegistry is frozen; cannot register processor for: "
+                    "PreProcessorRegistry is frozen; cannot register "
+                            + "processor for: "
                             + requestType.getSimpleName());
         }
         if (requestType.isInterface()) {
-            globalProcessors.add(processor);
-            logger.info("Global pre-processor registered: {}",
-                    processor.getClass().getSimpleName());
+            globalProcessors.add(new GlobalEntry(processor, requestType));
+            logger.info("Global pre-processor registered: {} (matches {})",
+                    processor.getClass().getSimpleName(),
+                    requestType.getSimpleName());
         } else {
             processors.computeIfAbsent(requestType,
                     k -> new CopyOnWriteArrayList<>()).add(processor);
@@ -43,11 +53,17 @@ public class PreProcessorRegistry {
         }
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    public List<IRequestPreProcessor<?>> getProcessors(Class<?> requestType) {
+    public List<IRequestPreProcessor<?>> getProcessors(
+            Class<?> requestType) {
         List<IRequestPreProcessor<?>> result = new java.util.ArrayList<>();
-        result.addAll(globalProcessors);
-        List<IRequestPreProcessor<?>> specific = processors.get(requestType);
+        for (GlobalEntry entry : globalProcessors) {
+            if (entry.requestType() != null
+                    && entry.requestType().isAssignableFrom(requestType)) {
+                result.add(entry.processor());
+            }
+        }
+        List<IRequestPreProcessor<?>> specific =
+                processors.get(requestType);
         if (specific != null) {
             result.addAll(specific);
         }
@@ -57,8 +73,10 @@ public class PreProcessorRegistry {
     public void freeze() {
         this.frozen = true;
         int total = globalProcessors.size()
-                + processors.values().stream().mapToInt(List::size).sum();
-        logger.info("PreProcessorRegistry frozen with {} pre-processors", total);
+                + processors.values().stream()
+                .mapToInt(List::size).sum();
+        logger.info("PreProcessorRegistry frozen with {} pre-processors",
+                total);
     }
 
     public boolean isFrozen() {
@@ -67,6 +85,7 @@ public class PreProcessorRegistry {
 
     public int getCount() {
         return globalProcessors.size()
-                + processors.values().stream().mapToInt(List::size).sum();
+                + processors.values().stream()
+                .mapToInt(List::size).sum();
     }
 }

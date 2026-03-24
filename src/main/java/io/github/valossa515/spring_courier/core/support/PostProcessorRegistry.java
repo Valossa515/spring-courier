@@ -13,27 +13,39 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Thread-safe registry for {@link IRequestPostProcessor} instances.
+ * Global processors are stored with their resolved request type so
+ * that only type-compatible processors are returned at lookup time.
  */
 public class PostProcessorRegistry {
-    private static final Logger logger = LoggerFactory.getLogger(PostProcessorRegistry.class);
-    private final Map<Class<?>, List<IRequestPostProcessor<?, ?>>> processors =
-            new ConcurrentHashMap<>();
-    private final List<IRequestPostProcessor<?, ?>> globalProcessors =
+    private static final Logger logger =
+            LoggerFactory.getLogger(PostProcessorRegistry.class);
+    private final Map<Class<?>, List<IRequestPostProcessor<?, ?>>>
+            processors = new ConcurrentHashMap<>();
+    private final List<GlobalEntry> globalProcessors =
             new CopyOnWriteArrayList<>();
     private volatile boolean frozen = false;
 
-    public void register(Class<?> requestType, IRequestPostProcessor<?, ?> processor) {
+    record GlobalEntry(IRequestPostProcessor<?, ?> processor,
+                       Class<?> requestType) {
+    }
+
+    public void register(Class<?> requestType,
+                         IRequestPostProcessor<?, ?> processor) {
         Objects.requireNonNull(requestType, "requestType must not be null");
         Objects.requireNonNull(processor, "processor must not be null");
         if (frozen) {
             throw new IllegalStateException(
-                    "PostProcessorRegistry is frozen; cannot register processor for: "
+                    "PostProcessorRegistry is frozen; cannot register "
+                            + "processor for: "
                             + requestType.getSimpleName());
         }
         if (requestType.isInterface()) {
-            globalProcessors.add(processor);
-            logger.info("Global post-processor registered: {}",
-                    processor.getClass().getSimpleName());
+            globalProcessors.add(
+                    new GlobalEntry(processor, requestType));
+            logger.info(
+                    "Global post-processor registered: {} (matches {})",
+                    processor.getClass().getSimpleName(),
+                    requestType.getSimpleName());
         } else {
             processors.computeIfAbsent(requestType,
                     k -> new CopyOnWriteArrayList<>()).add(processor);
@@ -43,12 +55,16 @@ public class PostProcessorRegistry {
         }
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public List<IRequestPostProcessor<?, ?>> getProcessors(
             Class<?> requestType) {
         List<IRequestPostProcessor<?, ?>> result =
                 new java.util.ArrayList<>();
-        result.addAll(globalProcessors);
+        for (GlobalEntry entry : globalProcessors) {
+            if (entry.requestType() != null
+                    && entry.requestType().isAssignableFrom(requestType)) {
+                result.add(entry.processor());
+            }
+        }
         List<IRequestPostProcessor<?, ?>> specific =
                 processors.get(requestType);
         if (specific != null) {
@@ -60,8 +76,11 @@ public class PostProcessorRegistry {
     public void freeze() {
         this.frozen = true;
         int total = globalProcessors.size()
-                + processors.values().stream().mapToInt(List::size).sum();
-        logger.info("PostProcessorRegistry frozen with {} post-processors", total);
+                + processors.values().stream()
+                .mapToInt(List::size).sum();
+        logger.info(
+                "PostProcessorRegistry frozen with {} post-processors",
+                total);
     }
 
     public boolean isFrozen() {
@@ -70,6 +89,7 @@ public class PostProcessorRegistry {
 
     public int getCount() {
         return globalProcessors.size()
-                + processors.values().stream().mapToInt(List::size).sum();
+                + processors.values().stream()
+                .mapToInt(List::size).sum();
     }
 }

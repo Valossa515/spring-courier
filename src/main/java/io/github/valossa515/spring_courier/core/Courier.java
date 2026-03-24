@@ -174,6 +174,14 @@ public class Courier {
             result = Response.success(null);
         }
 
+        if (!result.isSuccess() && exceptionHandlerRegistry != null) {
+            Response<R> handled = tryExceptionHandlersForResponse(
+                    request, result);
+            if (handled != null) {
+                result = handled;
+            }
+        }
+
         runPostProcessors(request, result);
         return result;
     }

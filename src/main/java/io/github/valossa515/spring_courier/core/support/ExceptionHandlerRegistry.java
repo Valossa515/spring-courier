@@ -13,15 +13,21 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Thread-safe registry for {@link IRequestExceptionHandler} instances.
+ * Global handlers are stored with their resolved request type so
+ * that only type-compatible handlers are returned at lookup time.
  */
 public class ExceptionHandlerRegistry {
     private static final Logger logger =
             LoggerFactory.getLogger(ExceptionHandlerRegistry.class);
-    private final Map<Class<?>, List<IRequestExceptionHandler<?, ?, ?>>> handlers =
-            new ConcurrentHashMap<>();
-    private final List<IRequestExceptionHandler<?, ?, ?>> globalHandlers =
+    private final Map<Class<?>, List<IRequestExceptionHandler<?, ?, ?>>>
+            handlers = new ConcurrentHashMap<>();
+    private final List<GlobalEntry> globalHandlers =
             new CopyOnWriteArrayList<>();
     private volatile boolean frozen = false;
+
+    record GlobalEntry(IRequestExceptionHandler<?, ?, ?> handler,
+                       Class<?> requestType) {
+    }
 
     public void register(Class<?> requestType,
                          IRequestExceptionHandler<?, ?, ?> handler) {
@@ -29,13 +35,16 @@ public class ExceptionHandlerRegistry {
         Objects.requireNonNull(handler, "handler must not be null");
         if (frozen) {
             throw new IllegalStateException(
-                    "ExceptionHandlerRegistry is frozen; cannot register handler for: "
+                    "ExceptionHandlerRegistry is frozen; cannot register "
+                            + "handler for: "
                             + requestType.getSimpleName());
         }
         if (requestType.isInterface()) {
-            globalHandlers.add(handler);
-            logger.info("Global exception handler registered: {}",
-                    handler.getClass().getSimpleName());
+            globalHandlers.add(new GlobalEntry(handler, requestType));
+            logger.info(
+                    "Global exception handler registered: {} (matches {})",
+                    handler.getClass().getSimpleName(),
+                    requestType.getSimpleName());
         } else {
             handlers.computeIfAbsent(requestType,
                     k -> new CopyOnWriteArrayList<>()).add(handler);
@@ -45,12 +54,16 @@ public class ExceptionHandlerRegistry {
         }
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public List<IRequestExceptionHandler<?, ?, ?>> getHandlers(
             Class<?> requestType) {
         List<IRequestExceptionHandler<?, ?, ?>> result =
                 new java.util.ArrayList<>();
-        result.addAll(globalHandlers);
+        for (GlobalEntry entry : globalHandlers) {
+            if (entry.requestType() != null
+                    && entry.requestType().isAssignableFrom(requestType)) {
+                result.add(entry.handler());
+            }
+        }
         List<IRequestExceptionHandler<?, ?, ?>> specific =
                 handlers.get(requestType);
         if (specific != null) {
@@ -62,8 +75,10 @@ public class ExceptionHandlerRegistry {
     public void freeze() {
         this.frozen = true;
         int total = globalHandlers.size()
-                + handlers.values().stream().mapToInt(List::size).sum();
-        logger.info("ExceptionHandlerRegistry frozen with {} handlers", total);
+                + handlers.values().stream()
+                .mapToInt(List::size).sum();
+        logger.info(
+                "ExceptionHandlerRegistry frozen with {} handlers", total);
     }
 
     public boolean isFrozen() {
@@ -72,6 +87,7 @@ public class ExceptionHandlerRegistry {
 
     public int getCount() {
         return globalHandlers.size()
-                + handlers.values().stream().mapToInt(List::size).sum();
+                + handlers.values().stream()
+                .mapToInt(List::size).sum();
     }
 }

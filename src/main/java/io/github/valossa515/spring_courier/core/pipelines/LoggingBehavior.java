@@ -19,35 +19,50 @@ import org.springframework.core.Ordered;
  * <p>Activated via {@code spring.courier.logging.enabled=true} (default
  * {@code false}). Runs at {@link Ordered#HIGHEST_PRECEDENCE} so it wraps
  * all other behaviors.
+ *
+ * <p>Uses raw {@code IRequest} to avoid constraining the response type,
+ * ensuring compatibility with handlers that return any type {@code S}.
  */
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class LoggingBehavior
-        implements PipelineBehavior<IRequest<Response<?>>, Response<?>>, Ordered {
+        implements PipelineBehavior<IRequest, Object>, Ordered {
 
-    private static final Logger logger = LoggerFactory.getLogger(LoggingBehavior.class);
+    private static final Logger logger =
+            LoggerFactory.getLogger(LoggingBehavior.class);
 
     @Override
-    public Response<?> handle(IRequest<Response<?>> request, Next<Response<?>> next) {
+    public Object handle(IRequest request, Next<Object> next) {
         String requestName = request.getClass().getSimpleName();
         String category = resolveCategory(request);
 
-        logger.info("[Courier] Dispatching {} [{}]", requestName, category);
+        logger.info("[Courier] Dispatching {} [{}]",
+                requestName, category);
 
         long start = System.nanoTime();
         try {
-            Response<?> response = next.invoke();
+            Object result = next.invoke();
             long durationMs = (System.nanoTime() - start) / 1_000_000;
 
-            if (response != null && response.isSuccess()) {
-                logger.info("[Courier] {} completed in {}ms [status={}]",
-                        requestName, durationMs, response.getStatusCode());
+            if (result instanceof Response<?> response) {
+                if (response.isSuccess()) {
+                    logger.info(
+                            "[Courier] {} completed in {}ms [status={}]",
+                            requestName, durationMs,
+                            response.getStatusCode());
+                } else {
+                    logger.warn(
+                            "[Courier] {} failed in {}ms "
+                                    + "[status={}, error={}]",
+                            requestName, durationMs,
+                            response.getStatusCode(),
+                            response.getError());
+                }
             } else {
-                String error = response != null ? response.getError() : "null response";
-                int status = response != null ? response.getStatusCode() : 500;
-                logger.warn("[Courier] {} failed in {}ms [status={}, error={}]",
-                        requestName, durationMs, status, error);
+                logger.info("[Courier] {} completed in {}ms",
+                        requestName, durationMs);
             }
 
-            return response;
+            return result;
         } catch (RuntimeException ex) {
             long durationMs = (System.nanoTime() - start) / 1_000_000;
             logger.error("[Courier] {} threw exception in {}ms: {}",
