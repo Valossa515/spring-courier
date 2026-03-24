@@ -1,9 +1,11 @@
 package io.github.valossa515.spring_courier.config;
 
 import io.github.valossa515.spring_courier.core.Courier;
+import io.github.valossa515.spring_courier.core.interfaces.ResponseEntityConverter;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
 import io.github.valossa515.spring_courier.core.support.BehaviorDiscoveryPostProcessor;
+import io.github.valossa515.spring_courier.core.support.DefaultResponseEntityConverter;
 import io.github.valossa515.spring_courier.core.support.HandlerDiscoveryPostProcessor;
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.NotificationDiscoveryPostProcessor;
@@ -65,6 +67,12 @@ public class CourierAutoConfiguration {
                            ObjectProvider<Executor> asyncExecutor) {
         return new Courier(handlerRegistry, notificationRegistry, pipelineExecutor,
                 asyncExecutor.getIfUnique(), properties.getAsyncTimeoutMs());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ResponseEntityConverter responseEntityConverter() {
+        return new DefaultResponseEntityConverter();
     }
 
     @Bean

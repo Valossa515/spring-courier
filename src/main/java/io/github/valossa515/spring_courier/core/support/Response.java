@@ -8,7 +8,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.http.ResponseEntity;
 
 import java.util.Objects;
-import java.util.concurrent.TimeoutException;
 
 /**
  * Immutable value object that represents the result of an operation, including
@@ -217,6 +216,23 @@ public class Response<T> {
 
     @JsonIgnore
     public ResponseEntity<Response<T>> toEntity() {
+        return ResponseEntity.status(statusCode).body(this);
+    }
+
+    /**
+     * Converts this response to a {@link ResponseEntity}.
+     * When {@code includeBody} is {@code false} and the response is successful,
+     * returns a {@code 204 No Content} response without a body — useful for
+     * write operations (commands) that produce no meaningful payload.
+     *
+     * @param includeBody whether to include the response body on success
+     * @return a {@link ResponseEntity} representing this response
+     */
+    @JsonIgnore
+    public ResponseEntity<Response<T>> toEntity(boolean includeBody) {
+        if (!includeBody && success) {
+            return ResponseEntity.noContent().build();
+        }
         return ResponseEntity.status(statusCode).body(this);
     }
 
