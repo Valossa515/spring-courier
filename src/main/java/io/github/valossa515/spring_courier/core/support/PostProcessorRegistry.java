@@ -3,8 +3,12 @@ package io.github.valossa515.spring_courier.core.support;
 import io.github.valossa515.spring_courier.core.interfaces.IRequestPostProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -42,13 +46,19 @@ public class PostProcessorRegistry {
         if (requestType.isInterface()) {
             globalProcessors.add(
                     new GlobalEntry(processor, requestType));
+            globalProcessors.sort(Comparator.comparingInt(
+                    e -> getProcessorOrder(e.processor())));
             logger.info(
                     "Global post-processor registered: {} (matches {})",
                     processor.getClass().getSimpleName(),
                     requestType.getSimpleName());
         } else {
-            processors.computeIfAbsent(requestType,
-                    k -> new CopyOnWriteArrayList<>()).add(processor);
+            List<IRequestPostProcessor<?, ?>> list =
+                    processors.computeIfAbsent(requestType,
+                            k -> new CopyOnWriteArrayList<>());
+            list.add(processor);
+            list.sort(Comparator.comparingInt(
+                    this::getProcessorOrder));
             logger.info("Post-processor registered for {}: {}",
                     requestType.getSimpleName(),
                     processor.getClass().getSimpleName());
@@ -58,7 +68,7 @@ public class PostProcessorRegistry {
     public List<IRequestPostProcessor<?, ?>> getProcessors(
             Class<?> requestType) {
         List<IRequestPostProcessor<?, ?>> result =
-                new java.util.ArrayList<>();
+                new ArrayList<>();
         for (GlobalEntry entry : globalProcessors) {
             if (entry.requestType() != null
                     && entry.requestType().isAssignableFrom(requestType)) {
@@ -70,6 +80,8 @@ public class PostProcessorRegistry {
         if (specific != null) {
             result.addAll(specific);
         }
+        result.sort(Comparator.comparingInt(
+                this::getProcessorOrder));
         return Collections.unmodifiableList(result);
     }
 
@@ -91,5 +103,22 @@ public class PostProcessorRegistry {
         return globalProcessors.size()
                 + processors.values().stream()
                 .mapToInt(List::size).sum();
+    }
+
+    /**
+     * Resolves the execution order for a post-processor based on
+     * {@link Order} annotation or {@link Ordered} interface.
+     */
+    private int getProcessorOrder(
+            IRequestPostProcessor<?, ?> processor) {
+        Class<?> clazz = processor.getClass();
+        Order orderAnnotation = clazz.getAnnotation(Order.class);
+        if (orderAnnotation != null) {
+            return orderAnnotation.value();
+        }
+        if (processor instanceof Ordered ordered) {
+            return ordered.getOrder();
+        }
+        return Ordered.LOWEST_PRECEDENCE;
     }
 }

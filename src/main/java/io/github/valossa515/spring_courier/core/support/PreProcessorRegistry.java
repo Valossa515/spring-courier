@@ -3,8 +3,12 @@ package io.github.valossa515.spring_courier.core.support;
 import io.github.valossa515.spring_courier.core.interfaces.IRequestPreProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -41,12 +45,17 @@ public class PreProcessorRegistry {
         }
         if (requestType.isInterface()) {
             globalProcessors.add(new GlobalEntry(processor, requestType));
+            globalProcessors.sort(Comparator.comparingInt(
+                    e -> getProcessorOrder(e.processor())));
             logger.info("Global pre-processor registered: {} (matches {})",
                     processor.getClass().getSimpleName(),
                     requestType.getSimpleName());
         } else {
-            processors.computeIfAbsent(requestType,
-                    k -> new CopyOnWriteArrayList<>()).add(processor);
+            List<IRequestPreProcessor<?>> list =
+                    processors.computeIfAbsent(requestType,
+                            k -> new CopyOnWriteArrayList<>());
+            list.add(processor);
+            list.sort(Comparator.comparingInt(this::getProcessorOrder));
             logger.info("Pre-processor registered for {}: {}",
                     requestType.getSimpleName(),
                     processor.getClass().getSimpleName());
@@ -55,7 +64,7 @@ public class PreProcessorRegistry {
 
     public List<IRequestPreProcessor<?>> getProcessors(
             Class<?> requestType) {
-        List<IRequestPreProcessor<?>> result = new java.util.ArrayList<>();
+        List<IRequestPreProcessor<?>> result = new ArrayList<>();
         for (GlobalEntry entry : globalProcessors) {
             if (entry.requestType() != null
                     && entry.requestType().isAssignableFrom(requestType)) {
@@ -67,6 +76,7 @@ public class PreProcessorRegistry {
         if (specific != null) {
             result.addAll(specific);
         }
+        result.sort(Comparator.comparingInt(this::getProcessorOrder));
         return Collections.unmodifiableList(result);
     }
 
@@ -87,5 +97,21 @@ public class PreProcessorRegistry {
         return globalProcessors.size()
                 + processors.values().stream()
                 .mapToInt(List::size).sum();
+    }
+
+    /**
+     * Resolves the execution order for a pre-processor based on
+     * {@link Order} annotation or {@link Ordered} interface.
+     */
+    private int getProcessorOrder(IRequestPreProcessor<?> processor) {
+        Class<?> clazz = processor.getClass();
+        Order orderAnnotation = clazz.getAnnotation(Order.class);
+        if (orderAnnotation != null) {
+            return orderAnnotation.value();
+        }
+        if (processor instanceof Ordered ordered) {
+            return ordered.getOrder();
+        }
+        return Ordered.LOWEST_PRECEDENCE;
     }
 }

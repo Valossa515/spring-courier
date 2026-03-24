@@ -161,7 +161,7 @@ public class Courier {
         Response<R> result;
         try {
             result = pipelineExecutor.execute(
-                    request, () -> invokeHandler(handler, request));
+                    request, () -> invokeHandlerRaw(handler, request));
         } catch (RuntimeException ex) {
             Response<R> handled = tryExceptionHandlers(request, ex);
             if (handled != null) {
@@ -248,7 +248,9 @@ public class Courier {
             return null;
         }
         List<IRequestExceptionHandler<?, ?, ?>> handlers =
-                exceptionHandlerRegistry.getHandlers(request.getClass());
+                exceptionHandlerRegistry.getHandlers(
+                        request.getClass(), ex.getClass()
+                                .asSubclass(Exception.class));
         for (IRequestExceptionHandler handler : handlers) {
             try {
                 Response result = handler.handle(request, ex);
@@ -264,20 +266,59 @@ public class Courier {
         return null;
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private <R> Response<R> tryExceptionHandlersForResponse(
+            IRequest<?> request, Response<R> errorResponse) {
+        if (exceptionHandlerRegistry == null) {
+            return null;
+        }
+        String exTypeName = errorResponse.getExceptionType();
+        List<IRequestExceptionHandler<?, ?, ?>> handlers =
+                exceptionHandlerRegistry.getHandlers(
+                        request.getClass());
+        if (handlers.isEmpty()) {
+            return null;
+        }
+        RuntimeException syntheticEx = new RuntimeException(
+                errorResponse.getError());
+        for (IRequestExceptionHandler handler : handlers) {
+            try {
+                Response result = handler.handle(
+                        request, syntheticEx);
+                if (result != null) {
+                    return (Response<R>) result;
+                }
+            } catch (Exception e) {
+                logger.error("Exception handler {} failed: {}",
+                        handler.getClass().getSimpleName(),
+                        e.getMessage(), e);
+            }
+        }
+        return null;
+    }
+
     /**
-     * Invokes the handler, transparently supporting "handle" and "execute"
-     * method conventions.
+     * Invokes the handler and returns the raw result object without
+     * wrapping in {@link Response}. This is the version used by
+     * {@link PipelineExecutor}, whose {@code normalize()} step handles
+     * the {@link Response} wrapping. Timeout and async-handler
+     * unwrapping are still performed here.
+     *
+     * <p>For error conditions that cannot be represented as raw
+     * results (timeouts, execution errors), the method returns a
+     * {@link Response#error} directly so that {@code normalize()}
+     * passes it through unchanged.
      */
-    @SuppressWarnings("unchecked")
-    private <R> Response<R> invokeHandler(Object handler,
-                                          IRequest<R> request) {
+    private <R> Object invokeHandlerRaw(Object handler,
+                                        IRequest<R> request) {
         try {
             Method method = getCachedMethod(handler.getClass());
             long start = System.nanoTime();
 
             CompletableFuture<Object> invocationFuture =
                     CompletableFuture.supplyAsync(
-                            () -> reflectiveInvoke(method, handler, request),
+                            () -> reflectiveInvoke(
+                                    method, handler, request),
                             VIRTUAL_THREAD_EXECUTOR);
 
             Object result;
@@ -290,8 +331,10 @@ public class Courier {
                         asyncTimeoutMs,
                         handler.getClass().getSimpleName());
                 return Response.error(
-                        "Handler timed out after " + asyncTimeoutMs + "ms",
-                        504, TimeoutException.class.getSimpleName());
+                        "Handler timed out after "
+                                + asyncTimeoutMs + "ms",
+                        504,
+                        TimeoutException.class.getSimpleName());
             } catch (ExecutionException e) {
                 Throwable cause = unwrapExecutionCause(e);
                 logger.error("Handler error: {}",
@@ -309,13 +352,16 @@ public class Courier {
                             remainingMs, TimeUnit.MILLISECONDS);
                 } catch (TimeoutException e) {
                     future.cancel(true);
-                    logger.error("Handler timed out after {}ms: {}",
+                    logger.error(
+                            "Handler timed out after {}ms: {}",
                             asyncTimeoutMs,
                             handler.getClass().getSimpleName());
                     return Response.error(
                             "Handler timed out after "
                                     + asyncTimeoutMs + "ms",
-                            504, TimeoutException.class.getSimpleName());
+                            504,
+                            TimeoutException.class
+                                    .getSimpleName());
                 } catch (ExecutionException e) {
                     Throwable cause = unwrapExecutionCause(e);
                     logger.error("Async handler error: {}",
@@ -326,27 +372,40 @@ public class Courier {
 
             long durationMs = TimeUnit.NANOSECONDS.toMillis(
                     System.nanoTime() - start);
-            logger.debug("Handler executed in {}ms: {} -> {}", durationMs,
+            logger.debug("Handler executed in {}ms: {} -> {}",
+                    durationMs,
                     request.getClass().getSimpleName(),
                     handler.getClass().getSimpleName());
 
-            if (result == null) {
-                return Response.success(null);
-            }
-            if (result instanceof Response<?> response) {
-                return (Response<R>) response;
-            }
-
-            return Response.success((R) result);
+            return result;
 
         } catch (RuntimeException e) {
-            logger.error("Courier runtime error: {}", e.getMessage(), e);
+            logger.error("Courier runtime error: {}",
+                    e.getMessage(), e);
             return Response.error(e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            logger.error("Handler interrupted: {}", e.getMessage(), e);
+            logger.error("Handler interrupted: {}",
+                    e.getMessage(), e);
             return Response.error(e);
         }
+    }
+
+    /**
+     * Invokes the handler and wraps the result in a {@link Response}.
+     * Used for direct handler invocation outside the pipeline.
+     */
+    @SuppressWarnings("unchecked")
+    private <R> Response<R> invokeHandler(Object handler,
+                                          IRequest<R> request) {
+        Object raw = invokeHandlerRaw(handler, request);
+        if (raw == null) {
+            return Response.success(null);
+        }
+        if (raw instanceof Response<?> response) {
+            return (Response<R>) response;
+        }
+        return Response.success((R) raw);
     }
 
     /**

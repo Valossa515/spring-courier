@@ -39,6 +39,25 @@ public class MeteredCourier extends Courier {
     private final Counter timeoutCounter;
     private final LongTaskTimer inFlightTimer;
 
+    /**
+     * Backward-compatible constructor without processor registries
+     * and publish strategy. Delegates to the full constructor with
+     * {@code null} registries and default
+     * {@link CourierProperties.PublishStrategy#SEQUENTIAL}.
+     */
+    public MeteredCourier(@NotNull HandlerRegistry handlerRegistry,
+                          @NotNull NotificationRegistry notificationRegistry,
+                          @NotNull PipelineExecutor pipelineExecutor,
+                          @NotNull PipelineRegistry pipelineRegistry,
+                          Executor asyncExecutor,
+                          long asyncTimeoutMs,
+                          @NotNull MeterRegistry meterRegistry) {
+        this(handlerRegistry, notificationRegistry,
+                pipelineExecutor, pipelineRegistry,
+                asyncExecutor, asyncTimeoutMs, meterRegistry,
+                null, null, null, null);
+    }
+
     public MeteredCourier(@NotNull HandlerRegistry handlerRegistry,
                           @NotNull NotificationRegistry notificationRegistry,
                           @NotNull PipelineExecutor pipelineExecutor,

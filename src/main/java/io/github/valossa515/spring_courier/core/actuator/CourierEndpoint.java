@@ -9,6 +9,7 @@ import io.github.valossa515.spring_courier.core.support.PreProcessorRegistry;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,10 +53,11 @@ public class CourierEndpoint {
         // Handlers
         Map<String, Object> handlers = new LinkedHashMap<>();
         handlers.put("count", handlerRegistry.getHandlerCount());
-        List<String> handlerTypes = handlerRegistry.getHandlers().entrySet()
-                .stream()
+        List<String> handlerTypes = handlerRegistry.getHandlers()
+                .entrySet().stream()
                 .map(e -> e.getKey().getSimpleName()
-                        + " -> " + e.getValue().getClass().getSimpleName())
+                        + " -> "
+                        + e.getValue().getClass().getSimpleName())
                 .sorted()
                 .toList();
         handlers.put("registered", handlerTypes);
@@ -63,28 +65,53 @@ public class CourierEndpoint {
 
         // Notifications
         Map<String, Object> notifications = new LinkedHashMap<>();
-        notifications.put("handlerCount", notificationRegistry.getHandlerCount());
+        notifications.put("handlerCount",
+                notificationRegistry.getHandlerCount());
+        List<String> notificationDetails = new ArrayList<>();
+        notificationRegistry.getAllHandlers().forEach(
+                (type, handlerList) -> {
+                    for (Object h : handlerList) {
+                        notificationDetails.add(
+                                type.getSimpleName()
+                                        + " -> "
+                                        + h.getClass()
+                                        .getSimpleName());
+                    }
+                });
+        notificationDetails.sort(String::compareTo);
+        notifications.put("registered", notificationDetails);
         info.put("notifications", notifications);
 
         // Pipeline
         Map<String, Object> pipeline = new LinkedHashMap<>();
-        pipeline.put("behaviorCount", pipelineRegistry.getBehaviorCount());
+        pipeline.put("behaviorCount",
+                pipelineRegistry.getBehaviorCount());
         info.put("pipeline", pipeline);
 
         // Processors
         Map<String, Object> processors = new LinkedHashMap<>();
-        processors.put("preProcessorCount", preProcessorRegistry.getCount());
-        processors.put("postProcessorCount", postProcessorRegistry.getCount());
+        processors.put("preProcessorCount",
+                preProcessorRegistry.getCount());
+        processors.put("postProcessorCount",
+                postProcessorRegistry.getCount());
         processors.put("exceptionHandlerCount",
                 exceptionHandlerRegistry.getCount());
         info.put("processors", processors);
 
         // Registry status
         Map<String, Object> status = new LinkedHashMap<>();
-        status.put("handlerRegistryFrozen", handlerRegistry.isFrozen());
+        status.put("handlerRegistryFrozen",
+                handlerRegistry.isFrozen());
         status.put("notificationRegistryFrozen",
                 notificationRegistry.isFrozen());
-        status.put("pipelineRegistryFrozen", pipelineRegistry.isFrozen());
+        status.put("pipelineRegistryFrozen",
+                pipelineRegistry.isFrozen());
+        status.put("preProcessorRegistryFrozen",
+                preProcessorRegistry.isFrozen());
+        status.put("postProcessorRegistryFrozen",
+                postProcessorRegistry.isFrozen());
+        status.put("exceptionHandlerRegistryFrozen",
+                exceptionHandlerRegistry.isFrozen());
         info.put("status", status);
 
         return info;

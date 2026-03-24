@@ -14,9 +14,10 @@ import java.util.Set;
  * contract, enabling automatic validation of requests annotated with
  * Jakarta constraints ({@code @NotNull}, {@code @Size}, {@code @Email}, etc.).
  *
- * <p>Activated automatically when {@code jakarta.validation.Validator} is
- * available on the classpath and a {@code Validator} bean exists in the
- * Spring context (e.g., via {@code spring-boot-starter-validation}).
+ * <p>This bridge is <strong>not</strong> auto-configured. It must be
+ * manually registered as a Spring bean by the application, for example
+ * via a {@code @Bean} method that injects the Jakarta
+ * {@code Validator} and passes it to the constructor.
  *
  * @param <T> request type to validate
  */

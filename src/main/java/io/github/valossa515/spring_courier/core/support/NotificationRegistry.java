@@ -85,4 +85,13 @@ public class NotificationRegistry {
         List<Object> handlerList = handlers.get(notificationType);
         return handlerList != null && !handlerList.isEmpty();
     }
+
+    /**
+     * Returns an unmodifiable snapshot of all notification type to
+     * handler list mappings. Intended for monitoring and actuator
+     * endpoints.
+     */
+    public Map<Class<?>, List<Object>> getAllHandlers() {
+        return Collections.unmodifiableMap(handlers);
+    }
 }
