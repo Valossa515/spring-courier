@@ -38,8 +38,7 @@ public interface ResponseEntityConverter {
      * Converts the given {@link Response} into a {@link ResponseEntity}.
      *
      * @param response the response produced by the Courier pipeline
-     * @param <T>      the response data type
      * @return a {@link ResponseEntity} suitable for returning from a controller
      */
-    <T> ResponseEntity<?> convert(Response<T> response);
+    ResponseEntity<?> convert(Response<?> response);
 }

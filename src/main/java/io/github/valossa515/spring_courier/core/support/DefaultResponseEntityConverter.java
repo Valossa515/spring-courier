@@ -12,7 +12,7 @@ import org.springframework.http.ResponseEntity;
 public class DefaultResponseEntityConverter implements ResponseEntityConverter {
 
     @Override
-    public <T> ResponseEntity<?> convert(Response<T> response) {
+    public ResponseEntity<?> convert(Response<?> response) {
         if (response == null) {
             return ResponseEntity.internalServerError().build();
         }

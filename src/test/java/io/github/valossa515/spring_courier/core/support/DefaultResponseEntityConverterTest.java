@@ -41,13 +41,8 @@ class DefaultResponseEntityConverterTest {
     }
 
     @Test
-    void converterIsFunctionalInterface() {
-        ResponseEntityConverter custom = new ResponseEntityConverter() {
-            @Override
-            public <T> ResponseEntity<?> convert(Response<T> response) {
-                return ResponseEntity.ok("custom");
-            }
-        };
+    void converterIsAssignableFromLambda() {
+        ResponseEntityConverter custom = response -> ResponseEntity.ok("custom");
 
         ResponseEntity<?> entity = custom.convert(Response.success("ignored"));
         assertNotNull(entity);
