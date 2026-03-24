@@ -3,8 +3,26 @@ name: Checkstyle
 on:
   pull_request:
     branches: [ "main" ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'assets/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - 'CODE_OF_CONDUCT*'
+      - 'CONTRIBUTING*'
+      - 'SECURITY*'
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'assets/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - 'CODE_OF_CONDUCT*'
+      - 'CONTRIBUTING*'
+      - 'SECURITY*'
 
 jobs:
   checkstyle:
