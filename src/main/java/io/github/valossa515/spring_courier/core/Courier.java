@@ -203,9 +203,11 @@ public class Courier {
         Objects.requireNonNull(request, "request must not be null");
         Executor executor = asyncExecutor != null
                 ? asyncExecutor : VIRTUAL_THREAD_EXECUTOR;
-        CourierContext ctx = CourierContextHolder.getContext();
+        CourierContext ctx = CourierContextHolder.peekContext();
         return CompletableFuture.supplyAsync(() -> {
-            CourierContextHolder.setContext(ctx);
+            if (ctx != null) {
+                CourierContextHolder.setContext(ctx);
+            }
             try {
                 return send(request);
             } finally {
@@ -395,13 +397,15 @@ public class Courier {
         Objects.requireNonNull(requests, "requests must not be null");
         Executor executor = asyncExecutor != null
                 ? asyncExecutor : VIRTUAL_THREAD_EXECUTOR;
-        CourierContext ctx = CourierContextHolder.getContext();
+        CourierContext ctx = CourierContextHolder.peekContext();
 
         List<CompletableFuture<Response<?>>> futures =
                 new ArrayList<>(requests.size());
         for (IRequest<?> request : requests) {
             futures.add(CompletableFuture.supplyAsync(() -> {
-                CourierContextHolder.setContext(ctx);
+                if (ctx != null) {
+                    CourierContextHolder.setContext(ctx);
+                }
                 try {
                     return sendWildcard(request);
                 } finally {
@@ -410,14 +414,13 @@ public class Courier {
             }, executor));
         }
 
-        return CompletableFuture.allOf(
-                        futures.toArray(CompletableFuture[]::new))
-                .thenApply(v -> futures.stream()
-                        .map(CompletableFuture::join)
-                        .toList());
+        CompletableFuture<Void> allDone = CompletableFuture.allOf(
+                futures.toArray(new CompletableFuture<?>[0]));
+        return allDone.thenApply(v -> futures.stream()
+                .map(CompletableFuture::join)
+                .collect(java.util.stream.Collectors.toList()));
     }
 
-    @SuppressWarnings("unchecked")
     private <R> Response<R> sendWildcard(IRequest<R> request) {
         return send(request);
     }

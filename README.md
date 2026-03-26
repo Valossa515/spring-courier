@@ -398,7 +398,7 @@ Response<Product> second = courier.send(new GetProductQuery(id));  // returns ca
 
 ## 🔄 Retry Behavior
 
-Retries failed requests with **exponential backoff**. Only transient exceptions trigger retries.
+Retries failed requests with **exponential backoff** whenever a handler throws an exception.
 
 **Activation:**
 
@@ -426,7 +426,7 @@ Creates a span for every `send()` call with request type, CQRS category, and cor
 </dependency>
 ```
 
-Spans are named `courier.send` and include:
+Spans are named `courier.<RequestType>` (e.g. `courier.CreateProductCommand`) and include:
 - `courier.request.type` — e.g. `CreateProductCommand`
 - `courier.request.category` — `command`, `query`, or `request`
 - `courier.correlation.id` — from `CourierContext`
@@ -442,7 +442,8 @@ Send multiple requests in a single call:
 List<Response<?>> results = courier.sendAll(List.of(cmd1, cmd2, cmd3));
 
 // Parallel — dispatches all concurrently via virtual threads
-List<Response<?>> results = courier.sendAllAsync(List.of(cmd1, cmd2, cmd3));
+CompletableFuture<List<Response<?>>> future = courier.sendAllAsync(List.of(cmd1, cmd2, cmd3));
+List<Response<?>> asyncResults = future.join();
 ```
 
 ---
@@ -487,9 +488,9 @@ Request-scoped context automatically created on every `send()` call. Carries a *
 CourierContext ctx = CourierContextHolder.getContext();
 String correlationId = ctx.getCorrelationId();
 
-// Store custom attributes
-ctx.put("userId", currentUser.getId());
-String userId = ctx.get("userId");
+// Store custom attributes (immutable — returns new context)
+ctx = ctx.with("userId", currentUser.getId());
+String userId = ctx.<String>get("userId").orElseThrow();
 ```
 
 The context is automatically propagated to:
@@ -592,8 +593,10 @@ spring.courier.metrics.enabled=false
 | Metric                           | Description                                | Tags                                            |
 |----------------------------------|--------------------------------------------|-------------------------------------------------|
 | `courier.send.duration`          | Command/query execution time               | `request.type`, `request.category`, `outcome`   |
+| `courier.send.async.duration`     | Async command/query execution time         | `request.type`, `request.category`, `outcome`   |
 | `courier.publish.duration`       | Notification publish time                  | `notification.type`                             |
 | `courier.publish.async.duration` | Async notification publish time            | `notification.type`                             |
+| `courier.batch.send.duration`    | Batch dispatch execution time              | —                                               |
 
 #### 🔢 Counters (throughput and errors)
 
@@ -608,6 +611,7 @@ spring.courier.metrics.enabled=false
 | `courier.cache.misses`         | Cache miss count                        | —                                  |
 | `courier.retry.attempts`       | Retry attempt count                     | —                                  |
 | `courier.retry.exhausted`      | Retries exhausted (all attempts failed) | —                                  |
+| `courier.batch.send.size`      | Batch dispatch size distribution        | —                                  |
 
 > **Note:** `handler.errors` and `validation.failures` are mutually exclusive — a failed request increments one or the other, never both.
 
@@ -618,6 +622,12 @@ spring.courier.metrics.enabled=false
 | `courier.handlers.registered`              | Number of registered command/query handlers          |
 | `courier.notification.handlers.registered` | Number of registered notification handlers           |
 | `courier.pipeline.behaviors.registered`    | Number of registered pipeline behaviors              |
+
+#### ⏱️ Long Task Timers (in-flight tracking)
+
+| Metric                                     | Description                                         |
+|--------------------------------------------|-----------------------------------------------------|
+| `courier.requests.in.flight`               | Number of requests currently being processed         |
 
 #### 🏷️ Tags
 

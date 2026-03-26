@@ -8,8 +8,8 @@ import io.github.valossa515.spring_courier.core.interfaces.IRequest;
  * pipeline or modify the response — it is a pure side-effect callback
  * (logging, enrichment, context propagation, etc.).
  *
- * <p>Implementations are auto-discovered from the Spring context and
- * executed in {@link org.springframework.core.annotation.Order} order.
+ * <p>Implementations are auto-discovered from the Spring context
+ * and executed in registration order.
  *
  * @param <R> request type
  */

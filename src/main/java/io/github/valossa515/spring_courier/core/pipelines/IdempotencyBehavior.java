@@ -66,8 +66,15 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
 
         S result = next.invoke();
 
-        long ttlMs = annotation.ttlSeconds() > 0
-                ? annotation.ttlSeconds() * 1000L : Long.MAX_VALUE;
+        long expiresAt;
+        if (annotation.ttlSeconds() > 0) {
+            long ttlMs = annotation.ttlSeconds() * 1000L;
+            long now = System.currentTimeMillis();
+            expiresAt = (Long.MAX_VALUE - now < ttlMs)
+                    ? Long.MAX_VALUE : now + ttlMs;
+        } else {
+            expiresAt = Long.MAX_VALUE;
+        }
 
         if (maxSize > 0 && store.size() >= maxSize) {
             evictExpired();
@@ -80,8 +87,7 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
             }
         }
 
-        store.put(key, new IdempotencyEntry(result,
-                System.currentTimeMillis() + ttlMs));
+        store.put(key, new IdempotencyEntry(result, expiresAt));
         logger.debug("Idempotent MISS — stored {}", key);
         return result;
     }

@@ -398,7 +398,7 @@ Response<Product> second = courier.send(new GetProductQuery(id));  // retorna ca
 
 ## 🔄 Retry Behavior
 
-Retry de requests que falharam com **backoff exponencial**. Apenas exceções transientes disparam retries.
+Retry de requests que falharam com **backoff exponencial** sempre que o handler lança uma exceção.
 
 **Ativação:**
 
@@ -426,7 +426,7 @@ Cria um span para cada chamada `send()` com tipo do request, categoria CQRS e co
 </dependency>
 ```
 
-Os spans são nomeados `courier.send` e incluem:
+Os spans são nomeados `courier.<RequestType>` (ex: `courier.CreateProductCommand`) e incluem:
 - `courier.request.type` — ex: `CreateProductCommand`
 - `courier.request.category` — `command`, `query` ou `request`
 - `courier.correlation.id` — do `CourierContext`
@@ -442,7 +442,8 @@ Envie múltiplos requests em uma única chamada:
 List<Response<?>> results = courier.sendAll(List.of(cmd1, cmd2, cmd3));
 
 // Paralelo — despacha todos concorrentemente via virtual threads
-List<Response<?>> results = courier.sendAllAsync(List.of(cmd1, cmd2, cmd3));
+CompletableFuture<List<Response<?>>> future = courier.sendAllAsync(List.of(cmd1, cmd2, cmd3));
+List<Response<?>> asyncResults = future.join();
 ```
 
 ---
@@ -487,9 +488,9 @@ Contexto por request criado automaticamente em cada chamada `send()`. Carrega um
 CourierContext ctx = CourierContextHolder.getContext();
 String correlationId = ctx.getCorrelationId();
 
-// Armazene atributos customizados
-ctx.put("userId", currentUser.getId());
-String userId = ctx.get("userId");
+// Armazene atributos customizados (imutável — retorna novo contexto)
+ctx = ctx.with("userId", currentUser.getId());
+String userId = ctx.<String>get("userId").orElseThrow();
 ```
 
 O contexto é automaticamente propagado para:
@@ -592,8 +593,10 @@ spring.courier.metrics.enabled=false
 | Métrica                          | Descrição                                  | Tags                                            |
 |----------------------------------|--------------------------------------------|------------------------------------------------|
 | `courier.send.duration`          | Tempo de execução de commands/queries      | `request.type`, `request.category`, `outcome`  |
+| `courier.send.async.duration`    | Tempo de execução assíncrona de commands/queries | `request.type`, `request.category`, `outcome`  |
 | `courier.publish.duration`       | Tempo de publicação de notificações        | `notification.type`                            |
 | `courier.publish.async.duration` | Tempo de publicação assíncrona             | `notification.type`                            |
+| `courier.batch.send.duration`    | Tempo de execução de batch dispatch        | —                                              |
 
 #### 🔢 Counters (throughput e erros)
 
@@ -608,6 +611,7 @@ spring.courier.metrics.enabled=false
 | `courier.cache.misses`         | Contagem de cache misses                | —                                  |
 | `courier.retry.attempts`       | Contagem de tentativas de retry         | —                                  |
 | `courier.retry.exhausted`      | Retries esgotados (todas tentativas falharam) | —                            |
+| `courier.batch.send.size`      | Distribuição de tamanho dos batch dispatches   | —                            |
 
 > **Nota:** `handler.errors` e `validation.failures` são mutuamente exclusivos — um request com falha incrementa um ou outro, nunca ambos.
 
@@ -618,6 +622,12 @@ spring.courier.metrics.enabled=false
 | `courier.handlers.registered`              | Quantidade de command/query handlers registrados|
 | `courier.notification.handlers.registered` | Quantidade de notification handlers registrados |
 | `courier.pipeline.behaviors.registered`    | Quantidade de pipeline behaviors registrados    |
+
+#### ⏱️ Long Task Timers (rastreamento de requests em andamento)
+
+| Métrica                                    | Descrição                                      |
+|--------------------------------------------|------------------------------------------------|
+| `courier.requests.in.flight`               | Quantidade de requests sendo processados        |
 
 #### 🏷️ Tags
 

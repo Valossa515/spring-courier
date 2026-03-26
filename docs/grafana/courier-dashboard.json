@@ -354,66 +354,46 @@
     },
     {
       "type": "row",
-      "title": "🚨 Errors & Reliability",
+      "title": "� Retry & Cache",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 }
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 56 }
     },
     {
-      "id": 30,
+      "id": 60,
       "type": "timeseries",
-      "title": "Handler Errors by Exception Type",
-      "description": "Error rate broken down by exception class",
+      "title": "Cache Hit / Miss Rate",
+      "description": "Cache hits and misses per second",
       "datasource": "${DS_PROMETHEUS}",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 57 },
       "targets": [
         {
-          "expr": "sum by(exception_type) (rate(courier_handler_errors_total{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval]))",
-          "legendFormat": "{{exception_type}}"
-        }
-      ],
-      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 20 } } }
-    },
-    {
-      "id": 31,
-      "type": "timeseries",
-      "title": "Validation Failures by Request Type",
-      "description": "Validation failures per second by request type",
-      "datasource": "${DS_PROMETHEUS}",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
-      "targets": [
+          "expr": "sum(rate(courier_cache_hits_total{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "hits/s"
+        },
         {
-          "expr": "sum by(request_type) (rate(courier_validation_failures_total{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval]))",
-          "legendFormat": "{{request_type}}"
+          "expr": "sum(rate(courier_cache_misses_total{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "misses/s"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 20 } } }
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 20 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "hits/s" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "misses/s" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] }
+        ]
+      }
     },
     {
-      "id": 32,
-      "type": "timeseries",
-      "title": "Handler Timeouts",
-      "description": "Async handler timeout rate",
-      "datasource": "${DS_PROMETHEUS}",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 48 },
-      "targets": [
-        {
-          "expr": "sum(rate(courier_handler_timeouts_total{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval]))",
-          "legendFormat": "timeouts/s"
-        }
-      ],
-      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } } }
-    },
-    {
-      "id": 33,
+      "id": 61,
       "type": "gauge",
-      "title": "Error Ratio (send)",
-      "description": "Percentage of failed sends",
+      "title": "Cache Hit Ratio",
+      "description": "Percentage of cache hits vs total lookups",
       "datasource": "${DS_PROMETHEUS}",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 48 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 57 },
       "targets": [
         {
-          "expr": "sum(rate(courier_send_total{outcome=\"error\", application=~\"$application\", instance=~\"$instance\"}[$__rate_interval])) / sum(rate(courier_send_total{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval]))",
-          "legendFormat": "error ratio"
+          "expr": "sum(rate(courier_cache_hits_total{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval])) / (sum(rate(courier_cache_hits_total{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval])) + sum(rate(courier_cache_misses_total{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "hit ratio"
         }
       ],
       "fieldConfig": {
@@ -424,19 +404,138 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" },
-              { "value": 0.01, "color": "yellow" },
-              { "value": 0.05, "color": "red" }
+              { "value": null, "color": "red" },
+              { "value": 0.5, "color": "yellow" },
+              { "value": 0.8, "color": "green" }
             ]
           }
         }
       }
     },
     {
+      "id": 62,
+      "type": "timeseries",
+      "title": "Retry Attempts & Exhaustions",
+      "description": "Retry attempts and fully exhausted retries per second",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 65 },
+      "targets": [
+        {
+          "expr": "sum(rate(courier_retry_attempts_total{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "retry attempts/s"
+        },
+        {
+          "expr": "sum(rate(courier_retry_exhausted_total{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "exhausted/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 20 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "exhausted/s" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }
+        ]
+      }
+    },
+    {
+      "id": 63,
+      "type": "stat",
+      "title": "In-Flight Requests",
+      "description": "Number of requests currently being processed",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 65 },
+      "targets": [
+        {
+          "expr": "sum(courier_requests_in_flight_active_count{application=~\"$application\", instance=~\"$instance\"})",
+          "legendFormat": "in-flight"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 50, "color": "yellow" },
+              { "value": 200, "color": "red" }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "type": "row",
+      "title": "📦 Batch & Async",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 73 }
+    },
+    {
+      "id": 70,
+      "type": "timeseries",
+      "title": "Send Async Latency — p50 / p95 / p99",
+      "description": "Percentile latencies for courier.sendAsync()",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 74 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by(le) (rate(courier_send_async_duration_seconds_bucket{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(courier_send_async_duration_seconds_bucket{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by(le) (rate(courier_send_async_duration_seconds_bucket{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } }
+    },
+    {
+      "id": 71,
+      "type": "timeseries",
+      "title": "Batch Send Latency — p50 / p95 / p99",
+      "description": "Percentile latencies for batch sendAll()/sendAllAsync()",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 74 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by(le) (rate(courier_batch_send_duration_seconds_bucket{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(courier_batch_send_duration_seconds_bucket{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by(le) (rate(courier_batch_send_duration_seconds_bucket{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } }
+    },
+    {
+      "id": 72,
+      "type": "timeseries",
+      "title": "Batch Size Distribution",
+      "description": "Average batch size over time",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 82 },
+      "targets": [
+        {
+          "expr": "rate(courier_batch_send_size_sum{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval]) / rate(courier_batch_send_size_count{application=~\"$application\", instance=~\"$instance\"}[$__rate_interval])",
+          "legendFormat": "avg batch size"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } } }
+    },
+    {
       "type": "row",
       "title": "📦 Registry",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 56 }
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 90 }
     },
     {
       "id": 40,

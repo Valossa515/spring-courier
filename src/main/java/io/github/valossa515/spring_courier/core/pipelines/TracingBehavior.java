@@ -32,9 +32,6 @@ import org.springframework.core.Ordered;
 public class TracingBehavior<R extends IRequest<S>, S>
         implements PipelineBehavior<R, S>, Ordered {
 
-    private static final String INSTRUMENTATION_NAME =
-            "spring-courier";
-
     private final Tracer tracer;
 
     public TracingBehavior(Tracer tracer) {

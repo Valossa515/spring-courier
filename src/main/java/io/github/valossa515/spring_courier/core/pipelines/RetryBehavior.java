@@ -84,7 +84,7 @@ public class RetryBehavior<R extends IRequest<S>, S>
     }
 
     long computeDelay(int attempt) {
-        return (long) (delayMs * Math.pow(multiplier, attempt - 1));
+        return (long) (delayMs * Math.pow(multiplier, (double) attempt - 1));
     }
 
     private void sleep(long ms) {
