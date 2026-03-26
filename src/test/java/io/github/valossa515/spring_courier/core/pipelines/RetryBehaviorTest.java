@@ -6,6 +6,8 @@ import io.github.valossa515.spring_courier.core.support.Response;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.Ordered;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -113,5 +115,68 @@ class RetryBehaviorTest {
 
         assertEquals(1, counter.get());
         assertEquals("once", ex.getMessage());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void metricsRecordAttemptsAndExhausted() {
+        List<String> recorded = new ArrayList<>();
+        BehaviorMetrics spy = (name, type) ->
+                recorded.add(name);
+
+        RetryBehavior<IRequest<Response<String>>,
+                Response<String>> behavior =
+                new RetryBehavior<>(2, 0, 1.0, spy);
+
+        assertThrows(RuntimeException.class,
+                () -> behavior.handle(
+                        (IRequest<Response<String>>)
+                                (IRequest<?>) new TestCmd(),
+                        () -> {
+                            throw new RuntimeException("fail");
+                        }));
+
+        assertEquals(3, recorded.size());
+        assertEquals("courier.retry.attempts",
+                recorded.get(0));
+        assertEquals("courier.retry.attempts",
+                recorded.get(1));
+        assertEquals("courier.retry.exhausted",
+                recorded.get(2));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void metricsRecordOnlyAttemptsWhenRecovery() {
+        List<String> recorded = new ArrayList<>();
+        BehaviorMetrics spy = (name, type) ->
+                recorded.add(name);
+
+        RetryBehavior<IRequest<Response<String>>,
+                Response<String>> behavior =
+                new RetryBehavior<>(3, 0, 1.0, spy);
+        AtomicInteger counter = new AtomicInteger(0);
+
+        behavior.handle(
+                (IRequest<Response<String>>)
+                        (IRequest<?>) new TestCmd(),
+                () -> {
+                    if (counter.incrementAndGet() < 2) {
+                        throw new RuntimeException("tmp");
+                    }
+                    return Response.success("ok");
+                });
+
+        assertEquals(1, recorded.size());
+        assertEquals("courier.retry.attempts",
+                recorded.get(0));
+    }
+
+    @Test
+    void nullMetricsFallsBackToNoop() {
+        RetryBehavior<?, ?> behavior =
+                new RetryBehavior<>(3, 100, 2.0, null);
+        assertEquals(Ordered.LOWEST_PRECEDENCE - 100,
+                behavior.getOrder());
     }
 }

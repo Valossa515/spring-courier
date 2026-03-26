@@ -32,10 +32,16 @@ public class CachingBehavior<R extends IRequest<S>, S>
     private static final Logger logger =
             LoggerFactory.getLogger(CachingBehavior.class);
 
+    private static final String CACHE_HITS =
+            "courier.cache.hits";
+    private static final String CACHE_MISSES =
+            "courier.cache.misses";
+
     private final Map<String, CacheEntry> cache =
             new ConcurrentHashMap<>();
     private final long ttlMs;
     private final int maxSize;
+    private final BehaviorMetrics metrics;
 
     /**
      * Creates a caching behavior with given TTL and max size.
@@ -44,8 +50,22 @@ public class CachingBehavior<R extends IRequest<S>, S>
      * @param maxSize maximum number of entries (0 = unlimited)
      */
     public CachingBehavior(Duration ttl, int maxSize) {
+        this(ttl, maxSize, BehaviorMetrics.NOOP);
+    }
+
+    /**
+     * Creates a caching behavior with metrics support.
+     *
+     * @param ttl     time-to-live for cache entries
+     * @param maxSize maximum number of entries (0 = unlimited)
+     * @param metrics recorder for cache hit/miss counters
+     */
+    public CachingBehavior(Duration ttl, int maxSize,
+            BehaviorMetrics metrics) {
         this.ttlMs = ttl.toMillis();
         this.maxSize = maxSize;
+        this.metrics = metrics != null
+                ? metrics : BehaviorMetrics.NOOP;
     }
 
     @Override
@@ -57,10 +77,13 @@ public class CachingBehavior<R extends IRequest<S>, S>
 
         String key = request.getClass().getName()
                 + ":" + request.toString();
+        String requestType =
+                request.getClass().getSimpleName();
 
         CacheEntry entry = cache.get(key);
         if (entry != null && !entry.isExpired()) {
             logger.debug("Cache HIT for {}", key);
+            metrics.incrementCounter(CACHE_HITS, requestType);
             return (S) entry.value();
         }
 
@@ -72,6 +95,8 @@ public class CachingBehavior<R extends IRequest<S>, S>
                 logger.debug(
                         "Cache full ({}/{}), skipping cache for {}",
                         cache.size(), maxSize, key);
+                metrics.incrementCounter(
+                        CACHE_MISSES, requestType);
                 return result;
             }
         }
@@ -79,6 +104,7 @@ public class CachingBehavior<R extends IRequest<S>, S>
         cache.put(key, new CacheEntry(result,
                 System.currentTimeMillis() + ttlMs));
         logger.debug("Cache MISS — stored {}", key);
+        metrics.incrementCounter(CACHE_MISSES, requestType);
         return result;
     }
 

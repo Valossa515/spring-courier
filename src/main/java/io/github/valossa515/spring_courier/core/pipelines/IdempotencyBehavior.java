@@ -33,9 +33,15 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
     private static final Logger logger =
             LoggerFactory.getLogger(IdempotencyBehavior.class);
 
+    private static final String IDEMPOTENCY_HITS =
+            "courier.idempotency.hits";
+    private static final String IDEMPOTENCY_MISSES =
+            "courier.idempotency.misses";
+
     private final Map<String, IdempotencyEntry> store =
             new ConcurrentHashMap<>();
     private final int maxSize;
+    private final BehaviorMetrics metrics;
 
     /**
      * Creates an idempotency behavior.
@@ -43,7 +49,20 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
      * @param maxSize maximum number of stored entries (0 = unlimited)
      */
     public IdempotencyBehavior(int maxSize) {
+        this(maxSize, BehaviorMetrics.NOOP);
+    }
+
+    /**
+     * Creates an idempotency behavior with metrics support.
+     *
+     * @param maxSize maximum number of stored entries (0 = unlimited)
+     * @param metrics recorder for idempotency hit/miss counters
+     */
+    public IdempotencyBehavior(int maxSize,
+            BehaviorMetrics metrics) {
         this.maxSize = maxSize;
+        this.metrics = metrics != null
+                ? metrics : BehaviorMetrics.NOOP;
     }
 
     @Override
@@ -57,10 +76,14 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
 
         String key = request.getClass().getName()
                 + ":" + request.toString();
+        String requestType =
+                request.getClass().getSimpleName();
 
         IdempotencyEntry entry = store.get(key);
         if (entry != null && !entry.isExpired()) {
             logger.debug("Idempotent HIT for {}", key);
+            metrics.incrementCounter(
+                    IDEMPOTENCY_HITS, requestType);
             return (S) entry.response();
         }
 
@@ -83,12 +106,16 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
                         "Idempotency store full ({}/{}), "
                                 + "skipping storage for {}",
                         store.size(), maxSize, key);
+                metrics.incrementCounter(
+                        IDEMPOTENCY_MISSES, requestType);
                 return result;
             }
         }
 
         store.put(key, new IdempotencyEntry(result, expiresAt));
         logger.debug("Idempotent MISS — stored {}", key);
+        metrics.incrementCounter(
+                IDEMPOTENCY_MISSES, requestType);
         return result;
     }
 

@@ -30,6 +30,8 @@ public final class CourierMetrics {
     public static final String CACHE_MISSES = "courier.cache.misses";
     public static final String RETRY_ATTEMPTS = "courier.retry.attempts";
     public static final String RETRY_EXHAUSTED = "courier.retry.exhausted";
+    public static final String IDEMPOTENCY_HITS = "courier.idempotency.hits";
+    public static final String IDEMPOTENCY_MISSES = "courier.idempotency.misses";
     public static final String BATCH_SEND_DURATION = "courier.batch.send.duration";
     public static final String BATCH_SEND_SIZE = "courier.batch.send.size";
 

@@ -54,6 +54,7 @@ It provides infrastructure to decouple commands, queries, and events — enablin
 - ✅ **Test DSL** — `CourierTestSupport` fluent builder for unit tests without Spring context
 - ✅ **GraalVM Native Image** — Reflection hints for ahead-of-time compilation
 - ✅ **Actuator Endpoint** — `/actuator/courier` endpoint exposing registry state
+- ✅ **Behavior Metrics** — Micrometer counters for cache hits/misses, retry attempts, and idempotency deduplication
 
 ---
 
@@ -118,12 +119,12 @@ Add the dependency to your `pom.xml` or `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>2.2.0</version>
+    <version>2.3.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier:2.2.0")
+implementation("io.github.valossa515:spring-courier:2.3.0")
 ```
 
 > 🔧 Requires **Java 21+** and **Spring Boot 3.x+**.
@@ -607,10 +608,12 @@ spring.courier.metrics.enabled=false
 | `courier.handler.errors`       | Handler errors (excludes validation)    | `request.type`, `exception.type`   |
 | `courier.handler.timeouts`     | Async handler timeouts                  | —                                  |
 | `courier.validation.failures`  | Pipeline validation failures            | `request.type`                     |
-| `courier.cache.hits`           | Cache hit count                         | —                                  |
-| `courier.cache.misses`         | Cache miss count                        | —                                  |
-| `courier.retry.attempts`       | Retry attempt count                     | —                                  |
-| `courier.retry.exhausted`      | Retries exhausted (all attempts failed) | —                                  |
+| `courier.cache.hits`           | Cache hit count                         | `request.type`                     |
+| `courier.cache.misses`         | Cache miss count                        | `request.type`                     |
+| `courier.retry.attempts`       | Retry attempt count                     | `request.type`                     |
+| `courier.retry.exhausted`      | Retries exhausted (all attempts failed) | `request.type`                     |
+| `courier.idempotency.hits`     | Idempotent request deduplicated (cached)| `request.type`                     |
+| `courier.idempotency.misses`   | Idempotent request executed (first seen)| `request.type`                     |
 | `courier.batch.send.size`      | Batch dispatch size distribution        | —                                  |
 
 > **Note:** `handler.errors` and `validation.failures` are mutually exclusive — a failed request increments one or the other, never both.

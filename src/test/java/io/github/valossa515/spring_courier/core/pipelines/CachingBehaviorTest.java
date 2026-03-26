@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.core.Ordered;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -153,5 +155,41 @@ class CachingBehaviorTest {
     void orderIsHighestPrecedencePlus50() {
         assertEquals(Ordered.HIGHEST_PRECEDENCE + 50,
                 behavior.getOrder());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void metricsRecordHitsAndMisses() {
+        List<String> recorded = new ArrayList<>();
+        BehaviorMetrics spy = (name, type) ->
+                recorded.add(name);
+
+        CachingBehavior<IRequest<Response<?>>, Response<?>>
+                metered = new CachingBehavior<>(
+                Duration.ofSeconds(60), 100, spy);
+
+        GetUser query = new GetUser("m1");
+        PipelineBehavior.Next<Response<?>> next =
+                () -> Response.success("ok");
+
+        metered.handle(
+                (IRequest<Response<?>>) (IRequest<?>) query,
+                next);
+        metered.handle(
+                (IRequest<Response<?>>) (IRequest<?>) query,
+                next);
+
+        assertEquals(2, recorded.size());
+        assertEquals("courier.cache.misses", recorded.get(0));
+        assertEquals("courier.cache.hits", recorded.get(1));
+    }
+
+    @Test
+    void nullMetricsFallsBackToNoop() {
+        CachingBehavior<IRequest<Response<?>>, Response<?>>
+                safe = new CachingBehavior<>(
+                Duration.ofSeconds(60), 100, null);
+        assertEquals(Ordered.HIGHEST_PRECEDENCE + 50,
+                safe.getOrder());
     }
 }

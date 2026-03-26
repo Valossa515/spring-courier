@@ -2,6 +2,7 @@ package io.github.valossa515.spring_courier.config;
 
 import io.github.valossa515.spring_courier.core.Courier;
 import io.github.valossa515.spring_courier.core.interfaces.ResponseEntityConverter;
+import io.github.valossa515.spring_courier.core.pipelines.BehaviorMetrics;
 import io.github.valossa515.spring_courier.core.pipelines.CachingBehavior;
 import io.github.valossa515.spring_courier.core.pipelines.IdempotencyBehavior;
 import io.github.valossa515.spring_courier.core.pipelines.LoggingBehavior;
@@ -117,11 +118,14 @@ public class CourierAutoConfiguration {
     @ConditionalOnProperty(name = "spring.courier.cache.enabled",
             havingValue = "true")
     public CachingBehavior<?, ?> cachingBehavior(
-            CourierProperties properties) {
+            CourierProperties properties,
+            ObjectProvider<BehaviorMetrics> metricsProvider) {
         CourierProperties.Cache cacheProps = properties.getCache();
         return new CachingBehavior<>(
                 Duration.ofSeconds(cacheProps.getTtlSeconds()),
-                cacheProps.getMaxSize());
+                cacheProps.getMaxSize(),
+                metricsProvider.getIfAvailable(
+                        () -> BehaviorMetrics.NOOP));
     }
 
     /**
@@ -133,12 +137,15 @@ public class CourierAutoConfiguration {
     @ConditionalOnProperty(name = "spring.courier.retry.enabled",
             havingValue = "true")
     public RetryBehavior<?, ?> retryBehavior(
-            CourierProperties properties) {
+            CourierProperties properties,
+            ObjectProvider<BehaviorMetrics> metricsProvider) {
         CourierProperties.Retry retryProps = properties.getRetry();
         return new RetryBehavior<>(
                 retryProps.getMaxAttempts(),
                 retryProps.getDelayMs(),
-                retryProps.getMultiplier());
+                retryProps.getMultiplier(),
+                metricsProvider.getIfAvailable(
+                        () -> BehaviorMetrics.NOOP));
     }
 
     /**
@@ -150,9 +157,12 @@ public class CourierAutoConfiguration {
     @ConditionalOnProperty(name = "spring.courier.idempotency.enabled",
             havingValue = "true")
     public IdempotencyBehavior<?, ?> idempotencyBehavior(
-            CourierProperties properties) {
+            CourierProperties properties,
+            ObjectProvider<BehaviorMetrics> metricsProvider) {
         return new IdempotencyBehavior<>(
-                properties.getIdempotency().getMaxSize());
+                properties.getIdempotency().getMaxSize(),
+                metricsProvider.getIfAvailable(
+                        () -> BehaviorMetrics.NOOP));
     }
 
     @Bean

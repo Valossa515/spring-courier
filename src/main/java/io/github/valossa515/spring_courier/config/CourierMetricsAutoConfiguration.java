@@ -2,6 +2,8 @@ package io.github.valossa515.spring_courier.config;
 
 import io.github.valossa515.spring_courier.core.Courier;
 import io.github.valossa515.spring_courier.core.metrics.MeteredCourier;
+import io.github.valossa515.spring_courier.core.metrics.MicrometerBehaviorMetrics;
+import io.github.valossa515.spring_courier.core.pipelines.BehaviorMetrics;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
 import io.github.valossa515.spring_courier.core.pipelines.ProcessorRegistry;
@@ -39,6 +41,13 @@ import java.util.concurrent.Executor;
         + ".metrics.CompositeMeterRegistryAutoConfiguration")
 @AutoConfigureBefore(CourierAutoConfiguration.class)
 public class CourierMetricsAutoConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean(BehaviorMetrics.class)
+    public MicrometerBehaviorMetrics behaviorMetrics(
+            MeterRegistry meterRegistry) {
+        return new MicrometerBehaviorMetrics(meterRegistry);
+    }
 
     @Bean
     @ConditionalOnMissingBean(Courier.class)
