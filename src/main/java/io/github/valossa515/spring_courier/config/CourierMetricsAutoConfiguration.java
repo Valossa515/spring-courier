@@ -4,6 +4,7 @@ import io.github.valossa515.spring_courier.core.Courier;
 import io.github.valossa515.spring_courier.core.metrics.MeteredCourier;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
+import io.github.valossa515.spring_courier.core.pipelines.ProcessorRegistry;
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -28,16 +29,6 @@ import java.util.concurrent.Executor;
  *   <li>{@code MeterRegistry} is available on the classpath</li>
  *   <li>{@code spring.courier.metrics.enabled} is {@code true} (the default)</li>
  * </ul>
- *
- * <p>Because this configuration is ordered <em>before</em>
- * {@link CourierAutoConfiguration}, the {@code MeteredCourier} bean satisfies
- * the {@code @ConditionalOnMissingBean(Courier.class)} guard in the base
- * configuration, preventing a plain {@code Courier} from being created.
- *
- * <p>Must run <em>after</em> Spring Boot Actuator’s
- * {@code CompositeMeterRegistryAutoConfiguration} so the
- * {@code MeterRegistry} bean already exists when
- * {@code @ConditionalOnBean} is evaluated.
  */
 @Configuration
 @ConditionalOnClass(MeterRegistry.class)
@@ -51,20 +42,24 @@ public class CourierMetricsAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(Courier.class)
-    public MeteredCourier meteredCourier(HandlerRegistry handlerRegistry,
-                                         NotificationRegistry notificationRegistry,
-                                         PipelineExecutor pipelineExecutor,
-                                         PipelineRegistry pipelineRegistry,
-                                         CourierProperties properties,
-                                         ObjectProvider<Executor> asyncExecutor,
-                                         MeterRegistry meterRegistry) {
+    public MeteredCourier meteredCourier(
+            HandlerRegistry handlerRegistry,
+            NotificationRegistry notificationRegistry,
+            PipelineExecutor pipelineExecutor,
+            PipelineRegistry pipelineRegistry,
+            ProcessorRegistry processorRegistry,
+            CourierProperties properties,
+            ObjectProvider<Executor> asyncExecutor,
+            MeterRegistry meterRegistry) {
         return new MeteredCourier(
                 handlerRegistry,
                 notificationRegistry,
                 pipelineExecutor,
                 pipelineRegistry,
+                processorRegistry,
                 asyncExecutor.getIfUnique(),
                 properties.getAsyncTimeoutMs(),
+                properties.getNotificationStrategy(),
                 meterRegistry);
     }
 }

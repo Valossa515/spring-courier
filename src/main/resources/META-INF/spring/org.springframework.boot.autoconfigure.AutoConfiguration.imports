@@ -1,3 +1,7 @@
 io.github.valossa515.spring_courier.config.CourierMetricsAutoConfiguration
 io.github.valossa515.spring_courier.config.CourierSlackAutoConfiguration
 io.github.valossa515.spring_courier.config.CourierAutoConfiguration
+io.github.valossa515.spring_courier.config.CourierActuatorAutoConfiguration
+io.github.valossa515.spring_courier.config.CourierValidationAutoConfiguration
+io.github.valossa515.spring_courier.config.CourierTransactionAutoConfiguration
+io.github.valossa515.spring_courier.config.CourierTracingAutoConfiguration
