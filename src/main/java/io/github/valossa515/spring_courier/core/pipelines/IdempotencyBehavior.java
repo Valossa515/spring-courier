@@ -2,6 +2,7 @@ package io.github.valossa515.spring_courier.core.pipelines;
 
 import io.github.valossa515.spring_courier.annotations.Idempotent;
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
+import io.github.valossa515.spring_courier.core.metrics.CourierMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -32,11 +33,6 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
 
     private static final Logger logger =
             LoggerFactory.getLogger(IdempotencyBehavior.class);
-
-    private static final String IDEMPOTENCY_HITS =
-            "courier.idempotency.hits";
-    private static final String IDEMPOTENCY_MISSES =
-            "courier.idempotency.misses";
 
     private final Map<String, IdempotencyEntry> store =
             new ConcurrentHashMap<>();
@@ -83,7 +79,8 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
         if (entry != null && !entry.isExpired()) {
             logger.debug("Idempotent HIT for {}", key);
             metrics.incrementCounter(
-                    IDEMPOTENCY_HITS, requestType);
+                    CourierMetrics.IDEMPOTENCY_HITS,
+                    requestType);
             return (S) entry.response();
         }
 
@@ -107,7 +104,8 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
                                 + "skipping storage for {}",
                         store.size(), maxSize, key);
                 metrics.incrementCounter(
-                        IDEMPOTENCY_MISSES, requestType);
+                        CourierMetrics.IDEMPOTENCY_MISSES,
+                        requestType);
                 return result;
             }
         }
@@ -115,7 +113,8 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
         store.put(key, new IdempotencyEntry(result, expiresAt));
         logger.debug("Idempotent MISS — stored {}", key);
         metrics.incrementCounter(
-                IDEMPOTENCY_MISSES, requestType);
+                CourierMetrics.IDEMPOTENCY_MISSES,
+                requestType);
         return result;
     }
 

@@ -136,13 +136,13 @@ class RetryBehaviorTest {
                             throw new RuntimeException("fail");
                         }));
 
-        assertEquals(3, recorded.size());
+        // maxAttempts=2: attempt 1 fails → retry counted,
+        // attempt 2 fails → exhausted (no retry counted)
+        assertEquals(2, recorded.size());
         assertEquals("courier.retry.attempts",
                 recorded.get(0));
-        assertEquals("courier.retry.attempts",
-                recorded.get(1));
         assertEquals("courier.retry.exhausted",
-                recorded.get(2));
+                recorded.get(1));
     }
 
     @Test

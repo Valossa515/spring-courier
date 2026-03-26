@@ -2,6 +2,7 @@ package io.github.valossa515.spring_courier.core.pipelines;
 
 import io.github.valossa515.spring_courier.core.interfaces.IQuery;
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
+import io.github.valossa515.spring_courier.core.metrics.CourierMetrics;
 import io.github.valossa515.spring_courier.core.support.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,11 +32,6 @@ public class CachingBehavior<R extends IRequest<S>, S>
 
     private static final Logger logger =
             LoggerFactory.getLogger(CachingBehavior.class);
-
-    private static final String CACHE_HITS =
-            "courier.cache.hits";
-    private static final String CACHE_MISSES =
-            "courier.cache.misses";
 
     private final Map<String, CacheEntry> cache =
             new ConcurrentHashMap<>();
@@ -83,7 +79,8 @@ public class CachingBehavior<R extends IRequest<S>, S>
         CacheEntry entry = cache.get(key);
         if (entry != null && !entry.isExpired()) {
             logger.debug("Cache HIT for {}", key);
-            metrics.incrementCounter(CACHE_HITS, requestType);
+            metrics.incrementCounter(
+                    CourierMetrics.CACHE_HITS, requestType);
             return (S) entry.value();
         }
 
@@ -96,7 +93,8 @@ public class CachingBehavior<R extends IRequest<S>, S>
                         "Cache full ({}/{}), skipping cache for {}",
                         cache.size(), maxSize, key);
                 metrics.incrementCounter(
-                        CACHE_MISSES, requestType);
+                        CourierMetrics.CACHE_MISSES,
+                        requestType);
                 return result;
             }
         }
@@ -104,7 +102,8 @@ public class CachingBehavior<R extends IRequest<S>, S>
         cache.put(key, new CacheEntry(result,
                 System.currentTimeMillis() + ttlMs));
         logger.debug("Cache MISS — stored {}", key);
-        metrics.incrementCounter(CACHE_MISSES, requestType);
+        metrics.incrementCounter(
+                CourierMetrics.CACHE_MISSES, requestType);
         return result;
     }
 

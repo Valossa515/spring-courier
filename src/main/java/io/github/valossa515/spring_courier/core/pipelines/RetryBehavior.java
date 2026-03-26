@@ -1,6 +1,7 @@
 package io.github.valossa515.spring_courier.core.pipelines;
 
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
+import io.github.valossa515.spring_courier.core.metrics.CourierMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -25,11 +26,6 @@ public class RetryBehavior<R extends IRequest<S>, S>
 
     private static final Logger logger =
             LoggerFactory.getLogger(RetryBehavior.class);
-
-    private static final String RETRY_ATTEMPTS =
-            "courier.retry.attempts";
-    private static final String RETRY_EXHAUSTED =
-            "courier.retry.exhausted";
 
     private final int maxAttempts;
     private final long delayMs;
@@ -76,8 +72,6 @@ public class RetryBehavior<R extends IRequest<S>, S>
                 return next.invoke();
             } catch (Exception ex) {
                 lastException = ex;
-                metrics.incrementCounter(
-                        RETRY_ATTEMPTS, requestName);
 
                 if (attempt >= maxAttempts) {
                     logger.error(
@@ -86,9 +80,14 @@ public class RetryBehavior<R extends IRequest<S>, S>
                             maxAttempts, requestName,
                             ex.getMessage());
                     metrics.incrementCounter(
-                            RETRY_EXHAUSTED, requestName);
+                            CourierMetrics.RETRY_EXHAUSTED,
+                            requestName);
                     break;
                 }
+
+                metrics.incrementCounter(
+                        CourierMetrics.RETRY_ATTEMPTS,
+                        requestName);
 
                 long currentDelay = computeDelay(attempt);
                 logger.warn(
