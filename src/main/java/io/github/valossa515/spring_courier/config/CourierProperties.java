@@ -1,5 +1,6 @@
 package io.github.valossa515.spring_courier.config;
 
+import io.github.valossa515.spring_courier.core.support.NotificationPublishingStrategy;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -10,6 +11,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * <pre>
  *   spring.courier.async-timeout-ms=60000
+ *   spring.courier.notification-strategy=PARALLEL_WHEN_ALL
+ *   spring.courier.logging.enabled=true
  * </pre>
  */
 @ConfigurationProperties(prefix = "spring.courier")
@@ -26,6 +29,20 @@ public class CourierProperties {
     private long asyncTimeoutMs = 30_000;
 
     /**
+     * Notification publishing strategy.
+     * Defaults to {@code SEQUENTIAL}.
+     *
+     * @see NotificationPublishingStrategy
+     */
+    private NotificationPublishingStrategy notificationStrategy =
+            NotificationPublishingStrategy.SEQUENTIAL;
+
+    /**
+     * Logging behavior configuration group.
+     */
+    private Logging logging = new Logging();
+
+    /**
      * Metrics configuration group.
      */
     private Metrics metrics = new Metrics();
@@ -34,6 +51,26 @@ public class CourierProperties {
      * Slack alerting configuration group.
      */
     private Slack slack = new Slack();
+
+    /**
+     * Cache behavior configuration group.
+     */
+    private Cache cache = new Cache();
+
+    /**
+     * Retry behavior configuration group.
+     */
+    private Retry retry = new Retry();
+
+    /**
+     * Tracing configuration group.
+     */
+    private Tracing tracing = new Tracing();
+
+    /**
+     * Idempotency behavior configuration group.
+     */
+    private Idempotency idempotency = new Idempotency();
 
     public long getAsyncTimeoutMs() {
         return asyncTimeoutMs;
@@ -46,6 +83,23 @@ public class CourierProperties {
                             + ", got: " + asyncTimeoutMs);
         }
         this.asyncTimeoutMs = asyncTimeoutMs;
+    }
+
+    public NotificationPublishingStrategy getNotificationStrategy() {
+        return notificationStrategy;
+    }
+
+    public void setNotificationStrategy(
+            NotificationPublishingStrategy notificationStrategy) {
+        this.notificationStrategy = notificationStrategy;
+    }
+
+    public Logging getLogging() {
+        return logging;
+    }
+
+    public void setLogging(Logging logging) {
+        this.logging = logging;
     }
 
     public Metrics getMetrics() {
@@ -62,6 +116,58 @@ public class CourierProperties {
 
     public void setSlack(Slack slack) {
         this.slack = slack;
+    }
+
+    public Cache getCache() {
+        return cache;
+    }
+
+    public void setCache(Cache cache) {
+        this.cache = cache;
+    }
+
+    public Retry getRetry() {
+        return retry;
+    }
+
+    public void setRetry(Retry retry) {
+        this.retry = retry;
+    }
+
+    public Tracing getTracing() {
+        return tracing;
+    }
+
+    public void setTracing(Tracing tracing) {
+        this.tracing = tracing;
+    }
+
+    public Idempotency getIdempotency() {
+        return idempotency;
+    }
+
+    public void setIdempotency(Idempotency idempotency) {
+        this.idempotency = idempotency;
+    }
+
+    /**
+     * Logging behavior sub-properties (prefix {@code spring.courier.logging}).
+     */
+    public static class Logging {
+
+        /**
+         * Whether the built-in {@code LoggingBehavior} is enabled.
+         * Defaults to {@code true}.
+         */
+        private boolean enabled = true;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
     }
 
     /**
@@ -263,6 +369,140 @@ public class CourierProperties {
             public void setThroughputDropRatio(double throughputDropRatio) {
                 this.throughputDropRatio = throughputDropRatio;
             }
+        }
+    }
+
+    /**
+     * Cache behavior sub-properties (prefix {@code spring.courier.cache}).
+     */
+    public static class Cache {
+
+        /** Whether the CachingBehavior is enabled. Default: false. */
+        private boolean enabled = false;
+
+        /** Time-to-live for cache entries in seconds. Default: 300. */
+        private int ttlSeconds = 300;
+
+        /** Maximum number of cached entries. 0 = unlimited. Default: 1000. */
+        private int maxSize = 1000;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getTtlSeconds() {
+            return ttlSeconds;
+        }
+
+        public void setTtlSeconds(int ttlSeconds) {
+            this.ttlSeconds = ttlSeconds;
+        }
+
+        public int getMaxSize() {
+            return maxSize;
+        }
+
+        public void setMaxSize(int maxSize) {
+            this.maxSize = maxSize;
+        }
+    }
+
+    /**
+     * Retry behavior sub-properties (prefix {@code spring.courier.retry}).
+     */
+    public static class Retry {
+
+        /** Whether the RetryBehavior is enabled. Default: false. */
+        private boolean enabled = false;
+
+        /** Maximum total attempts (including the first). Default: 3. */
+        private int maxAttempts = 3;
+
+        /** Initial delay between retries in ms. Default: 100. */
+        private long delayMs = 100;
+
+        /** Backoff multiplier. Default: 2.0. */
+        private double multiplier = 2.0;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getMaxAttempts() {
+            return maxAttempts;
+        }
+
+        public void setMaxAttempts(int maxAttempts) {
+            this.maxAttempts = maxAttempts;
+        }
+
+        public long getDelayMs() {
+            return delayMs;
+        }
+
+        public void setDelayMs(long delayMs) {
+            this.delayMs = delayMs;
+        }
+
+        public double getMultiplier() {
+            return multiplier;
+        }
+
+        public void setMultiplier(double multiplier) {
+            this.multiplier = multiplier;
+        }
+    }
+
+    /**
+     * Tracing sub-properties (prefix {@code spring.courier.tracing}).
+     */
+    public static class Tracing {
+
+        /** Whether OpenTelemetry tracing is enabled. Default: true. */
+        private boolean enabled = true;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+    }
+
+    /**
+     * Idempotency sub-properties (prefix {@code spring.courier.idempotency}).
+     */
+    public static class Idempotency {
+
+        /** Whether the IdempotencyBehavior is enabled. Default: false. */
+        private boolean enabled = false;
+
+        /** Maximum stored entries. 0 = unlimited. Default: 10000. */
+        private int maxSize = 10_000;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getMaxSize() {
+            return maxSize;
+        }
+
+        public void setMaxSize(int maxSize) {
+            this.maxSize = maxSize;
         }
     }
 }

@@ -8,6 +8,7 @@ import io.github.valossa515.spring_courier.core.interfaces.IRequest;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
+import io.github.valossa515.spring_courier.core.support.NotificationPublishingStrategy;
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
 import io.github.valossa515.spring_courier.core.support.Response;
 import io.github.valossa515.spring_courier.core.validation.ValidationError;
@@ -46,7 +47,9 @@ class MeteredCourierTest {
         courier = new MeteredCourier(
                 handlerRegistry, notificationRegistry,
                 pipelineExecutor, pipelineRegistry,
-                null, 30_000, meterRegistry);
+                null, null, 30_000,
+                NotificationPublishingStrategy.SEQUENTIAL,
+                meterRegistry);
     }
 
     @Test
@@ -125,7 +128,9 @@ class MeteredCourierTest {
         MeteredCourier validatingCourier = new MeteredCourier(
                 handlerRegistry, notificationRegistry,
                 mockExecutor, pipelineRegistry,
-                null, 30_000, meterRegistry);
+                null, null, 30_000,
+                NotificationPublishingStrategy.SEQUENTIAL,
+                meterRegistry);
 
         assertThrows(ValidationException.class,
                 () -> validatingCourier.send(new TestCommand()));
@@ -148,7 +153,9 @@ class MeteredCourierTest {
         MeteredCourier validatingCourier = new MeteredCourier(
                 handlerRegistry, notificationRegistry,
                 mockExecutor, pipelineRegistry,
-                null, 30_000, meterRegistry);
+                null, null, 30_000,
+                NotificationPublishingStrategy.SEQUENTIAL,
+                meterRegistry);
 
         Response<String> response = validatingCourier.send(new TestCommand());
 
@@ -179,7 +186,9 @@ class MeteredCourierTest {
         MeteredCourier nonValidatingCourier = new MeteredCourier(
                 handlerRegistry, notificationRegistry,
                 mockExecutor, pipelineRegistry,
-                null, 30_000, meterRegistry);
+                null, null, 30_000,
+                NotificationPublishingStrategy.SEQUENTIAL,
+                meterRegistry);
 
         Response<String> response = nonValidatingCourier.send(new TestCommand());
 

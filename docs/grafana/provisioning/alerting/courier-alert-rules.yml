@@ -303,3 +303,106 @@ groups:
             {{ $values.exception_rate.Value | printf "%.1f" }}/s nos
             últimos 5 minutos.
           runbook_url: ""
+
+      # -----------------------------------------------------------------------
+      # 7. Retry Exhausted — Retries esgotados detectados
+      # -----------------------------------------------------------------------
+      - uid: courier-retry-exhausted
+        title: "Courier: Retries Exhausted"
+        condition: retry_check
+        data:
+          - refId: retry_exhausted
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "${DS_PROMETHEUS}"
+            model:
+              expr: sum(rate(courier_retry_exhausted_total[5m]))
+              instant: true
+              refId: retry_exhausted
+          - refId: retry_check
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              expression: "$retry_exhausted"
+              refId: retry_check
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
+        for: 5m
+        labels:
+          severity: warning
+          component: spring-courier
+          alert_type: retry
+        annotations:
+          summary: "Spring Courier: retries esgotados detectados"
+          description: >-
+            {{ $values.retry_exhausted.Value | printf "%.1f" }} requests/s
+            esgotaram todas as tentativas de retry nos últimos 5 minutos.
+          runbook_url: ""
+
+      # -----------------------------------------------------------------------
+      # 8. Low Cache Hit Ratio — Taxa de cache hit abaixo de 50%
+      # -----------------------------------------------------------------------
+      - uid: courier-low-cache-hit-ratio
+        title: "Courier: Low Cache Hit Ratio"
+        condition: ratio_check
+        data:
+          - refId: hits
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "${DS_PROMETHEUS}"
+            model:
+              expr: sum(rate(courier_cache_hits_total[5m]))
+              instant: true
+              refId: hits
+          - refId: misses
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "${DS_PROMETHEUS}"
+            model:
+              expr: sum(rate(courier_cache_misses_total[5m]))
+              instant: true
+              refId: misses
+          - refId: hit_ratio
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              type: math
+              expression: "$hits / ($hits + $misses) * 100"
+              refId: hit_ratio
+          - refId: ratio_check
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              expression: "$hit_ratio"
+              refId: ratio_check
+              conditions:
+                - evaluator:
+                    type: lt
+                    params:
+                      - 50
+        for: 10m
+        labels:
+          severity: warning
+          component: spring-courier
+          alert_type: cache
+        annotations:
+          summary: "Spring Courier: cache hit ratio abaixo de 50%"
+          description: >-
+            Cache hit ratio está em
+            {{ $values.hit_ratio.Value | printf "%.1f" }}% nos últimos
+            10 minutos. Considere aumentar TTL ou max-size.
+          runbook_url: ""

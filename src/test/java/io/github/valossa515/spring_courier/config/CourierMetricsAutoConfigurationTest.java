@@ -3,6 +3,7 @@ package io.github.valossa515.spring_courier.config;
 import io.github.valossa515.spring_courier.core.metrics.MeteredCourier;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
+import io.github.valossa515.spring_courier.core.pipelines.ProcessorRegistry;
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -26,6 +27,7 @@ class CourierMetricsAutoConfigurationTest {
         HandlerRegistry handlerRegistry = new HandlerRegistry();
         NotificationRegistry notificationRegistry = new NotificationRegistry();
         PipelineRegistry pipelineRegistry = new PipelineRegistry();
+        ProcessorRegistry processorRegistry = new ProcessorRegistry();
         PipelineExecutor pipelineExecutor = new PipelineExecutor(pipelineRegistry);
         MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
@@ -36,6 +38,7 @@ class CourierMetricsAutoConfigurationTest {
         MeteredCourier courier = config.meteredCourier(
                 handlerRegistry, notificationRegistry,
                 pipelineExecutor, pipelineRegistry,
+                processorRegistry,
                 properties, executorProvider, meterRegistry);
 
         assertNotNull(courier);

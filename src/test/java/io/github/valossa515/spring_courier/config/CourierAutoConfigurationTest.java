@@ -4,12 +4,14 @@ import io.github.valossa515.spring_courier.core.Courier;
 import io.github.valossa515.spring_courier.core.interfaces.ResponseEntityConverter;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
+import io.github.valossa515.spring_courier.core.pipelines.ProcessorRegistry;
 import io.github.valossa515.spring_courier.core.support.BehaviorDiscoveryPostProcessor;
 import io.github.valossa515.spring_courier.core.support.DefaultResponseEntityConverter;
 import io.github.valossa515.spring_courier.core.support.HandlerDiscoveryPostProcessor;
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
 import io.github.valossa515.spring_courier.core.support.NotificationDiscoveryPostProcessor;
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
+import io.github.valossa515.spring_courier.core.support.ProcessorDiscoveryPostProcessor;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationContext;
@@ -35,7 +37,8 @@ class CourierAutoConfigurationTest {
         PipelineExecutor pipelineExecutor = configuration.pipelineExecutor(pipelineRegistry);
         @SuppressWarnings("unchecked")
         ObjectProvider<Executor> executorProvider = mock(ObjectProvider.class);
-        Courier courier = configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, properties, executorProvider);
+        ProcessorRegistry processorRegistry = configuration.processorRegistry();
+        Courier courier = configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, processorRegistry, properties, executorProvider);
 
         assertNotNull(handlerRegistry);
         assertNotNull(notificationRegistry);
@@ -77,7 +80,8 @@ class CourierAutoConfigurationTest {
         @SuppressWarnings("unchecked")
         ObjectProvider<Executor> executorProvider = mock(ObjectProvider.class);
 
-        configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, properties, executorProvider);
+        ProcessorRegistry processorRegistry = configuration.processorRegistry();
+        configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, processorRegistry, properties, executorProvider);
 
         verify(executorProvider).getIfUnique();
     }
@@ -96,7 +100,8 @@ class CourierAutoConfigurationTest {
         ObjectProvider<Executor> executorProvider = mock(ObjectProvider.class);
         when(executorProvider.getIfUnique()).thenReturn(expectedExecutor);
 
-        Courier courier = configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, properties, executorProvider);
+        ProcessorRegistry processorRegistry = configuration.processorRegistry();
+        Courier courier = configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, processorRegistry, properties, executorProvider);
 
         assertNotNull(courier);
         verify(executorProvider).getIfUnique();
@@ -115,7 +120,8 @@ class CourierAutoConfigurationTest {
         ObjectProvider<Executor> executorProvider = mock(ObjectProvider.class);
         when(executorProvider.getIfUnique()).thenReturn(null);
 
-        Courier courier = configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, properties, executorProvider);
+        ProcessorRegistry processorRegistry = configuration.processorRegistry();
+        Courier courier = configuration.courier(handlerRegistry, notificationRegistry, pipelineExecutor, processorRegistry, properties, executorProvider);
 
         assertNotNull(courier);
         verify(executorProvider).getIfUnique();

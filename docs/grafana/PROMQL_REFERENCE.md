@@ -167,7 +167,77 @@ courier_pipeline_behaviors_registered
 
 ---
 
-## 🔔 Suggested Alerts (Alertmanager)
+## � Cache
+
+### Cache hit rate
+
+```promql
+sum(rate(courier_cache_hits_total[$__rate_interval]))
+```
+
+### Cache miss rate
+
+```promql
+sum(rate(courier_cache_misses_total[$__rate_interval]))
+```
+
+### Cache hit ratio
+
+```promql
+sum(rate(courier_cache_hits_total[$__rate_interval]))
+  /
+(sum(rate(courier_cache_hits_total[$__rate_interval])) + sum(rate(courier_cache_misses_total[$__rate_interval])))
+```
+
+---
+
+## 🔄 Retry
+
+### Retry attempt rate
+
+```promql
+sum(rate(courier_retry_attempts_total[$__rate_interval]))
+```
+
+### Retry exhaustion rate (all attempts failed)
+
+```promql
+sum(rate(courier_retry_exhausted_total[$__rate_interval]))
+```
+
+---
+
+## 📦 Batch & Async
+
+### p95 for `sendAsync()`
+
+```promql
+histogram_quantile(0.95, sum by(le) (rate(courier_send_async_duration_seconds_bucket[$__rate_interval])))
+```
+
+### p95 for batch `sendAll()` / `sendAllAsync()`
+
+```promql
+histogram_quantile(0.95, sum by(le) (rate(courier_batch_send_duration_seconds_bucket[$__rate_interval])))
+```
+
+### Average batch size
+
+```promql
+rate(courier_batch_send_size_sum[$__rate_interval])
+  /
+rate(courier_batch_send_size_count[$__rate_interval])
+```
+
+### In-flight requests
+
+```promql
+sum(courier_requests_in_flight_active_count)
+```
+
+---
+
+## �🔔 Suggested Alerts (Alertmanager)
 
 ### Error ratio above 5% for 5 minutes
 

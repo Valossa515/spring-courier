@@ -24,25 +24,32 @@ public class Response<T> {
     private final int statusCode;
     private final boolean validationFailure;
     private final String exceptionType;
+    private final Object errorDetails;
 
     // Private constructor to maintain immutability
     private Response(T data, String error, boolean success, int statusCode) {
-        this(data, error, success, statusCode, false, null);
+        this(data, error, success, statusCode, false, null, null);
     }
 
     private Response(T data, String error, boolean success, int statusCode,
                      boolean validationFailure) {
-        this(data, error, success, statusCode, validationFailure, null);
+        this(data, error, success, statusCode, validationFailure, null, null);
     }
 
     private Response(T data, String error, boolean success, int statusCode,
                      boolean validationFailure, String exceptionType) {
+        this(data, error, success, statusCode, validationFailure, exceptionType, null);
+    }
+
+    private Response(T data, String error, boolean success, int statusCode,
+                     boolean validationFailure, String exceptionType, Object errorDetails) {
         this.data = data;
         this.error = error;
         this.success = success;
         this.statusCode = statusCode;
         this.validationFailure = validationFailure;
         this.exceptionType = exceptionType;
+        this.errorDetails = errorDetails;
     }
 
     /**
@@ -93,6 +100,43 @@ public class Response<T> {
     public static <T> @NotNull Response<T> error(String error, int statusCode,
                                                   @NotNull String exceptionType) {
         return new Response<>(null, error, false, statusCode, false, exceptionType);
+    }
+
+    /**
+     * Creates an error response carrying a structured error payload.
+     * Useful for returning typed error objects (e.g. a list of field
+     * errors, a problem-detail DTO, or a domain-specific error enum).
+     *
+     * @param error      human-readable error message
+     * @param statusCode HTTP status code
+     * @param details    structured error payload (any type)
+     * @param <T>        response data type (unused in error responses)
+     * @param <E>        error details type
+     * @return a new error response with the details attached
+     */
+    @Contract(value = "_, _, _ -> new", pure = true)
+    public static <T, E> @NotNull Response<T> errorWithDetails(
+            String error, int statusCode, E details) {
+        return new Response<>(null, error, false, statusCode,
+                false, null, details);
+    }
+
+    /**
+     * Creates a validation error response carrying structured
+     * error details (e.g. a list of field-level errors).
+     *
+     * @param error      human-readable error message
+     * @param statusCode HTTP status code
+     * @param details    structured error payload
+     * @param <T>        response data type
+     * @param <E>        error details type
+     * @return a new validation error response with details
+     */
+    @Contract(value = "_, _, _ -> new", pure = true)
+    public static <T, E> @NotNull Response<T> validationErrorWithDetails(
+            String error, int statusCode, E details) {
+        return new Response<>(null, error, false, statusCode, true,
+                ValidationException.class.getSimpleName(), details);
     }
 
     /**
@@ -177,6 +221,32 @@ public class Response<T> {
     @JsonIgnore
     public String getExceptionType() {
         return exceptionType;
+    }
+
+    /**
+     * Returns the structured error details, or {@code null} if none
+     * were attached. Cast to the expected type at the call site.
+     *
+     * <pre>{@code
+     * List<FieldError> errors = response.getErrorDetails();
+     * }</pre>
+     *
+     * @param <E> the expected error details type
+     * @return the error details, or {@code null}
+     */
+    @SuppressWarnings("unchecked")
+    @JsonIgnore
+    public <E> E getErrorDetails() {
+        return (E) errorDetails;
+    }
+
+    /**
+     * Returns {@code true} if this response carries structured
+     * error details.
+     */
+    @JsonIgnore
+    public boolean hasErrorDetails() {
+        return errorDetails != null;
     }
 
     /**
@@ -279,6 +349,7 @@ public class Response<T> {
         private boolean success;
         private int statusCode = 200;
         private boolean validationFailure;
+        private Object errorDetails;
 
         public Builder<T> data(T data) {
             this.data = data;
@@ -305,6 +376,11 @@ public class Response<T> {
             return this;
         }
 
+        public Builder<T> errorDetails(Object errorDetails) {
+            this.errorDetails = errorDetails;
+            return this;
+        }
+
         public Response<T> build() {
             if (success && error != null) {
                 throw new IllegalStateException(
@@ -314,7 +390,8 @@ public class Response<T> {
                 throw new IllegalStateException(
                         "Cannot build an error response with a 2xx status code");
             }
-            return new Response<>(data, error, success, statusCode, validationFailure);
+            return new Response<>(data, error, success, statusCode,
+                    validationFailure, null, errorDetails);
         }
     }
 

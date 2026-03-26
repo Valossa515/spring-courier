@@ -8,14 +8,18 @@ import io.github.valossa515.spring_courier.core.interfaces.IQuery;
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
+import io.github.valossa515.spring_courier.core.pipelines.ProcessorRegistry;
 import io.github.valossa515.spring_courier.core.support.HandlerRegistry;
+import io.github.valossa515.spring_courier.core.support.NotificationPublishingStrategy;
 import io.github.valossa515.spring_courier.core.support.NotificationRegistry;
 import io.github.valossa515.spring_courier.core.support.Response;
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.LongTaskTimer;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -35,26 +39,34 @@ public class MeteredCourier extends Courier {
 
     private final MeterRegistry registry;
     private final Counter timeoutCounter;
+    private final LongTaskTimer inFlightTimer;
 
     public MeteredCourier(@NotNull HandlerRegistry handlerRegistry,
                           @NotNull NotificationRegistry notificationRegistry,
                           @NotNull PipelineExecutor pipelineExecutor,
                           @NotNull PipelineRegistry pipelineRegistry,
+                          ProcessorRegistry processorRegistry,
                           Executor asyncExecutor,
                           long asyncTimeoutMs,
+                          @NotNull NotificationPublishingStrategy strategy,
                           @NotNull MeterRegistry meterRegistry) {
         super(handlerRegistry, notificationRegistry, pipelineExecutor,
-                asyncExecutor, asyncTimeoutMs);
+                processorRegistry, asyncExecutor, asyncTimeoutMs, strategy);
         this.registry = meterRegistry;
         this.timeoutCounter = Counter.builder(HANDLER_TIMEOUTS)
                 .description("Number of handler timeouts")
                 .register(meterRegistry);
-        registerGauges(handlerRegistry, notificationRegistry, pipelineRegistry);
+        this.inFlightTimer = LongTaskTimer.builder(IN_FLIGHT_REQUESTS)
+                .description("Number of in-flight requests")
+                .register(meterRegistry);
+        registerGauges(handlerRegistry, notificationRegistry,
+                pipelineRegistry);
     }
 
     @Override
     public <R> Response<R> send(@NotNull IRequest<R> request) {
         Timer.Sample sample = Timer.start(registry);
+        LongTaskTimer.Sample inFlight = inFlightTimer.start();
         String requestType = request.getClass().getSimpleName();
         String category = resolveCategory(request);
 
@@ -82,16 +94,19 @@ public class MeteredCourier extends Courier {
             if (!response.isSuccess()) {
                 if (response.isValidationFailure()) {
                     Counter.builder(VALIDATION_FAILURES)
-                            .description("Number of validation failures")
+                            .description(
+                                    "Number of validation failures")
                             .tag(TAG_REQUEST_TYPE, requestType)
                             .register(registry).increment();
                 } else {
                     String exType = response.getExceptionType();
                     Counter.builder(HANDLER_ERRORS)
-                            .description("Number of handler errors")
+                            .description(
+                                    "Number of handler errors")
                             .tag(TAG_REQUEST_TYPE, requestType)
                             .tag(TAG_EXCEPTION_TYPE,
-                                    exType != null && !exType.isBlank()
+                                    exType != null
+                                            && !exType.isBlank()
                                             ? exType : "unknown")
                             .register(registry).increment();
                 }
@@ -145,11 +160,35 @@ public class MeteredCourier extends Courier {
             Counter.builder(HANDLER_ERRORS)
                     .description("Number of handler errors")
                     .tag(TAG_REQUEST_TYPE, requestType)
-                    .tag(TAG_EXCEPTION_TYPE, ex.getClass().getSimpleName())
+                    .tag(TAG_EXCEPTION_TYPE,
+                            ex.getClass().getSimpleName())
                     .register(registry).increment();
 
             throw ex;
+        } finally {
+            inFlight.stop();
         }
+    }
+
+    @Override
+    public <R> CompletableFuture<Response<R>> sendAsync(
+            @NotNull IRequest<R> request) {
+        Timer.Sample sample = Timer.start(registry);
+        String requestType = request.getClass().getSimpleName();
+
+        return super.sendAsync(request).whenComplete((response, ex) -> {
+            String outcome = (ex == null && response != null
+                    && response.isSuccess())
+                    ? OUTCOME_SUCCESS : OUTCOME_ERROR;
+            sample.stop(Timer.builder(SEND_ASYNC_DURATION)
+                    .description("Time spent dispatching requests "
+                            + "asynchronously")
+                    .publishPercentiles(0.5, 0.95, 0.99)
+                    .publishPercentileHistogram(true)
+                    .tag(TAG_REQUEST_TYPE, requestType)
+                    .tag(TAG_OUTCOME, outcome)
+                    .register(registry));
+        });
     }
 
     @Override
@@ -173,20 +212,61 @@ public class MeteredCourier extends Courier {
     }
 
     @Override
-    public CompletableFuture<Void> publishAsync(@NotNull INotification notification) {
+    public CompletableFuture<Void> publishAsync(
+            @NotNull INotification notification) {
         Timer.Sample sample = Timer.start(registry);
         String notificationType = notification.getClass().getSimpleName();
 
-        return super.publishAsync(notification).whenComplete((result, ex) -> {
-            sample.stop(Timer.builder(PUBLISH_ASYNC_DURATION)
-                    .description("Time spent publishing notifications asynchronously")
+        return super.publishAsync(notification)
+                .whenComplete((result, ex) -> {
+                    sample.stop(Timer.builder(PUBLISH_ASYNC_DURATION)
+                            .description("Time spent publishing "
+                                    + "notifications asynchronously")
+                            .publishPercentiles(0.5, 0.95, 0.99)
+                            .publishPercentileHistogram(true)
+                            .tag(TAG_NOTIFICATION_TYPE, notificationType)
+                            .register(registry));
+                });
+    }
+
+    @Override
+    public List<Response<?>> sendAll(
+            @NotNull List<? extends IRequest<?>> requests) {
+        Timer.Sample sample = Timer.start(registry);
+        try {
+            List<Response<?>> results = super.sendAll(requests);
+            sample.stop(Timer.builder(BATCH_SEND_DURATION)
+                    .description("Time spent dispatching batch")
                     .publishPercentiles(0.5, 0.95, 0.99)
                     .publishPercentileHistogram(true)
-                    .tag(TAG_NOTIFICATION_TYPE, notificationType)
                     .register(registry));
-            // Note: PUBLISH_TOTAL counter is already incremented by publish()
-            // which is called internally by Courier.publishAsync().
-        });
+            registry.summary(BATCH_SEND_SIZE)
+                    .record(requests.size());
+            return results;
+        } catch (RuntimeException ex) {
+            sample.stop(Timer.builder(BATCH_SEND_DURATION)
+                    .description("Time spent dispatching batch")
+                    .register(registry));
+            throw ex;
+        }
+    }
+
+    @Override
+    public CompletableFuture<List<Response<?>>> sendAllAsync(
+            @NotNull List<? extends IRequest<?>> requests) {
+        Timer.Sample sample = Timer.start(registry);
+        return super.sendAllAsync(requests)
+                .whenComplete((results, ex) -> {
+                    sample.stop(Timer.builder(BATCH_SEND_DURATION)
+                            .description("Time spent dispatching "
+                                    + "batch asynchronously")
+                            .tag("async", "true")
+                            .register(registry));
+                    if (results != null) {
+                        registry.summary(BATCH_SEND_SIZE)
+                                .record(requests.size());
+                    }
+                });
     }
 
     private void registerGauges(HandlerRegistry handlerRegistry,
@@ -195,7 +275,8 @@ public class MeteredCourier extends Courier {
         registry.gauge(HANDLERS_REGISTERED,
                 handlerRegistry, HandlerRegistry::getHandlerCount);
         registry.gauge(NOTIFICATION_HANDLERS_REGISTERED,
-                notificationRegistry, NotificationRegistry::getHandlerCount);
+                notificationRegistry,
+                NotificationRegistry::getHandlerCount);
         registry.gauge(PIPELINE_BEHAVIORS_REGISTERED,
                 pipelineRegistry, PipelineRegistry::getBehaviorCount);
     }

@@ -42,6 +42,18 @@ It provides infrastructure to decouple commands, queries, and events — enablin
 - ✅ **Native Slack Alerting** — Alerts directly to Slack without Grafana/Alertmanager
 - ✅ **Sealed Exception Hierarchy** — Sealed exception hierarchy for type safety
 - ✅ **Response Entity Converter** — Pluggable `ResponseEntityConverter` for custom HTTP response mapping
+- ✅ **Caching Behavior** — Automatic in-memory caching for queries with TTL and max-size eviction
+- ✅ **Retry Behavior** — Exponential backoff retry for transient failures
+- ✅ **OpenTelemetry Tracing** — Distributed tracing with spans for every request
+- ✅ **Batch Dispatch** — `sendAll()` / `sendAllAsync()` for dispatching multiple requests
+- ✅ **@Timeout Per-Request** — Override the global async timeout on individual requests
+- ✅ **Idempotency Key** — `@Idempotent` annotation to deduplicate commands automatically
+- ✅ **CourierContext** — Request-scoped context with correlation ID propagation (including async)
+- ✅ **Typed Error Responses** — `errorWithDetails()` for structured error payloads (field errors, problem details)
+- ✅ **Pre/Post Processors** — Hook into the request lifecycle before and after handler execution
+- ✅ **Test DSL** — `CourierTestSupport` fluent builder for unit tests without Spring context
+- ✅ **GraalVM Native Image** — Reflection hints for ahead-of-time compilation
+- ✅ **Actuator Endpoint** — `/actuator/courier` endpoint exposing registry state
 
 ---
 
@@ -106,12 +118,12 @@ Add the dependency to your `pom.xml` or `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>2.1.0</version>
+    <version>2.2.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier:2.1.0")
+implementation("io.github.valossa515:spring-courier:2.2.0")
 ```
 
 > 🔧 Requires **Java 21+** and **Spring Boot 3.x+**.
@@ -364,6 +376,194 @@ public ResponseEntityConverter customConverter() {
 
 ---
 
+## 🔁 Caching Behavior
+
+Automatically caches `IQuery` results in memory. Commands always bypass the cache.
+
+**Activation:**
+
+```properties
+spring.courier.cache.enabled=true
+spring.courier.cache.ttl-seconds=300     # Time-to-live (default: 300)
+spring.courier.cache.max-size=1000       # Max cached entries (default: 1000)
+```
+
+```java
+// Queries are cached automatically — identical queries return the cached result
+Response<Product> first  = courier.send(new GetProductQuery(id));  // hits handler
+Response<Product> second = courier.send(new GetProductQuery(id));  // returns cached
+```
+
+---
+
+## 🔄 Retry Behavior
+
+Retries failed requests with **exponential backoff** whenever a handler throws an exception.
+
+**Activation:**
+
+```properties
+spring.courier.retry.enabled=true
+spring.courier.retry.max-attempts=3       # Total attempts (default: 3)
+spring.courier.retry.delay-ms=200         # Initial delay in ms (default: 200)
+spring.courier.retry.multiplier=2.0       # Backoff multiplier (default: 2.0)
+```
+
+Delay formula: `delay × multiplier^(attempt - 1)` → 200ms, 400ms, 800ms...
+
+---
+
+## 🔍 OpenTelemetry Tracing
+
+Creates a span for every `send()` call with request type, CQRS category, and correlation ID attributes.
+
+**Activation:** Add `opentelemetry-api` to your classpath and provide a `Tracer` bean:
+
+```xml
+<dependency>
+    <groupId>io.opentelemetry</groupId>
+    <artifactId>opentelemetry-api</artifactId>
+</dependency>
+```
+
+Spans are named `courier.<RequestType>` (e.g. `courier.CreateProductCommand`) and include:
+- `courier.request.type` — e.g. `CreateProductCommand`
+- `courier.request.category` — `command`, `query`, or `request`
+- `courier.correlation.id` — from `CourierContext`
+
+---
+
+## 📦 Batch Dispatch
+
+Send multiple requests in a single call:
+
+```java
+// Sequential — processes one by one, stops on first error
+List<Response<?>> results = courier.sendAll(List.of(cmd1, cmd2, cmd3));
+
+// Parallel — dispatches all concurrently via virtual threads
+CompletableFuture<List<Response<?>>> future = courier.sendAllAsync(List.of(cmd1, cmd2, cmd3));
+List<Response<?>> asyncResults = future.join();
+```
+
+---
+
+## ⏱️ @Timeout Per-Request
+
+Override the global async timeout on individual request types:
+
+```java
+@Timeout(5000)  // 5 seconds instead of the global 30s default
+public record SlowExportCommand(String reportId) implements ICommand<String> {}
+```
+
+---
+
+## 🔑 Idempotency Key
+
+Automatically deduplicates commands annotated with `@Idempotent`:
+
+```java
+@Idempotent(ttlSeconds = 3600)  // Cache result for 1 hour
+public record CreateOrderCommand(String orderId) implements ICommand<OrderResult> {}
+```
+
+Duplicate requests (same class + `toString()` key) return the cached `Response` without re-executing the handler.
+
+**Activation:**
+
+```properties
+spring.courier.idempotency.enabled=true
+spring.courier.idempotency.max-size=10000  # Max stored keys (default: 10000)
+```
+
+---
+
+## 🧵 CourierContext
+
+Request-scoped context automatically created on every `send()` call. Carries a **correlation ID** and a general-purpose attribute bag:
+
+```java
+// Inside a handler or pipeline behavior
+CourierContext ctx = CourierContextHolder.getContext();
+String correlationId = ctx.getCorrelationId();
+
+// Store custom attributes (immutable — returns new context)
+ctx = ctx.with("userId", currentUser.getId());
+String userId = ctx.<String>get("userId").orElseThrow();
+```
+
+The context is automatically propagated to:
+- Pipeline behaviors, pre/post processors
+- Virtual threads used by `invokeHandler()` and `sendAsync()`
+
+---
+
+## 🧩 Typed Error Responses
+
+Attach structured error payloads to error responses:
+
+```java
+// List of field errors
+List<FieldError> errors = List.of(
+    new FieldError("name", "must not be blank"),
+    new FieldError("email", "invalid format"));
+
+Response<Void> response = Response.errorWithDetails("Validation failed", 400, errors);
+
+// Retrieve at the call site
+List<FieldError> details = response.getErrorDetails();
+boolean hasDetails = response.hasErrorDetails();
+```
+
+Also available: `Response.validationErrorWithDetails(message, statusCode, details)` and `Response.builder().errorDetails(...)`.
+
+---
+
+## ⚙️ Pre/Post Processors
+
+Hook into the request lifecycle without writing a full `PipelineBehavior`:
+
+```java
+@Component
+public class AuditPreProcessor implements PreProcessor<IRequest<?>> {
+    @Override
+    public void process(IRequest<?> request) {
+        log.info("Processing: {}", request.getClass().getSimpleName());
+    }
+}
+
+@Component
+public class MetricsPostProcessor implements PostProcessor<IRequest<?>, Object> {
+    @Override
+    public void process(IRequest<?> request, Object response) {
+        log.info("Completed: {}", request.getClass().getSimpleName());
+    }
+}
+```
+
+---
+
+## 🧪 Test DSL — `CourierTestSupport`
+
+Build a fully-wired `Courier` instance in unit tests without a Spring application context:
+
+```java
+Courier courier = CourierTestSupport.builder()
+    .withHandler(CreateOrder.class, new CreateOrderHandler())
+    .withHandler(GetOrder.class, new GetOrderHandler())
+    .withBehavior(new LoggingBehavior<>())
+    .withPreProcessor(req -> log.info("pre: {}", req))
+    .withTimeout(5000)
+    .build();
+
+Response<OrderResult> result = courier.send(new CreateOrder(...));
+```
+
+Shortcut for a minimal instance: `CourierTestSupport.emptyCourier()`.
+
+---
+
 ## 📈 Observability (Micrometer / Prometheus / Grafana)
 
 Starting from version **1.4.0**, Spring Courier features **optional** instrumentation with [Micrometer](https://micrometer.io/), allowing you to export metrics to Prometheus, Grafana, and other backends.
@@ -393,8 +593,10 @@ spring.courier.metrics.enabled=false
 | Metric                           | Description                                | Tags                                            |
 |----------------------------------|--------------------------------------------|-------------------------------------------------|
 | `courier.send.duration`          | Command/query execution time               | `request.type`, `request.category`, `outcome`   |
+| `courier.send.async.duration`     | Async command/query execution time         | `request.type`, `request.category`, `outcome`   |
 | `courier.publish.duration`       | Notification publish time                  | `notification.type`                             |
 | `courier.publish.async.duration` | Async notification publish time            | `notification.type`                             |
+| `courier.batch.send.duration`    | Batch dispatch execution time              | —                                               |
 
 #### 🔢 Counters (throughput and errors)
 
@@ -405,6 +607,11 @@ spring.courier.metrics.enabled=false
 | `courier.handler.errors`       | Handler errors (excludes validation)    | `request.type`, `exception.type`   |
 | `courier.handler.timeouts`     | Async handler timeouts                  | —                                  |
 | `courier.validation.failures`  | Pipeline validation failures            | `request.type`                     |
+| `courier.cache.hits`           | Cache hit count                         | —                                  |
+| `courier.cache.misses`         | Cache miss count                        | —                                  |
+| `courier.retry.attempts`       | Retry attempt count                     | —                                  |
+| `courier.retry.exhausted`      | Retries exhausted (all attempts failed) | —                                  |
+| `courier.batch.send.size`      | Batch dispatch size distribution        | —                                  |
 
 > **Note:** `handler.errors` and `validation.failures` are mutually exclusive — a failed request increments one or the other, never both.
 
@@ -415,6 +622,12 @@ spring.courier.metrics.enabled=false
 | `courier.handlers.registered`              | Number of registered command/query handlers          |
 | `courier.notification.handlers.registered` | Number of registered notification handlers           |
 | `courier.pipeline.behaviors.registered`    | Number of registered pipeline behaviors              |
+
+#### ⏱️ Long Task Timers (in-flight tracking)
+
+| Metric                                     | Description                                         |
+|--------------------------------------------|-----------------------------------------------------|
+| `courier.requests.in.flight`               | Number of requests currently being processed         |
 
 #### 🏷️ Tags
 

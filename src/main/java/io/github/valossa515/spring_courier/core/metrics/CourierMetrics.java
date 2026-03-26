@@ -15,6 +15,7 @@ public final class CourierMetrics {
 
     // ── Timers ──────────────────────────────────────────────────────────
     public static final String SEND_DURATION = "courier.send.duration";
+    public static final String SEND_ASYNC_DURATION = "courier.send.async.duration";
     public static final String PUBLISH_DURATION = "courier.publish.duration";
     public static final String PUBLISH_ASYNC_DURATION = "courier.publish.async.duration";
 
@@ -24,6 +25,16 @@ public final class CourierMetrics {
     public static final String HANDLER_ERRORS = "courier.handler.errors";
     public static final String HANDLER_TIMEOUTS = "courier.handler.timeouts";
     public static final String VALIDATION_FAILURES = "courier.validation.failures";
+
+    public static final String CACHE_HITS = "courier.cache.hits";
+    public static final String CACHE_MISSES = "courier.cache.misses";
+    public static final String RETRY_ATTEMPTS = "courier.retry.attempts";
+    public static final String RETRY_EXHAUSTED = "courier.retry.exhausted";
+    public static final String BATCH_SEND_DURATION = "courier.batch.send.duration";
+    public static final String BATCH_SEND_SIZE = "courier.batch.send.size";
+
+    // ── Long Task Timers ──────────────────────────────────────────────
+    public static final String IN_FLIGHT_REQUESTS = "courier.requests.in.flight";
 
     // ── Gauges ──────────────────────────────────────────────────────────
     public static final String HANDLERS_REGISTERED = "courier.handlers.registered";
