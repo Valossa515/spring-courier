@@ -8,6 +8,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.Ordered;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -142,5 +144,43 @@ class IdempotencyBehaviorTest {
     void orderIsHighestPrecedencePlus5() {
         assertEquals(Ordered.HIGHEST_PRECEDENCE + 5,
                 behavior.getOrder());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void metricsRecordHitsAndMisses() {
+        List<String> recorded = new ArrayList<>();
+        BehaviorMetrics spy = (name, type) ->
+                recorded.add(name);
+
+        IdempotencyBehavior<IRequest<Response<?>>,
+                Response<?>> metered =
+                new IdempotencyBehavior<>(100, spy);
+
+        CreateOrder cmd = new CreateOrder("x");
+        PipelineBehavior.Next<Response<?>> next =
+                () -> Response.success("ok");
+
+        metered.handle(
+                (IRequest<Response<?>>) (IRequest<?>) cmd,
+                next);
+        metered.handle(
+                (IRequest<Response<?>>) (IRequest<?>) cmd,
+                next);
+
+        assertEquals(2, recorded.size());
+        assertEquals("courier.idempotency.misses",
+                recorded.get(0));
+        assertEquals("courier.idempotency.hits",
+                recorded.get(1));
+    }
+
+    @Test
+    void nullMetricsFallsBackToNoop() {
+        IdempotencyBehavior<IRequest<Response<?>>,
+                Response<?>> safe =
+                new IdempotencyBehavior<>(100, null);
+        assertEquals(Ordered.HIGHEST_PRECEDENCE + 5,
+                safe.getOrder());
     }
 }

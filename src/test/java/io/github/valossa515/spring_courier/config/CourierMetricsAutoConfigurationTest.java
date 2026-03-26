@@ -1,6 +1,8 @@
 package io.github.valossa515.spring_courier.config;
 
 import io.github.valossa515.spring_courier.core.metrics.MeteredCourier;
+import io.github.valossa515.spring_courier.core.metrics.MicrometerBehaviorMetrics;
+import io.github.valossa515.spring_courier.core.pipelines.BehaviorMetrics;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
 import io.github.valossa515.spring_courier.core.pipelines.ProcessorRegistry;
@@ -56,6 +58,21 @@ class CourierMetricsAutoConfigurationTest {
         CourierProperties properties = new CourierProperties();
         properties.getMetrics().setEnabled(false);
         assertFalse(properties.getMetrics().isEnabled());
+    }
+
+    @Test
+    void createsBehaviorMetricsBean() {
+        CourierMetricsAutoConfiguration config =
+                new CourierMetricsAutoConfiguration();
+        MeterRegistry meterRegistry =
+                new SimpleMeterRegistry();
+
+        BehaviorMetrics metrics =
+                config.behaviorMetrics(meterRegistry);
+
+        assertNotNull(metrics);
+        assertInstanceOf(
+                MicrometerBehaviorMetrics.class, metrics);
     }
 
 }

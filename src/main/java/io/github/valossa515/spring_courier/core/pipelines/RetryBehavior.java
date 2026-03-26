@@ -1,6 +1,7 @@
 package io.github.valossa515.spring_courier.core.pipelines;
 
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
+import io.github.valossa515.spring_courier.core.metrics.CourierMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -29,6 +30,7 @@ public class RetryBehavior<R extends IRequest<S>, S>
     private final int maxAttempts;
     private final long delayMs;
     private final double multiplier;
+    private final BehaviorMetrics metrics;
 
     /**
      * Creates a retry behavior.
@@ -39,9 +41,25 @@ public class RetryBehavior<R extends IRequest<S>, S>
      */
     public RetryBehavior(int maxAttempts, long delayMs,
             double multiplier) {
+        this(maxAttempts, delayMs, multiplier,
+                BehaviorMetrics.NOOP);
+    }
+
+    /**
+     * Creates a retry behavior with metrics support.
+     *
+     * @param maxAttempts maximum total attempts (including the first)
+     * @param delayMs     initial delay between retries in milliseconds
+     * @param multiplier  backoff multiplier (e.g. 2.0 for doubling)
+     * @param metrics     recorder for retry counters
+     */
+    public RetryBehavior(int maxAttempts, long delayMs,
+            double multiplier, BehaviorMetrics metrics) {
         this.maxAttempts = Math.max(1, maxAttempts);
         this.delayMs = Math.max(0, delayMs);
         this.multiplier = Math.max(1.0, multiplier);
+        this.metrics = metrics != null
+                ? metrics : BehaviorMetrics.NOOP;
     }
 
     @Override
@@ -61,8 +79,15 @@ public class RetryBehavior<R extends IRequest<S>, S>
                                     + "for {}: {}",
                             maxAttempts, requestName,
                             ex.getMessage());
+                    metrics.incrementCounter(
+                            CourierMetrics.RETRY_EXHAUSTED,
+                            requestName);
                     break;
                 }
+
+                metrics.incrementCounter(
+                        CourierMetrics.RETRY_ATTEMPTS,
+                        requestName);
 
                 long currentDelay = computeDelay(attempt);
                 logger.warn(
