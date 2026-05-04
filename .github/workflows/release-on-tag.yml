@@ -29,7 +29,7 @@ jobs:
             exit 0
           fi
 
-          PREV_TAG="$(git tag --sort=-creatordate | grep -E '^v[0-9]' | grep -v "^${TAG}$" | head -n 1 || true)"
+          PREV_TAG="$(git tag --list 'v[0-9]*' --sort=-version:refname | awk -v tag="$TAG" '$0 == tag { if (getline) print; exit }' || true)"
 
           if [ -n "$PREV_TAG" ]; then
             COMPARE_URL="https://github.com/${GITHUB_REPOSITORY}/compare/${PREV_TAG}...${TAG}"
