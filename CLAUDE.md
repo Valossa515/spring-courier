@@ -6,7 +6,7 @@ Spring Courier is a **Java library** (not an application) that provides a **CQRS
 
 - **GroupId:** `io.github.valossa515`
 - **ArtifactId:** `spring-courier`
-- **Current Version:** 2.3.0
+- **Current Version:** 3.0.0
 - **License:** MIT
 
 ---
@@ -71,7 +71,7 @@ spring-courier/
 ### Key Maven Configuration
 
 - **Java:** 21 (required minimum; compile target is `--release 21`)
-- **Spring Boot:** 3.5.5 (provided scope — not bundled in library JAR)
+- **Spring Boot:** 4.0.6 (provided scope — not bundled in library JAR)
 - **Checkstyle:** Enforced; build **fails on violations** (`failOnViolation=true`)
 - **JaCoCo:** Generates XML + HTML coverage reports
 - **SonarCloud:** Integrated via `sonar-project.properties`

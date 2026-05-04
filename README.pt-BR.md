@@ -119,12 +119,12 @@ Adicione a dependência no seu `pom.xml` ou `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>2.3.0</version>
+    <version>3.0.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier:2.3.0")
+implementation("io.github.valossa515:spring-courier:3.0.0")
 ```
 
 > 🔧 É necessário ter o **Java 21+** e **Spring Boot 3.x+**.
