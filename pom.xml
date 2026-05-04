@@ -5,7 +5,7 @@
 
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>2.3.0</version>
+    <version>3.0.0</version>
     <name>Spring Courier</name>
     <description>Lib CQRS leve para Spring Boot, inspirada no MediatR (.NET)</description>
     <url>https://github.com/valossa515/spring-courier</url>
@@ -50,7 +50,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <spring-boot.version>3.5.5</spring-boot.version>
+        <spring-boot.version>4.0.6</spring-boot.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <sonar.organization>valossa515</sonar.organization>
     </properties>
