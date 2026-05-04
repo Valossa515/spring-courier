@@ -16,7 +16,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: github.event.deleted == false
+    if: github.event.deleted != true
     permissions:
       contents: read
 
