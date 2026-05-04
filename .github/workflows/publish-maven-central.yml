@@ -3,6 +3,9 @@ name: Publish to Maven Central
 on:
   release:
     types: [published]
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       version:
@@ -13,6 +16,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    if: github.event.deleted == false
     permissions:
       contents: read
 
