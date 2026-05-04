@@ -127,7 +127,7 @@ Add the dependency to your `pom.xml` or `build.gradle`:
 implementation("io.github.valossa515:spring-courier:3.0.0")
 ```
 
-> 🔧 Requires **Java 21+** and **Spring Boot 3.x+**.
+> 🔧 Requires **Java 21+** and **Spring Boot 4.x+**.
 
 ---
 
