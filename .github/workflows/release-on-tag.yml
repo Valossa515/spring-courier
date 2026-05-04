@@ -1,0 +1,58 @@
+name: Create GitHub Release on Tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    if: github.event.deleted == false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; nothing to do."
+            exit 0
+          fi
+
+          PREV_TAG="$(git tag --list 'v[0-9]*' --sort=-version:refname | awk -v tag="$TAG" '$0 == tag { if (getline) print; exit }' || true)"
+
+          if [ -n "$PREV_TAG" ]; then
+            COMPARE_URL="https://github.com/${GITHUB_REPOSITORY}/compare/${PREV_TAG}...${TAG}"
+          else
+            COMPARE_URL="https://github.com/${GITHUB_REPOSITORY}/commits/${TAG}"
+          fi
+
+          NOTES_FILE="$(mktemp)"
+          {
+            echo "## ${TAG}"
+            echo
+            if [ -n "$PREV_TAG" ]; then
+              echo "### Changes since ${PREV_TAG}"
+              echo
+              git log --no-merges --pretty=format:'- %s (%h)' "${PREV_TAG}..${TAG}"
+              echo
+              echo
+            fi
+            echo "**Full Changelog:** ${COMPARE_URL}"
+          } > "$NOTES_FILE"
+
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes-file "$NOTES_FILE" \
+            --verify-tag
