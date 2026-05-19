@@ -9,56 +9,188 @@
 </p>
 
 <p align="center">
-  <a href="https://central.sonatype.com/artifact/io.github.valossa515/spring-courier"><img src="https://img.shields.io/maven-central/v/io.github.valossa515/spring-courier" alt="Maven Central"/></a>
-  <a href="https://github.com/Valossa515/spring-courier/actions/workflows/publish-maven-central.yml"><img src="https://github.com/Valossa515/spring-courier/actions/workflows/publish-maven-central.yml/badge.svg" alt="Publish to Maven Central"/></a>
+  <a href="https://central.sonatype.com/artifact/io.github.valossa515/spring-courier"><img src="https://img.shields.io/maven-central/v/io.github.valossa515/spring-courier?logo=apachemaven&label=maven%20central" alt="Maven Central"/></a>
+  <a href="https://openjdk.org/projects/jdk/21/"><img src="https://img.shields.io/badge/java-21%2B-orange?logo=openjdk" alt="Java 21+"/></a>
+  <a href="https://spring.io/projects/spring-boot"><img src="https://img.shields.io/badge/spring--boot-3.x%20%7C%204.x-brightgreen?logo=spring" alt="Spring Boot"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"/></a>
-  <a href="https://openjdk.org/projects/jdk/21/"><img src="https://img.shields.io/badge/java-21%2B-orange" alt="Java"/></a>
-  <a href="https://spring.io/projects/spring-boot"><img src="https://img.shields.io/badge/spring--boot-3.5.x-brightgreen" alt="Spring Boot"/></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Valossa515/spring-courier/stargazers"><img src="https://img.shields.io/github/stars/Valossa515/spring-courier?style=flat&logo=github" alt="GitHub stars"/></a>
+  <a href="https://sonarcloud.io/summary/new_code?id=Valossa515_spring-courier"><img src="https://sonarcloud.io/api/project_badges/measure?project=Valossa515_spring-courier&metric=alert_status" alt="Quality Gate"/></a>
+  <a href="https://sonarcloud.io/component_measures?metric=coverage&id=Valossa515_spring-courier"><img src="https://sonarcloud.io/api/project_badges/measure?project=Valossa515_spring-courier&metric=coverage" alt="Coverage"/></a>
+  <a href="https://github.com/Valossa515/spring-courier/actions/workflows/publish-maven-central.yml"><img src="https://github.com/Valossa515/spring-courier/actions/workflows/publish-maven-central.yml/badge.svg" alt="Publish to Maven Central"/></a>
+  <a href="https://github.com/Valossa515/spring-courier/commits/main"><img src="https://img.shields.io/github/last-commit/Valossa515/spring-courier" alt="Último commit"/></a>
 </p>
 
 ---
 
 > 🌐 **Language / Idioma:** 🇧🇷 **Português** (atual) | 🇺🇸 [English](README.md)
 
+## 🧠 Por que Spring Courier?
 
-## 🧠 Sobre
+A **experiência do MediatR para Spring Boot** — sem escrever seu próprio dispatcher, sem framework de event sourcing, sem abandonar os idiomas do Spring.
 
-O **Spring Courier** é uma biblioteca leve e extensível que traz para o ecossistema **Spring Boot** a simplicidade e o poder do **MediatR** do .NET.  
-Ela fornece uma infraestrutura para desacoplar comandos, consultas e eventos — permitindo aplicações **clean**, **testáveis** e **orientadas a domínio**.
+- 🎯 **CQRS em 3 linhas** — defina um request, um handler, chame `courier.send(...)`. Sem boilerplate de registro, sem classes base abstratas.
+- 🛡️ **Pronto para produção de imediato** — retries, cache, idempotência, validação, OpenTelemetry, métricas Micrometer, alertas nativos no Slack.
+- ⚡ **Nativo do Java 21** — virtual threads, hierarquia de exceções selada, pattern matching. JAR de ~150 KB, zero dependências em runtime além do Spring.
 
----
+## 🔄 Antes / Depois
+
+<p align="center">
+  <img src="assets/before-after.svg" alt="Antes e depois usando Spring Courier" width="100%"/>
+</p>
+
+<details>
+<summary>Ver o mesmo comparativo em código puro</summary>
+
+**Antes** — um controller conhece serviços, transações, validação, logging:
+
+```java
+@RestController
+@RequiredArgsConstructor
+public class ProductController {
+    private final ProductService service;
+    private final ProductValidator validator;
+    private final AuditLogger auditor;
+
+    @PostMapping("/products")
+    public ResponseEntity<Product> create(@RequestBody CreateProductRequest req) {
+        validator.validate(req);            // boilerplate
+        auditor.log("create", req);         // boilerplate
+        Product saved = service.create(req);// a única linha que importa
+        return ResponseEntity.status(201).body(saved);
+    }
+}
+```
+
+**Depois** — o controller só despacha; concerns transversais ficam em pipeline behaviors:
+
+```java
+@RestController
+@RequiredArgsConstructor
+public class ProductController {
+    private final Courier courier;
+
+    @PostMapping("/products")
+    public ResponseEntity<?> create(@RequestBody CreateProductCommand cmd) {
+        return courier.send(cmd).toEntity();
+    }
+}
+```
+
+</details>
+
+## ⚡ Quick Start em 60 segundos
+
+**1.** Adicione a dependência:
+
+```xml
+<dependency>
+    <groupId>io.github.valossa515</groupId>
+    <artifactId>spring-courier</artifactId>
+    <version>3.0.0</version>
+</dependency>
+```
+
+**2.** Defina um command e seu handler:
+
+```java
+public record CreateProductCommand(String name, BigDecimal price)
+        implements ICommand<Product> {}
+
+@Service
+public class CreateProductHandler
+        implements CommandHandler<CreateProductCommand, Product> {
+    public Product handle(CreateProductCommand cmd) {
+        return new Product(UUID.randomUUID(), cmd.name(), cmd.price());
+    }
+}
+```
+
+**3.** Despache em qualquer lugar onde `Courier` for injetado:
+
+```java
+Response<Product> response = courier.send(new CreateProductCommand("Book", BigDecimal.TEN));
+```
+
+E pronto. A auto-configuração descobre o handler no contexto Spring — sem registro manual.
+
+## 🆚 Comparativo
+
+| Capacidade                                | Spring Courier | Axon Framework | Spring Modulith | Mediator Manual |
+|-------------------------------------------|:-------------:|:--------------:|:---------------:|:---------------:|
+| API `send()` / `publish()` estilo MediatR | ✅            | ⚠️ (pesado)    | ❌              | DIY             |
+| Auto-discovery sem configuração            | ✅            | ❌             | ⚠️              | ❌              |
+| Retry / cache / idempotência embutidos    | ✅            | ⚠️             | ❌              | ❌              |
+| Virtual threads (Java 21)                 | ✅            | ❌             | ❌              | ⚠️              |
+| Integração OpenTelemetry + Micrometer     | ✅            | ⚠️             | ⚠️              | DIY             |
+| Alertas nativos no Slack (sem Grafana)    | ✅            | ❌             | ❌              | ❌              |
+| Event sourcing / sagas                    | ❌            | ✅             | ❌              | ❌              |
+| Footprint                                 | ~150 KB       | Plataforma     | Arquitetural    | n/a             |
+
+> **TL;DR:** escolha Spring Courier quando você quer a *experiência de dev do MediatR* no Spring. Escolha Axon quando precisar de event sourcing e CQRS no nível arquitetural. Escolha Modulith quando quiser fronteiras de módulos dentro de um monolito.
 
 ## ✨ Recursos
 
-- ✅ Suporte a **Command Handlers** e **Query Handlers**
-- ✅ **Notification/Event Support** — Publique eventos para múltiplos handlers
-- ✅ **Validation Pipeline** — Valide requests antes da execução
-- ✅ Estrutura genérica e flexível baseada em **interfaces**
-- ✅ Total integração com o **Spring Context**
-- ✅ Suporte a **Request/Response Pattern**
-- ✅ **Async Support** — Publicação assíncrona com **Virtual Threads** (Java 21)
-- ✅ Extensível para eventos e pipelines personalizados
-- ✅ Zero configuração adicional — **plug and play**
-- ✅ **Slack Alerting Nativo** — Alertas direto no Slack sem Grafana/Alertmanager
-- ✅ **Sealed Exception Hierarchy** — Hierarquia de exceções fechada para type safety
-- ✅ **Response Entity Converter** — `ResponseEntityConverter` plugável para mapeamento customizado de respostas HTTP
-- ✅ **Caching Behavior** — Cache automático em memória para queries com TTL e evição por tamanho
-- ✅ **Retry Behavior** — Retry com backoff exponencial para falhas transientes
-- ✅ **OpenTelemetry Tracing** — Tracing distribuído com spans para cada request
-- ✅ **Batch Dispatch** — `sendAll()` / `sendAllAsync()` para despachar múltiplos requests
-- ✅ **@Timeout Por Request** — Sobrescreva o timeout global em requests individuais
-- ✅ **Idempotency Key** — Anotação `@Idempotent` para deduplicar comandos automaticamente
-- ✅ **CourierContext** — Contexto por request com propagação de correlation ID (inclusive async)
-- ✅ **Typed Error Responses** — `errorWithDetails()` para payloads de erro estruturados (field errors, problem details)
-- ✅ **Pre/Post Processors** — Hook no ciclo de vida do request antes e depois da execução do handler
-- ✅ **Test DSL** — Builder fluente `CourierTestSupport` para testes unitários sem Spring context
-- ✅ **GraalVM Native Image** — Reflection hints para compilação ahead-of-time
-- ✅ **Actuator Endpoint** — Endpoint `/actuator/courier` expondo estado dos registries
-- ✅ **Behavior Metrics** — Contadores Micrometer para cache hits/misses, tentativas de retry e deduplicação por idempotência
+<details>
+<summary><b>🎯 CQRS Core</b> — commands, queries, notifications, batch dispatch, contexto por request</summary>
+
+- **Handlers de Command/Query/Notification** com um único ponto de entrada `Courier`
+- **Auto-discovery** de handlers no contexto Spring (`@Service`, `@Component`, `@ExposeHandler`)
+- **`Response<T>`** com success/error/status, conversível em `ResponseEntity`
+- **Batch dispatch** — `sendAll()` / `sendAllAsync()` para múltiplos requests
+- **`CourierContext`** — contexto por request com correlation ID, propagado em virtual threads
+- **Respostas de erro tipadas** — `errorWithDetails()` para erros estruturados por campo
+
+</details>
+
+<details>
+<summary><b>🛡️ Confiabilidade</b> — retry, cache, idempotência, validação, timeouts</summary>
+
+- **Retry behavior** — backoff exponencial para falhas transientes
+- **Caching behavior** — cache em memória para queries com TTL e evição por tamanho
+- **`@Idempotent`** — deduplicação automática de comandos com TTL configurável
+- **Pipeline de validação** — validação fail-fast antes do handler executar
+- **`@Timeout`** — override por request do timeout async global
+
+</details>
+
+<details>
+<summary><b>📊 Observabilidade</b> — Micrometer, OpenTelemetry, Slack, Actuator</summary>
+
+- **Métricas Micrometer** — timers, counters, gauges, long task timers (prontos pro Prometheus)
+- **Tracing OpenTelemetry** — spans automáticos por request com correlation ID
+- **Alertas nativos no Slack** — alerting embutido (error ratio, p99, timeouts, queda de throughput) sem Grafana/Alertmanager
+- **Dashboard Grafana** — JSON pronto pra importar em `docs/grafana/`
+- **Endpoint Actuator** — `/actuator/courier` expondo estado dos registries
+
+</details>
+
+<details>
+<summary><b>🧪 Testes & Extensibilidade</b> — Test DSL, behaviors, processors, converters customizados</summary>
+
+- **Test DSL** — builder `CourierTestSupport` para testes unitários sem contexto Spring
+- **`PipelineBehavior<R, S>`** — concerns transversais com execução ordenada
+- **Pre/Post processors** — hooks leves antes e depois do handler
+- **`ResponseEntityConverter`** — mapeamento HTTP plugável
+
+</details>
+
+<details>
+<summary><b>🚀 Runtime & Plataforma</b> — Java 21, virtual threads, sealed types, GraalVM</summary>
+
+- **Virtual threads por padrão** para publicação assíncrona
+- **Hierarquia de exceções selada** para pattern matching exaustivo
+- **GraalVM native image** com reflection hints incluídos
+- Compatível com **Spring Boot 3.x e 4.x**
+
+</details>
 
 ---
 
-## ☕ Java 21 — O que mudou
+<details>
+<summary><h2 style="display:inline">☕ Java 21 — O que mudou</h2></summary>
 
 A partir da versão **2.0.0**, o Spring Courier requer **Java 21+** (LTS). Essa atualização traz melhorias significativas de performance e type safety:
 
@@ -108,6 +240,8 @@ try {
 O código interno da biblioteca foi refatorado para utilizar **pattern matching in switch** e **switch expressions** do Java 21, tornando o código mais conciso e seguro.
 
 > ⚠️ **Breaking change:** Se sua aplicação roda em Java 17, 18, 19 ou 20, permaneça na versão **1.x** do Spring Courier.
+
+</details>
 
 ---
 
@@ -376,6 +510,9 @@ public ResponseEntityConverter customConverter() {
 ```
 
 ---
+
+<details>
+<summary><h2 style="display:inline">📚 Recursos Avançados (clique para expandir)</h2></summary>
 
 ## 🔁 Caching Behavior
 
@@ -740,6 +877,8 @@ spring.courier.slack.thresholds.throughput-drop-ratio=0.5
 ```properties
 spring.courier.slack.enabled=false
 ```
+
+</details>
 
 ---
 
