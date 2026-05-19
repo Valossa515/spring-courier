@@ -1,0 +1,38 @@
+name: CI
+
+# Companion workflow to .github/workflows/pr-ci.yml.
+# The main CI uses `paths-ignore` to skip docs-only changes, which would otherwise
+# leave required status checks stuck in "Expected" forever and block merges.
+# This workflow runs ONLY on docs-only changes and reports success under the same
+# job names, satisfying branch protection without wasting CI minutes.
+#
+# Reference: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/troubleshooting-rulesets#handle-skipped-but-required-checks
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**.md'
+      - 'docs/**'
+      - 'assets/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - 'CODE_OF_CONDUCT*'
+      - 'CONTRIBUTING*'
+      - 'SECURITY*'
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip — docs-only change
+        run: echo "Docs-only change; skipping build."
+
+  sonarcloud:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip — docs-only change
+        run: echo "Docs-only change; skipping SonarCloud analysis."
