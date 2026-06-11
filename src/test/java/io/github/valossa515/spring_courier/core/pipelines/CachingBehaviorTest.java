@@ -14,7 +14,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CachingBehaviorTest {
 
@@ -191,5 +193,41 @@ class CachingBehaviorTest {
                 Duration.ofSeconds(60), 100, null);
         assertEquals(Ordered.HIGHEST_PRECEDENCE + 50,
                 safe.getOrder());
+    }
+
+    static class PlainQuery implements IQuery<String> {
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void errorResponsesAreNotCached() {
+        GetUser query = new GetUser("err");
+
+        Response<?> first = behavior.handle(
+                (IRequest<Response<?>>) (IRequest<?>) query,
+                () -> {
+                    invocations.incrementAndGet();
+                    return Response.error("transient failure", 500);
+                });
+        Response<?> second = execute(query);
+
+        assertFalse(first.isSuccess());
+        assertTrue(second.isSuccess());
+        assertEquals(2, invocations.get(),
+                "Error response must not be served from cache");
+        assertEquals(1, behavior.size());
+    }
+
+    @Test
+    void queryWithoutCustomToStringIsNotCached() {
+        PlainQuery query = new PlainQuery();
+
+        execute(query);
+        execute(query);
+
+        assertEquals(2, invocations.get());
+        assertEquals(0, behavior.size(),
+                "Default Object.toString() keys would never match and "
+                        + "would only fill the cache");
     }
 }

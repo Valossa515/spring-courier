@@ -97,9 +97,11 @@
             <artifactId>jackson-annotations</artifactId>
         </dependency>
 
+        <!-- Only ResponseEntity & HTTP status types are used; the full
+             web starter is unnecessary for a library. -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
             <scope>provided</scope>
         </dependency>
 

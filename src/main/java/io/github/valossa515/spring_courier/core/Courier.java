@@ -38,6 +38,25 @@ import java.util.concurrent.TimeoutException;
  * Dispatches requests through the CQRS pipeline, invoking synchronous or
  * asynchronous handlers as needed. Also supports publishing notifications
  * to multiple handlers with configurable publishing strategies.
+ *
+ * <p><strong>Execution model:</strong> handlers run inline on the calling
+ * thread, so thread-bound state — Spring transactions, security context,
+ * MDC, request scope — set up by the caller or by pipeline behaviors
+ * applies to the handler. Two exceptions:
+ * <ul>
+ *   <li>Requests annotated with {@link Timeout} are offloaded to a virtual
+ *       thread and watched with the annotated timeout. Thread-bound state
+ *       does <em>not</em> propagate to the handler in this mode (only the
+ *       {@link CourierContext} is copied).</li>
+ *   <li>Handlers returning {@link CompletableFuture} are awaited with the
+ *       configured async timeout; the future's work runs wherever the
+ *       handler scheduled it.</li>
+ * </ul>
+ *
+ * <p>Exceptions thrown by handlers propagate through the behavior chain
+ * (so transactional, retry, and metric behaviors can react to them) and
+ * are converted to an error {@link Response} at the dispatcher boundary —
+ * {@link #send(IRequest)} never rethrows handler exceptions.
  */
 public class Courier {
     private static final Logger logger = LoggerFactory.getLogger(Courier.class);
@@ -171,6 +190,15 @@ public class Courier {
         try {
             result = pipelineExecutor.execute(
                     request, () -> invokeHandler(handler, request));
+        } catch (HandlerExecutionException hex) {
+            Throwable cause = hex.getCause();
+            Response<R> handled = tryExceptionHandlers(request,
+                    cause instanceof Exception ex ? ex : hex);
+            if (handled != null) {
+                return handled;
+            }
+            logger.error("Handler error: {}", cause.getMessage(), cause);
+            result = Response.error(cause);
         } catch (Exception ex) {
             Response<R> handled = tryExceptionHandlers(request, ex);
             if (handled != null) {
@@ -219,98 +247,139 @@ public class Courier {
     /**
      * Invokes the handler, transparently supporting "handle" and "execute"
      * method conventions.
+     *
+     * <p>Handlers run inline on the calling thread by default so that
+     * thread-bound state (transactions, security context, MDC) applies.
+     * Requests annotated with {@link Timeout} are offloaded to a virtual
+     * thread and watched with the annotated timeout instead.
+     *
+     * <p>Handler failures are thrown as {@link HandlerExecutionException}
+     * so they propagate through the behavior chain before being converted
+     * to an error {@link Response} in {@code doSend}.
      */
     @SuppressWarnings("unchecked")
     private <R> Response<R> invokeHandler(Object handler, IRequest<R> request) {
+        Method method;
         try {
-            Method method = getCachedMethod(handler.getClass());
-            long start = System.nanoTime();
-            long effectiveTimeout = resolveTimeout(request);
+            method = getCachedMethod(handler.getClass());
+        } catch (HandlerMethodNotFoundException e) {
+            throw new HandlerExecutionException(e);
+        }
 
-            CourierContext ctx = CourierContextHolder.peekContext();
-            CompletableFuture<Object> invocationFuture =
-                    CompletableFuture.supplyAsync(() -> {
-                        if (ctx != null) {
-                            CourierContextHolder.setContext(ctx);
-                        }
-                        try {
-                            return reflectiveInvoke(
-                                    method, handler, request);
-                        } finally {
-                            CourierContextHolder.clear();
-                        }
-                    }, VIRTUAL_THREAD_EXECUTOR);
+        long effectiveTimeout = resolveTimeout(request);
+        long start = System.nanoTime();
 
-            Object result;
-            try {
-                result = invocationFuture.get(
-                        effectiveTimeout, TimeUnit.MILLISECONDS);
-            } catch (TimeoutException e) {
-                invocationFuture.cancel(true);
-                logger.error("Handler timed out after {}ms: {}",
-                        effectiveTimeout, handler.getClass().getSimpleName());
-                return Response.error(
-                        "Handler timed out after " + effectiveTimeout + "ms",
-                        504, TimeoutException.class.getSimpleName());
-            } catch (ExecutionException e) {
-                Throwable cause = unwrapExecutionCause(e);
-                logger.error("Handler error: {}",
-                        cause.getMessage(), cause);
-                return Response.error(cause);
-            }
+        Object result = hasTimeoutAnnotation(request)
+                ? invokeOnVirtualThread(method, handler, request, effectiveTimeout)
+                : invokeInline(method, handler, request);
 
-            if (result instanceof CompletableFuture<?> future) {
-                long elapsedMs = TimeUnit.NANOSECONDS.toMillis(
-                        System.nanoTime() - start);
-                long remainingMs = Math.max(
-                        effectiveTimeout - elapsedMs, 1);
-                try {
-                    result = future.get(
-                            remainingMs, TimeUnit.MILLISECONDS);
-                } catch (TimeoutException e) {
-                    future.cancel(true);
-                    logger.error("Handler timed out after {}ms: {}",
-                            effectiveTimeout,
-                            handler.getClass().getSimpleName());
-                    return Response.error(
-                            "Handler timed out after "
-                                    + effectiveTimeout + "ms",
-                            504,
-                            TimeoutException.class.getSimpleName());
-                } catch (ExecutionException e) {
-                    Throwable cause = unwrapExecutionCause(e);
-                    logger.error("Async handler error: {}",
-                            cause.getMessage(), cause);
-                    return Response.error(cause);
-                }
-            }
-
-            long durationMs = TimeUnit.NANOSECONDS.toMillis(
+        if (result instanceof CompletableFuture<?> future) {
+            long elapsedMs = TimeUnit.NANOSECONDS.toMillis(
                     System.nanoTime() - start);
-            logger.debug("Handler executed in {}ms: {} -> {}",
-                    durationMs,
-                    request.getClass().getSimpleName(),
-                    handler.getClass().getSimpleName());
+            long remainingMs = Math.max(effectiveTimeout - elapsedMs, 1);
+            result = awaitFuture(future, remainingMs,
+                    effectiveTimeout, handler);
+        }
 
-            if (result == null) {
-                return Response.success(null);
-            }
-            if (result instanceof Response<?> response) {
-                return (Response<R>) response;
-            }
+        long durationMs = TimeUnit.NANOSECONDS.toMillis(
+                System.nanoTime() - start);
+        logger.debug("Handler executed in {}ms: {} -> {}",
+                durationMs,
+                request.getClass().getSimpleName(),
+                handler.getClass().getSimpleName());
 
-            return Response.success((R) result);
+        if (result == null) {
+            return Response.success(null);
+        }
+        if (result instanceof Response<?> response) {
+            return (Response<R>) response;
+        }
 
-        } catch (RuntimeException e) {
-            logger.error("Courier runtime error: {}",
-                    e.getMessage(), e);
-            return Response.error(e);
+        return Response.success((R) result);
+    }
+
+    /**
+     * Invokes the handler method on the calling thread.
+     */
+    private static Object invokeInline(Method method, Object handler,
+            IRequest<?> request) {
+        try {
+            return method.invoke(handler, request);
+        } catch (InvocationTargetException e) {
+            throw new HandlerExecutionException(
+                    e.getTargetException() != null
+                            ? e.getTargetException() : e);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            throw new HandlerExecutionException(e);
+        }
+    }
+
+    /**
+     * Invokes the handler on a virtual thread, enforcing the given timeout.
+     * Used only for requests annotated with {@link Timeout}; caller
+     * thread-bound state (other than {@link CourierContext}) does not
+     * propagate to the handler in this mode.
+     */
+    private Object invokeOnVirtualThread(Method method, Object handler,
+            IRequest<?> request, long timeoutMs) {
+        CourierContext ctx = CourierContextHolder.peekContext();
+        CompletableFuture<Object> invocationFuture =
+                CompletableFuture.supplyAsync(() -> {
+                    if (ctx != null) {
+                        CourierContextHolder.setContext(ctx);
+                    }
+                    try {
+                        return reflectiveInvoke(method, handler, request);
+                    } finally {
+                        CourierContextHolder.clear();
+                    }
+                }, VIRTUAL_THREAD_EXECUTOR);
+
+        try {
+            return invocationFuture.get(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            invocationFuture.cancel(true);
+            logger.error("Handler timed out after {}ms: {}",
+                    timeoutMs, handler.getClass().getSimpleName());
+            return Response.error(
+                    "Handler timed out after " + timeoutMs + "ms",
+                    504, TimeoutException.class.getSimpleName());
+        } catch (ExecutionException e) {
+            throw new HandlerExecutionException(unwrapExecutionCause(e));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            logger.error("Handler interrupted: {}",
-                    e.getMessage(), e);
+            logger.error("Handler interrupted: {}", e.getMessage(), e);
             return Response.error(e);
         }
+    }
+
+    /**
+     * Awaits a {@link CompletableFuture} returned by a handler, enforcing
+     * the remaining timeout budget.
+     */
+    private Object awaitFuture(CompletableFuture<?> future, long remainingMs,
+            long effectiveTimeout, Object handler) {
+        try {
+            return future.get(remainingMs, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            logger.error("Handler timed out after {}ms: {}",
+                    effectiveTimeout, handler.getClass().getSimpleName());
+            return Response.error(
+                    "Handler timed out after " + effectiveTimeout + "ms",
+                    504, TimeoutException.class.getSimpleName());
+        } catch (ExecutionException e) {
+            throw new HandlerExecutionException(unwrapExecutionCause(e));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.error("Handler interrupted: {}", e.getMessage(), e);
+            return Response.error(e);
+        }
+    }
+
+    private static boolean hasTimeoutAnnotation(IRequest<?> request) {
+        Timeout annotation = request.getClass().getAnnotation(Timeout.class);
+        return annotation != null && annotation.value() > 0;
     }
 
     /**
@@ -658,6 +727,19 @@ public class Courier {
                 String handlerClassName, String expectedMethod) {
             super("No handle method (" + expectedMethod
                     + ") found in handler: " + handlerClassName);
+        }
+    }
+
+    /**
+     * Internal marker that carries a handler failure through the behavior
+     * chain. Behaviors observe it as a regular {@link RuntimeException}
+     * (enabling rollback, retry, and error metrics); the dispatcher
+     * unwraps it and converts the original cause to an error
+     * {@link Response} before returning to the caller.
+     */
+    static final class HandlerExecutionException extends RuntimeException {
+        HandlerExecutionException(Throwable cause) {
+            super(cause.getMessage(), cause);
         }
     }
 }

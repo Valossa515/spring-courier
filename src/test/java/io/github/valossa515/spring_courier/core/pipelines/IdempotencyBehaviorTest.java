@@ -10,10 +10,17 @@ import org.springframework.core.Ordered;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class IdempotencyBehaviorTest {
 
@@ -182,5 +189,83 @@ class IdempotencyBehaviorTest {
                 new IdempotencyBehavior<>(100, null);
         assertEquals(Ordered.HIGHEST_PRECEDENCE + 5,
                 safe.getOrder());
+    }
+
+    @Idempotent
+    static class PlainIdempotentCmd implements ICommand<String> {
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void errorResponsesAreNotStored() {
+        CreateOrder cmd = new CreateOrder("flaky-1");
+
+        Response<?> first = behavior.handle(
+                (IRequest<Response<?>>) (IRequest<?>) cmd,
+                () -> {
+                    invocations.incrementAndGet();
+                    return Response.error("transient failure", 500);
+                });
+        Response<?> second = execute(cmd);
+
+        assertFalse(first.isSuccess());
+        assertTrue(second.isSuccess());
+        assertEquals(2, invocations.get(),
+                "A failed attempt must not poison the idempotency key");
+    }
+
+    @Test
+    void requestWithoutCustomToStringSkipsIdempotency() {
+        PlainIdempotentCmd cmd = new PlainIdempotentCmd();
+
+        execute(cmd);
+        execute(cmd);
+
+        assertEquals(2, invocations.get());
+        assertEquals(0, behavior.size(),
+                "Default Object.toString() keys would never match and "
+                        + "would only fill the store");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void concurrentDuplicatesExecuteHandlerOnlyOnce() throws Exception {
+        CreateOrder cmd = new CreateOrder("concurrent-1");
+        CountDownLatch firstEntered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<Response<?>> first = pool.submit(() -> behavior.handle(
+                    (IRequest<Response<?>>) (IRequest<?>) cmd,
+                    () -> {
+                        invocations.incrementAndGet();
+                        firstEntered.countDown();
+                        try {
+                            release.await();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                        return Response.success("once");
+                    }));
+            assertTrue(firstEntered.await(2, TimeUnit.SECONDS));
+
+            // Identical request while the first is still in flight:
+            // must wait for it instead of executing the handler again
+            Future<Response<?>> second = pool.submit(() -> behavior.handle(
+                    (IRequest<Response<?>>) (IRequest<?>) cmd,
+                    () -> {
+                        invocations.incrementAndGet();
+                        return Response.success("twice");
+                    }));
+
+            release.countDown();
+
+            assertEquals("once", first.get(2, TimeUnit.SECONDS).getData());
+            assertEquals("once", second.get(2, TimeUnit.SECONDS).getData());
+            assertEquals(1, invocations.get());
+        } finally {
+            pool.shutdownNow();
+        }
     }
 }

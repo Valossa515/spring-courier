@@ -15,6 +15,14 @@ import org.springframework.core.Ordered;
  * {@code maxAttempts - 1} additional times, with a delay that
  * grows exponentially: {@code delayMs * multiplier^(attempt-1)}.
  *
+ * <p>Runs at order {@code Ordered.HIGHEST_PRECEDENCE + 150} — after
+ * validation but <em>outside</em> {@link TransactionBehavior}, so each
+ * retry attempt executes in a fresh transaction instead of reusing one
+ * already marked rollback-only.
+ *
+ * <p>Note: error {@link io.github.valossa515.spring_courier.core.support.Response}
+ * results are not retried — only exceptions trigger a new attempt.
+ *
  * <p>Enabled via {@code spring.courier.retry.enabled=true}
  * (disabled by default).
  *
@@ -105,7 +113,7 @@ public class RetryBehavior<R extends IRequest<S>, S>
 
     @Override
     public int getOrder() {
-        return Ordered.LOWEST_PRECEDENCE - 100;
+        return Ordered.HIGHEST_PRECEDENCE + 150;
     }
 
     long computeDelay(int attempt) {

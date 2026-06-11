@@ -10,6 +10,7 @@ import org.springframework.core.Ordered;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -19,7 +20,13 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Cache entries are keyed by the query's {@code toString()} value
  * (which works out of the box with Java {@code record} types).
+ * Query classes that do not override {@code toString()} are skipped
+ * (with a one-time warning), since their keys would never match.
  * Entries expire after a configurable TTL.
+ *
+ * <p>Only successful results are cached — error
+ * {@link Response Responses} always pass through uncached so transient
+ * failures are not replayed for the duration of the TTL.
  *
  * <p>Enabled via {@code spring.courier.cache.enabled=true}
  * (disabled by default).
@@ -35,6 +42,8 @@ public class CachingBehavior<R extends IRequest<S>, S>
 
     private final Map<String, CacheEntry> cache =
             new ConcurrentHashMap<>();
+    private final Set<Class<?>> unsupportedKeyWarned =
+            ConcurrentHashMap.newKeySet();
     private final long ttlMs;
     private final int maxSize;
     private final BehaviorMetrics metrics;
@@ -71,39 +80,52 @@ public class CachingBehavior<R extends IRequest<S>, S>
             return next.invoke();
         }
 
-        String key = request.getClass().getName()
-                + ":" + request.toString();
-        String requestType =
-                request.getClass().getSimpleName();
+        Class<?> requestClass = request.getClass();
+        if (!RequestKeySupport.hasCustomToString(requestClass)) {
+            if (unsupportedKeyWarned.add(requestClass)) {
+                logger.warn("Query {} does not override toString(); "
+                                + "caching is disabled for it. Use a record or "
+                                + "override toString() to enable caching.",
+                        requestClass.getSimpleName());
+            }
+            return next.invoke();
+        }
+
+        String key = requestClass.getName() + ":" + request;
+        String requestType = requestClass.getSimpleName();
 
         CacheEntry entry = cache.get(key);
         if (entry != null && !entry.isExpired()) {
-            logger.debug("Cache HIT for {}", key);
+            logger.debug("Cache HIT for {}", requestType);
             metrics.incrementCounter(
                     CourierMetrics.CACHE_HITS, requestType);
             return (S) entry.value();
         }
 
         S result = next.invoke();
+        metrics.incrementCounter(
+                CourierMetrics.CACHE_MISSES, requestType);
+
+        if (result instanceof Response<?> response
+                && !response.isSuccess()) {
+            logger.debug("Cache skip for {} (error response)",
+                    requestType);
+            return result;
+        }
 
         if (maxSize > 0 && cache.size() >= maxSize) {
             evictExpired();
             if (cache.size() >= maxSize) {
                 logger.debug(
                         "Cache full ({}/{}), skipping cache for {}",
-                        cache.size(), maxSize, key);
-                metrics.incrementCounter(
-                        CourierMetrics.CACHE_MISSES,
-                        requestType);
+                        cache.size(), maxSize, requestType);
                 return result;
             }
         }
 
         cache.put(key, new CacheEntry(result,
                 System.currentTimeMillis() + ttlMs));
-        logger.debug("Cache MISS — stored {}", key);
-        metrics.incrementCounter(
-                CourierMetrics.CACHE_MISSES, requestType);
+        logger.debug("Cache MISS — stored {}", requestType);
         return result;
     }
 

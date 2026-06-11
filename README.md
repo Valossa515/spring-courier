@@ -588,12 +588,21 @@ List<Response<?>> asyncResults = future.join();
 
 ## ⏱️ @Timeout Per-Request
 
-Override the global async timeout on individual request types:
+Opt a request type into watched, off-thread execution with its own timeout:
 
 ```java
-@Timeout(5000)  // 5 seconds instead of the global 30s default
+@Timeout(5000)  // watchdog kills the dispatch after 5 seconds (HTTP 504)
 public record SlowExportCommand(String reportId) implements ICommand<String> {}
 ```
+
+**Execution model:** plain handlers run **inline on the calling thread**, so
+Spring transactions, security context and MDC set up by the caller (or by
+pipeline behaviors) fully apply — and no timeout is enforced on them.
+`@Timeout` moves the handler to a virtual thread with a watchdog; in that mode
+thread-bound state does **not** propagate to the handler (only the
+`CourierContext` is copied), so avoid combining `@Timeout` with the
+transactional behavior. The global `spring.courier.async-timeout-ms` applies
+to handlers that return `CompletableFuture`.
 
 ---
 

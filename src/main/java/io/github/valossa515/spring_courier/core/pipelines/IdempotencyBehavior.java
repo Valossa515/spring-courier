@@ -3,11 +3,15 @@ package io.github.valossa515.spring_courier.core.pipelines;
 import io.github.valossa515.spring_courier.annotations.Idempotent;
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
 import io.github.valossa515.spring_courier.core.metrics.CourierMetrics;
+import io.github.valossa515.spring_courier.core.support.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -18,7 +22,17 @@ import java.util.concurrent.ConcurrentHashMap;
  * behavior uses the request's {@code toString()} as the
  * idempotency key. If a cached response exists and has not
  * expired, it is returned immediately without invoking the
- * handler.
+ * handler. Request classes that do not override
+ * {@code toString()} are skipped (with a one-time warning),
+ * since their keys would never match.
+ *
+ * <p>Concurrent duplicates are deduplicated as well: while a
+ * request for a given key is in flight, identical requests wait
+ * for its outcome instead of executing the handler a second time.
+ *
+ * <p>Only successful results are stored — error
+ * {@link Response Responses} and exceptions are never recorded,
+ * so a transient failure does not poison the key for the TTL.
  *
  * <p>Requests without the annotation pass through untouched.
  *
@@ -36,6 +50,10 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
 
     private final Map<String, IdempotencyEntry> store =
             new ConcurrentHashMap<>();
+    private final Map<String, CompletableFuture<Object>> inFlight =
+            new ConcurrentHashMap<>();
+    private final Set<Class<?>> unsupportedKeyWarned =
+            ConcurrentHashMap.newKeySet();
     private final int maxSize;
     private final BehaviorMetrics metrics;
 
@@ -70,21 +88,80 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
             return next.invoke();
         }
 
-        String key = request.getClass().getName()
-                + ":" + request.toString();
-        String requestType =
-                request.getClass().getSimpleName();
+        Class<?> requestClass = request.getClass();
+        if (!RequestKeySupport.hasCustomToString(requestClass)) {
+            if (unsupportedKeyWarned.add(requestClass)) {
+                logger.warn("@Idempotent request {} does not override "
+                                + "toString(); idempotency is disabled for it. "
+                                + "Use a record or override toString().",
+                        requestClass.getSimpleName());
+            }
+            return next.invoke();
+        }
+
+        String key = requestClass.getName() + ":" + request;
+        String requestType = requestClass.getSimpleName();
 
         IdempotencyEntry entry = store.get(key);
         if (entry != null && !entry.isExpired()) {
-            logger.debug("Idempotent HIT for {}", key);
+            logger.debug("Idempotent HIT for {}", requestType);
             metrics.incrementCounter(
                     CourierMetrics.IDEMPOTENCY_HITS,
                     requestType);
             return (S) entry.response();
         }
 
-        S result = next.invoke();
+        CompletableFuture<Object> execution = new CompletableFuture<>();
+        CompletableFuture<Object> existing =
+                inFlight.putIfAbsent(key, execution);
+        if (existing != null) {
+            logger.debug("Idempotent in-flight duplicate for {}, "
+                    + "awaiting first execution", requestType);
+            metrics.incrementCounter(
+                    CourierMetrics.IDEMPOTENCY_HITS, requestType);
+            return (S) awaitInFlight(existing);
+        }
+
+        try {
+            S result = next.invoke();
+            storeIfSuccessful(key, requestType, annotation, result);
+            execution.complete(result);
+            return result;
+        } catch (RuntimeException ex) {
+            execution.completeExceptionally(ex);
+            throw ex;
+        } finally {
+            inFlight.remove(key, execution);
+        }
+    }
+
+    /**
+     * Waits for the first in-flight execution of the same key and
+     * reuses its outcome, rethrowing its failure when it failed.
+     */
+    private Object awaitInFlight(CompletableFuture<Object> existing) {
+        try {
+            return existing.join();
+        } catch (CompletionException e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            if (cause instanceof RuntimeException re) {
+                throw re;
+            }
+            throw e;
+        }
+    }
+
+    private void storeIfSuccessful(String key, String requestType,
+            Idempotent annotation, Object result) {
+        metrics.incrementCounter(
+                CourierMetrics.IDEMPOTENCY_MISSES, requestType);
+
+        if (result instanceof Response<?> response
+                && !response.isSuccess()) {
+            logger.debug("Idempotency skip for {} (error response)",
+                    requestType);
+            return;
+        }
 
         long expiresAt;
         if (annotation.ttlSeconds() > 0) {
@@ -102,20 +179,13 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
                 logger.debug(
                         "Idempotency store full ({}/{}), "
                                 + "skipping storage for {}",
-                        store.size(), maxSize, key);
-                metrics.incrementCounter(
-                        CourierMetrics.IDEMPOTENCY_MISSES,
-                        requestType);
-                return result;
+                        store.size(), maxSize, requestType);
+                return;
             }
         }
 
         store.put(key, new IdempotencyEntry(result, expiresAt));
-        logger.debug("Idempotent MISS — stored {}", key);
-        metrics.incrementCounter(
-                CourierMetrics.IDEMPOTENCY_MISSES,
-                requestType);
-        return result;
+        logger.debug("Idempotent MISS — stored {}", requestType);
     }
 
     @Override
