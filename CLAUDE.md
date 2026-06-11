@@ -6,7 +6,7 @@ Spring Courier is a **Java library** (not an application) that provides a **CQRS
 
 - **GroupId:** `io.github.valossa515`
 - **ArtifactId:** `spring-courier`
-- **Current Version:** 3.0.0
+- **Current Version:** 4.0.0
 - **License:** MIT
 
 ---
