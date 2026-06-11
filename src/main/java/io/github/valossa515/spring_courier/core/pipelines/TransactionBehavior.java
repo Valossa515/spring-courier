@@ -99,7 +99,9 @@ public class TransactionBehavior<R extends IRequest<S>, S>
 
     private void warnIfTimeoutAnnotated(R request) {
         Class<?> requestClass = request.getClass();
-        if (requestClass.getAnnotation(Timeout.class) != null
+        Timeout annotation = requestClass.getAnnotation(Timeout.class);
+        // Courier only offloads when the annotation value is positive
+        if (annotation != null && annotation.value() > 0
                 && timeoutWarned.add(requestClass)) {
             logger.warn("[Courier] {} is annotated with @Timeout and runs "
                             + "on a separate thread; the transaction opened by "

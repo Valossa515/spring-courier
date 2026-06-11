@@ -248,7 +248,8 @@ Handlers may return:
 
 ```properties
 # Async handler timeout (ms); default 30000; min 100; max 600000
-# Applies to CompletableFuture-returning handlers (and @Timeout offloads)
+# Applies to CompletableFuture-returning handlers; @Timeout-annotated
+# requests use their annotation value instead
 spring.courier.async-timeout-ms=30000
 
 # Notification publishing: SEQUENTIAL | PARALLEL_WHEN_ALL | STOP_ON_FIRST_ERROR

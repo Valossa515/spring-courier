@@ -127,7 +127,9 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
             storeIfSuccessful(key, requestType, annotation, result);
             execution.complete(result);
             return result;
-        } catch (RuntimeException ex) {
+        } catch (RuntimeException | Error ex) {
+            // Next.invoke() declares no checked exceptions, so this covers
+            // every possible failure — waiters must never block forever
             execution.completeExceptionally(ex);
             throw ex;
         } finally {
@@ -146,6 +148,9 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             if (cause instanceof RuntimeException re) {
                 throw re;
+            }
+            if (cause instanceof Error error) {
+                throw error;
             }
             throw e;
         }
