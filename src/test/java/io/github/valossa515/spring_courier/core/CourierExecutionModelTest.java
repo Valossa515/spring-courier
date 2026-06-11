@@ -103,6 +103,99 @@ class CourierExecutionModelTest {
                 "@Timeout requests are offloaded to a watched thread");
     }
 
+    @Timeout(10_000)
+    static class OffloadedFailingRequest implements IRequest<String> {
+    }
+
+    @SuppressWarnings("unused")
+    static class OffloadedFailingHandler {
+        public String handle(OffloadedFailingRequest r) {
+            throw new IllegalStateException("offloaded boom");
+        }
+    }
+
+    @Test
+    void offloadedHandlerExceptionBecomesErrorResponse() {
+        CourierTestFixture fixture = CourierTestFixture.create();
+        fixture.handlerRegistry().registerHandler(
+                OffloadedFailingRequest.class, new OffloadedFailingHandler());
+
+        Response<String> resp = fixture.courier()
+                .send(new OffloadedFailingRequest());
+
+        assertFalse(resp.isSuccess());
+        assertEquals("An internal error occurred", resp.getError());
+        assertEquals("IllegalStateException", resp.getExceptionType());
+    }
+
+    @Timeout(10_000)
+    static class OffloadedSlowRequest implements IRequest<String> {
+    }
+
+    @SuppressWarnings("unused")
+    static class OffloadedSlowHandler {
+        public String handle(OffloadedSlowRequest r) {
+            try {
+                Thread.sleep(3_000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return "too-late";
+        }
+    }
+
+    @Test
+    void offloadedHandlerInterruptedCallerReturnsErrorResponse()
+            throws Exception {
+        CourierTestFixture fixture = CourierTestFixture.create();
+        fixture.handlerRegistry().registerHandler(
+                OffloadedSlowRequest.class, new OffloadedSlowHandler());
+
+        Thread testThread = Thread.currentThread();
+        Thread interruptor = new Thread(() -> {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+            testThread.interrupt();
+        });
+        interruptor.start();
+
+        Response<String> resp = fixture.courier()
+                .send(new OffloadedSlowRequest());
+
+        // Clear the interrupted status for the rest of the test suite
+        Thread.interrupted();
+        interruptor.join(2_000);
+
+        assertFalse(resp.isSuccess());
+    }
+
+    static class ErrorThrowingRequest implements IRequest<String> {
+    }
+
+    @SuppressWarnings("unused")
+    static class ErrorThrowingHandler {
+        public String handle(ErrorThrowingRequest r) {
+            throw new AssertionError("fatal");
+        }
+    }
+
+    @Test
+    void handlerErrorBecomesGenericErrorResponse() {
+        CourierTestFixture fixture = CourierTestFixture.create();
+        fixture.handlerRegistry().registerHandler(
+                ErrorThrowingRequest.class, new ErrorThrowingHandler());
+
+        Response<String> resp = fixture.courier()
+                .send(new ErrorThrowingRequest());
+
+        assertFalse(resp.isSuccess());
+        assertEquals("An internal error occurred", resp.getError());
+        assertEquals("AssertionError", resp.getExceptionType());
+    }
+
     @SuppressWarnings("unused")
     static class FailingTxHandler {
         public String handle(TxCmd cmd) {
