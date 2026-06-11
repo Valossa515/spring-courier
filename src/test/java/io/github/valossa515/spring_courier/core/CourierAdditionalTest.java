@@ -150,13 +150,14 @@ class CourierAdditionalTest {
     }
 
     @Test
-    void courierTimesOutSynchronousHandlerThatBlocks() {
+    void courierTimesOutSynchronousHandlerAnnotatedWithTimeout() {
         HandlerRegistry registry = new HandlerRegistry();
         NotificationRegistry notifReg = new NotificationRegistry();
         PipelineExecutor exec = new PipelineExecutor(new PipelineRegistry());
-        // 50ms timeout — the blocking sync handler sleeps for 10s
         Courier courier = new Courier(registry, notifReg, exec, null, 50);
 
+        // @Timeout(50) opts the request into off-thread execution with a
+        // watchdog — the blocking sync handler sleeps for 10s
         registry.registerHandler(SyncSlowRequest.class, new SyncSlowHandler());
         Response<String> resp = courier.send(new SyncSlowRequest());
 
@@ -166,6 +167,24 @@ class CourierAdditionalTest {
         assertTrue(resp.getError().contains("50ms"));
     }
 
+    @Test
+    void courierRunsSlowSynchronousHandlerToCompletionWithoutTimeoutAnnotation() {
+        HandlerRegistry registry = new HandlerRegistry();
+        NotificationRegistry notifReg = new NotificationRegistry();
+        PipelineExecutor exec = new PipelineExecutor(new PipelineRegistry());
+        // Global timeout does NOT apply to plain synchronous handlers —
+        // they run inline on the calling thread (preserving transactions
+        // and other thread-bound state)
+        Courier courier = new Courier(registry, notifReg, exec, null, 100);
+
+        registry.registerHandler(InlineSlowRequest.class, new InlineSlowHandler());
+        Response<String> resp = courier.send(new InlineSlowRequest());
+
+        assertTrue(resp.isSuccess());
+        assertEquals("inline-done", resp.getData());
+    }
+
+    @io.github.valossa515.spring_courier.annotations.Timeout(50)
     static class SyncSlowRequest implements IRequest<String> {}
     @SuppressWarnings("unused")
     static class SyncSlowHandler {
@@ -174,6 +193,17 @@ class CourierAdditionalTest {
                 Thread.currentThread().interrupt();
             }
             return "too-late";
+        }
+    }
+
+    static class InlineSlowRequest implements IRequest<String> {}
+    @SuppressWarnings("unused")
+    static class InlineSlowHandler {
+        public String handle(InlineSlowRequest r) {
+            try { Thread.sleep(250); } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return "inline-done";
         }
     }
 

@@ -89,7 +89,7 @@ public class ProductController {
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>3.0.0</version>
+    <version>4.0.0</version>
 </dependency>
 ```
 
@@ -253,12 +253,12 @@ Add the dependency to your `pom.xml` or `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>3.0.0</version>
+    <version>4.0.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier:3.0.0")
+implementation("io.github.valossa515:spring-courier:4.0.0")
 ```
 
 > 🔧 Requires **Java 21+** and **Spring Boot 4.x+**.
@@ -588,12 +588,21 @@ List<Response<?>> asyncResults = future.join();
 
 ## ⏱️ @Timeout Per-Request
 
-Override the global async timeout on individual request types:
+Opt a request type into watched, off-thread execution with its own timeout:
 
 ```java
-@Timeout(5000)  // 5 seconds instead of the global 30s default
+@Timeout(5000)  // watchdog kills the dispatch after 5 seconds (HTTP 504)
 public record SlowExportCommand(String reportId) implements ICommand<String> {}
 ```
+
+**Execution model:** plain handlers run **inline on the calling thread**, so
+Spring transactions, security context and MDC set up by the caller (or by
+pipeline behaviors) fully apply — and no timeout is enforced on them.
+`@Timeout` moves the handler to a virtual thread with a watchdog; in that mode
+thread-bound state does **not** propagate to the handler (only the
+`CourierContext` is copied), so avoid combining `@Timeout` with the
+transactional behavior. The global `spring.courier.async-timeout-ms` applies
+to handlers that return `CompletableFuture`.
 
 ---
 

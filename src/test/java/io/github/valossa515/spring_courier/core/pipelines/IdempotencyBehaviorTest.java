@@ -10,10 +10,20 @@ import org.springframework.core.Ordered;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class IdempotencyBehaviorTest {
 
@@ -182,5 +192,202 @@ class IdempotencyBehaviorTest {
                 new IdempotencyBehavior<>(100, null);
         assertEquals(Ordered.HIGHEST_PRECEDENCE + 5,
                 safe.getOrder());
+    }
+
+    @Idempotent
+    static class PlainIdempotentCmd implements ICommand<String> {
+    }
+
+    @Idempotent(ttlSeconds = 0)
+    record EternalOrder(String orderId) implements ICommand<String> {
+        @Override
+        public String toString() {
+            return "EternalOrder[orderId=" + orderId + "]";
+        }
+    }
+
+    @Test
+    void zeroTtlStoresEntryWithoutExpiry() {
+        EternalOrder cmd = new EternalOrder("forever-1");
+
+        Response<?> first = execute(cmd);
+        Response<?> second = execute(cmd);
+
+        assertEquals(first.getData(), second.getData());
+        assertEquals(1, invocations.get());
+        assertEquals(1, behavior.size());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void errorResponsesAreNotStored() {
+        CreateOrder cmd = new CreateOrder("flaky-1");
+
+        Response<?> first = behavior.handle(
+                (IRequest<Response<?>>) (IRequest<?>) cmd,
+                () -> {
+                    invocations.incrementAndGet();
+                    return Response.error("transient failure", 500);
+                });
+        Response<?> second = execute(cmd);
+
+        assertFalse(first.isSuccess());
+        assertTrue(second.isSuccess());
+        assertEquals(2, invocations.get(),
+                "A failed attempt must not poison the idempotency key");
+    }
+
+    @Test
+    void requestWithoutCustomToStringSkipsIdempotency() {
+        PlainIdempotentCmd cmd = new PlainIdempotentCmd();
+
+        execute(cmd);
+        execute(cmd);
+
+        assertEquals(2, invocations.get());
+        assertEquals(0, behavior.size(),
+                "Default Object.toString() keys would never match and "
+                        + "would only fill the store");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void handlerExceptionPropagatesAndReleasesInFlightSlot() {
+        CreateOrder cmd = new CreateOrder("boom-1");
+
+        assertThrows(IllegalStateException.class, () -> behavior.handle(
+                (IRequest<Response<?>>) (IRequest<?>) cmd,
+                () -> {
+                    throw new IllegalStateException("boom");
+                }));
+
+        // The failed attempt must not be stored nor leave the key locked
+        Response<?> second = execute(cmd);
+        assertTrue(second.isSuccess());
+        assertEquals(1, invocations.get());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void handlerErrorPropagatesAndReleasesInFlightSlot() {
+        CreateOrder cmd = new CreateOrder("fatal-1");
+
+        assertThrows(AssertionError.class, () -> behavior.handle(
+                (IRequest<Response<?>>) (IRequest<?>) cmd,
+                () -> {
+                    throw new AssertionError("fatal");
+                }));
+
+        Response<?> second = execute(cmd);
+        assertTrue(second.isSuccess());
+        assertEquals(1, invocations.get());
+    }
+
+    @SuppressWarnings("unchecked")
+    private void primeInFlight(CreateOrder cmd,
+            CompletableFuture<Object> future) throws Exception {
+        var field = IdempotencyBehavior.class.getDeclaredField("inFlight");
+        field.setAccessible(true);
+        var inFlight = (java.util.Map<String, CompletableFuture<Object>>)
+                field.get(behavior);
+        inFlight.put(CreateOrder.class.getName() + ":" + cmd, future);
+    }
+
+    private void primeInFlight(CreateOrder cmd, Throwable failure)
+            throws Exception {
+        CompletableFuture<Object> failed = new CompletableFuture<>();
+        failed.completeExceptionally(failure);
+        primeInFlight(cmd, failed);
+    }
+
+    @Test
+    void duplicateReusesInFlightSuccessfulResult() throws Exception {
+        CreateOrder cmd = new CreateOrder("dup-ok");
+        primeInFlight(cmd, CompletableFuture.completedFuture(
+                Response.success("first-result")));
+
+        Response<?> resp = execute(cmd);
+
+        assertEquals("first-result", resp.getData());
+        assertEquals(0, invocations.get(),
+                "Duplicate must reuse the in-flight result instead of "
+                        + "executing the handler");
+    }
+
+    @Test
+    void duplicateObservesRuntimeExceptionFromFirstExecution()
+            throws Exception {
+        CreateOrder cmd = new CreateOrder("dup-re");
+        primeInFlight(cmd, new IllegalStateException("first failed"));
+
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class, () -> execute(cmd));
+        assertEquals("first failed", ex.getMessage());
+        assertEquals(0, invocations.get());
+    }
+
+    @Test
+    void duplicateObservesErrorFromFirstExecution() throws Exception {
+        CreateOrder cmd = new CreateOrder("dup-err");
+        primeInFlight(cmd, new AssertionError("first crashed"));
+
+        AssertionError err = assertThrows(
+                AssertionError.class, () -> execute(cmd));
+        assertEquals("first crashed", err.getMessage());
+        assertEquals(0, invocations.get());
+    }
+
+    @Test
+    void duplicateWrapsCheckedThrowableFromFirstExecution()
+            throws Exception {
+        CreateOrder cmd = new CreateOrder("dup-checked");
+        primeInFlight(cmd, new Exception("checked failure"));
+
+        CompletionException ex = assertThrows(
+                CompletionException.class, () -> execute(cmd));
+        assertEquals("checked failure", ex.getCause().getMessage());
+        assertEquals(0, invocations.get());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void concurrentDuplicatesExecuteHandlerOnlyOnce() throws Exception {
+        CreateOrder cmd = new CreateOrder("concurrent-1");
+        CountDownLatch firstEntered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<Response<?>> first = pool.submit(() -> behavior.handle(
+                    (IRequest<Response<?>>) (IRequest<?>) cmd,
+                    () -> {
+                        invocations.incrementAndGet();
+                        firstEntered.countDown();
+                        try {
+                            release.await();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                        return Response.success("once");
+                    }));
+            assertTrue(firstEntered.await(2, TimeUnit.SECONDS));
+
+            // Identical request while the first is still in flight:
+            // must wait for it instead of executing the handler again
+            Future<Response<?>> second = pool.submit(() -> behavior.handle(
+                    (IRequest<Response<?>>) (IRequest<?>) cmd,
+                    () -> {
+                        invocations.incrementAndGet();
+                        return Response.success("twice");
+                    }));
+
+            release.countDown();
+
+            assertEquals("once", first.get(2, TimeUnit.SECONDS).getData());
+            assertEquals("once", second.get(2, TimeUnit.SECONDS).getData());
+            assertEquals(1, invocations.get());
+        } finally {
+            pool.shutdownNow();
+        }
     }
 }

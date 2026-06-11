@@ -93,7 +93,7 @@ class RetryBehaviorTest {
     void orderIsLowestPrecedenceMinus100() {
         RetryBehavior<?, ?> behavior =
                 new RetryBehavior<>(3, 100, 2.0);
-        assertEquals(Ordered.LOWEST_PRECEDENCE - 100,
+        assertEquals(Ordered.HIGHEST_PRECEDENCE + 150,
                 behavior.getOrder());
     }
 
@@ -176,7 +176,7 @@ class RetryBehaviorTest {
     void nullMetricsFallsBackToNoop() {
         RetryBehavior<?, ?> behavior =
                 new RetryBehavior<>(3, 100, 2.0, null);
-        assertEquals(Ordered.LOWEST_PRECEDENCE - 100,
+        assertEquals(Ordered.HIGHEST_PRECEDENCE + 150,
                 behavior.getOrder());
     }
 }

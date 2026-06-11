@@ -2,11 +2,11 @@
 
 ## Project Overview
 
-Spring Courier is a **Java library** (not an application) that provides a **CQRS + Mediator pattern** infrastructure for Spring Boot applications. It is distributed via **Maven Central** and targets Spring Boot 3.x with Java 21+.
+Spring Courier is a **Java library** (not an application) that provides a **CQRS + Mediator pattern** infrastructure for Spring Boot applications. It is distributed via **Maven Central**, built against the Spring Boot 4.x BOM (compatible with 3.x and 4.x apps), and requires Java 21+.
 
 - **GroupId:** `io.github.valossa515`
 - **ArtifactId:** `spring-courier`
-- **Current Version:** 3.0.0
+- **Current Version:** 4.0.0
 - **License:** MIT
 
 ---
@@ -21,19 +21,26 @@ spring-courier/
 ├── docs/diagrams/              # PlantUML architecture diagrams
 ├── src/
 │   ├── main/java/io/github/valossa515/spring_courier/
-│   │   ├── annotations/        # @EnableSpringCourier, @ExposeHandler
-│   │   ├── config/             # CourierAutoConfiguration, CourierProperties
+│   │   ├── annotations/        # @EnableSpringCourier, @ExposeHandler, @Idempotent, @Timeout
+│   │   ├── config/             # CourierAutoConfiguration, CourierProperties + actuator/metrics/
+│   │   │                       #   slack/tracing/transaction/validation autoconfigurations
 │   │   └── core/
 │   │       ├── Courier.java    # Main dispatcher (entry point for users)
 │   │       ├── exceptions/     # CourierException, HandlerNotFoundException, ValidationException
 │   │       ├── interfaces/     # IRequest, ICommand, IQuery, INotification + handler interfaces
-│   │       ├── pipelines/      # PipelineBehavior, PipelineExecutor, PipelineRegistry
-│   │       ├── support/        # HandlerRegistry, NotificationRegistry, Response, Discovery PostProcessors
-│   │       └── validation/     # ValidationBehavior, Validator, ValidationResult, ValidationError
+│   │       ├── metrics/        # CourierMetrics, MeteredCourier (Micrometer integration)
+│   │       ├── pipelines/      # PipelineBehavior/Executor/Registry + built-in behaviors
+│   │       │                   #   (Logging, Validation, Caching, Retry, Idempotency,
+│   │       │                   #    Transaction, Tracing) + Pre/PostProcessor support
+│   │       ├── slack/          # SlackNotifier, SlackAlertManager (metric-based alerting)
+│   │       ├── support/        # HandlerRegistry, NotificationRegistry, Response,
+│   │       │                   #   CourierContext(Holder), Discovery PostProcessors
+│   │       ├── testing/        # CourierTestSupport (user-facing test helper)
+│   │       └── validation/     # ValidationBehavior, JakartaValidationBehavior, Validator
 │   ├── main/resources/
 │   │   ├── application.properties
-│   │   └── META-INF/spring/   # Spring Boot 3.x autoconfiguration imports
-│   └── test/java/...           # 36 test files mirroring main structure
+│   │   └── META-INF/spring/   # Spring Boot autoconfiguration imports
+│   └── test/java/...           # 70+ test files mirroring main structure
 ├── pom.xml
 ├── sonar-project.properties
 ├── README.md                   # User-facing docs (in Portuguese)
@@ -143,6 +150,35 @@ public class LoggingBehavior implements PipelineBehavior<IRequest<Response<?>>, 
 
 Pipeline depth is capped at **64 levels** to prevent `StackOverflowError`.
 
+Built-in behaviors and their orders (lower = outermost):
+
+| Behavior                   | Order                        | Enabled by                                    |
+|----------------------------|------------------------------|-----------------------------------------------|
+| `LoggingBehavior`          | `HIGHEST_PRECEDENCE`         | default on (`spring.courier.logging.enabled`) |
+| `IdempotencyBehavior`      | `HIGHEST_PRECEDENCE + 5`     | `spring.courier.idempotency.enabled`          |
+| `TracingBehavior`          | `HIGHEST_PRECEDENCE + 10`    | OpenTelemetry on classpath                    |
+| `CachingBehavior`          | `HIGHEST_PRECEDENCE + 50`    | `spring.courier.cache.enabled`                |
+| `JakartaValidationBehavior`| `HIGHEST_PRECEDENCE + 100`   | jakarta.validation on classpath               |
+| `RetryBehavior`            | `HIGHEST_PRECEDENCE + 150`   | `spring.courier.retry.enabled`                |
+| `TransactionBehavior`      | `HIGHEST_PRECEDENCE + 200`   | spring-tx on classpath                        |
+
+Retry runs **outside** the transaction so each attempt gets a fresh
+transaction. Caching/idempotency only store **successful** results and require
+the request type to override `toString()` (records qualify).
+
+### Handler Execution Model
+
+- Handlers run **inline on the calling thread** — Spring transactions,
+  security context, and MDC apply to the handler.
+- Handler exceptions propagate through the behavior chain (rollback, retry,
+  and `IRequestExceptionHandler`s see them) and are converted to an error
+  `Response` at the dispatcher boundary; `send()` never rethrows them.
+- `@Timeout`-annotated requests are offloaded to a virtual thread with a
+  watchdog (returns 504 on expiry). Thread-bound state does **not** propagate
+  in this mode, so `@Timeout` should not be combined with `TransactionBehavior`.
+- `spring.courier.async-timeout-ms` applies to handlers returning
+  `CompletableFuture`.
+
 ### Response Wrapper
 
 All operations return `Response<T>`:
@@ -212,7 +248,20 @@ Handlers may return:
 
 ```properties
 # Async handler timeout (ms); default 30000; min 100; max 600000
+# Applies to CompletableFuture-returning handlers; @Timeout-annotated
+# requests use their annotation value instead
 spring.courier.async-timeout-ms=30000
+
+# Notification publishing: SEQUENTIAL | PARALLEL_WHEN_ALL | STOP_ON_FIRST_ERROR
+spring.courier.notification-strategy=SEQUENTIAL
+
+# Built-in behaviors (see groups: logging, cache, retry, idempotency,
+# tracing, metrics, slack in CourierProperties)
+spring.courier.logging.enabled=true
+spring.courier.cache.enabled=false          # + ttl-seconds, max-size
+spring.courier.retry.enabled=false          # + max-attempts, delay-ms, multiplier
+spring.courier.idempotency.enabled=false    # + max-size
+spring.courier.slack.webhook-url=           # enables Slack alerting when set
 ```
 
 ### Auto-Configuration
@@ -222,11 +271,20 @@ Spring Courier auto-configures via Spring Boot's `AutoConfiguration.imports`. No
 - `HandlerRegistry`
 - `NotificationRegistry`
 - `PipelineRegistry`
+- `ProcessorRegistry`
 - `PipelineExecutor`
 - `Courier`
+- `ResponseEntityConverter`
 - `HandlerDiscoveryPostProcessor`
 - `NotificationDiscoveryPostProcessor`
 - `BehaviorDiscoveryPostProcessor`
+- `ProcessorDiscoveryPostProcessor`
+- Built-in behaviors (Logging, Caching, Retry, Idempotency) per their
+  `spring.courier.*` toggles
+
+Additional autoconfigurations activate conditionally: actuator endpoint,
+Micrometer metrics (`MeteredCourier`), OpenTelemetry tracing, Slack alerting,
+Jakarta validation, and `TransactionBehavior` (when spring-tx is present).
 
 ---
 
@@ -305,6 +363,8 @@ JaCoCo is configured to generate reports at `target/site/jacoco/`. Coverage excl
 |---------------------|-------------------------------------------------------------------------|
 | `@EnableSpringCourier` | Manually import `CourierAutoConfiguration` (not needed with autoconfigure) |
 | `@ExposeHandler`     | Mark a class as handler; extends `@Component`; optional bean name param |
+| `@Idempotent`        | Deduplicate requests via `IdempotencyBehavior`; `ttlSeconds` (default 3600) |
+| `@Timeout`           | Off-thread execution with watchdog timeout (ms) for a request type      |
 
 ---
 

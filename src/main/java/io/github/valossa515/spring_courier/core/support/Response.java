@@ -320,12 +320,14 @@ public class Response<T> {
                 statusCode == response.statusCode &&
                 validationFailure == response.validationFailure &&
                 Objects.equals(data, response.data) &&
-                Objects.equals(error, response.error);
+                Objects.equals(error, response.error) &&
+                Objects.equals(errorDetails, response.errorDetails);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(data, error, success, statusCode, validationFailure);
+        return Objects.hash(data, error, success, statusCode,
+                validationFailure, errorDetails);
     }
 
     @Override
