@@ -1,10 +1,16 @@
 name: CI
 
-# Companion workflow to .github/workflows/pr-ci.yml.
-# The main CI uses `paths-ignore` to skip docs-only changes, which would otherwise
-# leave required status checks stuck in "Expected" forever and block merges.
-# This workflow runs ONLY on docs-only changes and reports success under the same
-# job names, satisfying branch protection without wasting CI minutes.
+# Companion workflow to .github/workflows/pr-ci.yml and checkstyle.yml.
+# The real workflows use `paths-ignore` to skip docs-only changes, which would
+# otherwise leave required status checks stuck in "Expected" forever and block
+# merges. This workflow runs ONLY on docs-only changes and reports success
+# under the same names, satisfying branch protection without wasting CI minutes.
+#
+# It mirrors every REQUIRED check:
+#   - build-and-test, sonarcloud, checkstyle  -> GitHub Actions jobs (same names)
+#   - "SonarCloud Code Analysis"              -> commit status posted below
+#     (this one is produced by the SonarCloud app, not an Actions job, so it
+#      must be reported as a commit status with the exact same context name)
 #
 # Reference: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/troubleshooting-rulesets#handle-skipped-but-required-checks
 
@@ -23,6 +29,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 jobs:
   build-and-test:
@@ -36,3 +43,28 @@ jobs:
     steps:
       - name: Skip — docs-only change
         run: echo "Docs-only change; skipping SonarCloud analysis."
+
+  checkstyle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip — docs-only change
+        run: echo "Docs-only change; skipping Checkstyle."
+
+  sonarcloud-gate:
+    # The "SonarCloud Code Analysis" quality-gate check is produced by the
+    # SonarCloud app only when the real scan runs. On docs-only PRs it never
+    # appears, so we report it as a successful commit status (same context name)
+    # to satisfy branch protection.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark SonarCloud Code Analysis as passed (docs-only)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/statuses/${SHA}" \
+            -d '{"state":"success","context":"SonarCloud Code Analysis","description":"Skipped — docs-only change"}'
