@@ -1,11 +1,12 @@
 name: Publish to Maven Central
 
 on:
+  # Triggered only by a published GitHub Release. The tag push is handled by
+  # release-on-tag.yml, which creates the Release; listening to both `push:
+  # tags` and `release: published` here would run this workflow twice and make
+  # two concurrent deployments collide on the same Maven coordinate.
   release:
     types: [published]
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       version:
