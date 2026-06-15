@@ -263,6 +263,49 @@ implementation("io.github.valossa515:spring-courier:5.0.0")
 
 > 🔧 Requires **Java 21+** and **Spring Boot 4.x+**.
 
+### 📦 Modules
+
+Spring Courier is published as a small family of artifacts under the same `groupId` and version — add only what you need:
+
+| Artifact | When to use |
+|----------|-------------|
+| `spring-courier` | Core CQRS + Mediator dispatcher, pipeline behaviors and registries. This is all most apps need. |
+| `spring-courier-outbox` | **Transactional Outbox**: persist notifications in the command's transaction and deliver them at-least-once via a background poller. Depends on (and pulls in) `spring-courier`. |
+
+**Core only** → the snippet above. **Add the Outbox** (it brings the core transitively):
+
+```xml
+<dependency>
+    <groupId>io.github.valossa515</groupId>
+    <artifactId>spring-courier-outbox</artifactId>
+    <version>5.0.0</version>
+</dependency>
+```
+
+```groovy
+implementation("io.github.valossa515:spring-courier-outbox:5.0.0")
+```
+
+Enable it (a JDBC `DataSource` must be on the context) and publish from inside a transactional handler:
+
+```properties
+spring.courier.outbox.enabled=true
+# dev only — creates the table on startup (H2 / PostgreSQL / MySQL).
+# In production, apply the bundled DDL via Flyway/Liquibase.
+spring.courier.outbox.auto-create-schema=true
+```
+
+```java
+@Transactional
+public Order handle(CreateOrderCommand cmd) {
+    Order order = repository.save(new Order(cmd));
+    outboxPublisher.publish(new OrderCreatedNotification(order.id())); // stored in the SAME tx
+    return order;
+}
+```
+
+Delivery is **at-least-once**, so notification handlers must be idempotent. Full configuration, DDL and guarantees are in the [Outbox module README](spring-courier-outbox/README.md).
+
 ---
 
 ## 🚀 Usage Examples
