@@ -15,7 +15,13 @@ import org.springframework.jdbc.core.RowMapper;
  * <p>Uses {@link JdbcTemplate}, which transparently joins any Spring-managed
  * transaction in scope — so {@link #save(OutboxMessage)} commits together with
  * the business transaction that produced the message.
+ *
+ * <p>The only value interpolated into a SQL string is the table name, which is
+ * validated against a strict {@code [A-Za-z0-9_]+} allow-list in the
+ * constructor; all user/business data is bound through parameter placeholders.
+ * Hence {@code java:S2077} (dynamic SQL) is suppressed for this class.
  */
+@SuppressWarnings("java:S2077")
 public class JdbcOutboxStore implements OutboxStore {
 
     private static final Pattern SAFE_TABLE = Pattern.compile("[A-Za-z0-9_]+");

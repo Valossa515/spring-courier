@@ -13,7 +13,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
  *
  * <p>Convenience for development only. Production deployments should manage the
  * schema with the bundled DDL through Flyway/Liquibase.
+ *
+ * <p>The table name is the only value interpolated into the DDL and is
+ * validated against a strict {@code [A-Za-z0-9_]+} allow-list, so
+ * {@code java:S2077} (dynamic SQL) is suppressed for this class.
  */
+@SuppressWarnings("java:S2077")
 public class OutboxSchemaInitializer implements InitializingBean {
 
     private static final Logger LOG = LoggerFactory.getLogger(OutboxSchemaInitializer.class);
