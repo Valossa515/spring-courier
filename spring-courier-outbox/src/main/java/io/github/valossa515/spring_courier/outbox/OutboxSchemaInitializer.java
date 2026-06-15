@@ -64,9 +64,10 @@ public class OutboxSchemaInitializer implements InitializingBean {
     }
 
     private String detectProduct() {
+        // DatabaseMetaData#getDatabaseProductName is non-null by JDBC contract.
         String name = jdbc.execute((ConnectionCallback<String>) conn ->
                 conn.getMetaData().getDatabaseProductName());
-        return name == null ? "" : name.toLowerCase(Locale.ROOT);
+        return name.toLowerCase(Locale.ROOT);
     }
 
     private static String payloadTypeFor(String product) {
