@@ -30,6 +30,11 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
+          # Provisiona ~/.m2/settings.xml com o server "central" usado pelo
+          # central-publishing-maven-plugin.
+          server-id: central
+          server-username: SONATYPE_USERNAME
+          server-password: SONATYPE_PASSWORD
 
       - name: Import GPG Key
         env:
@@ -37,154 +42,25 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-          # Configurar GPG para usar a senha do secret
           echo "allow-preset-passphrase" >> ~/.gnupg/gpg-agent.conf
           gpg-connect-agent reloadagent /bye
 
-      - name: Extract version from pom.xml
-        id: extract-version
+      - name: Set release version
+        if: ${{ github.event.inputs.version != '' }}
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          else
-            VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
-          fi
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Building version: $VERSION"
+          ./mvnw -B -ntp versions:set \
+            -DnewVersion="${{ github.event.inputs.version }}" \
+            -DprocessAllModules=true -DgenerateBackupPoms=false
 
-      - name: Build and Package with Release Profile
-        env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: |
-          ./mvnw clean verify -DskipTests -Prelease \
-            -Dgpg.passphrase="${GPG_PASSPHRASE}"
-
-      - name: List Generated Artifacts
-        run: |
-          VERSION=${{ steps.extract-version.outputs.VERSION }}
-          cd target
-          echo "Artefatos gerados pelo Maven:"
-          ls -lh spring-courier-${VERSION}* 2>/dev/null || true
-
-      - name: Generate Checksums
-        run: |
-          VERSION=${{ steps.extract-version.outputs.VERSION }}
-          cd target
-          
-          # Função para gerar checksums de um arquivo
-          generate_checksums() {
-            local file=$1
-            if [ ! -f "$file" ]; then
-              echo "Arquivo não encontrado: $file"
-              return
-            fi
-          
-            echo "Gerando checksums para: $file"
-          
-            # SHA1
-            sha1sum "$file" | awk '{print $1}' > "${file}.sha1"
-          
-            # MD5
-            md5sum "$file" | awk '{print $1}' > "${file}.md5"
-          
-            # SHA256
-            sha256sum "$file" | awk '{print $1}' > "${file}.sha256"
-          
-            # SHA512
-            sha512sum "$file" | awk '{print $1}' > "${file}.sha512"
-          }
-          
-          # Lista de artefatos base (sem .asc)
-          ARTIFACTS=(
-            "spring-courier-${VERSION}.jar"
-            "spring-courier-${VERSION}-sources.jar"
-            "spring-courier-${VERSION}-javadoc.jar"
-            "spring-courier-${VERSION}.pom"
-          )
-          
-          # Gerar checksums para artefatos base
-          for artifact in "${ARTIFACTS[@]}"; do
-            generate_checksums "$artifact"
-          done
-          
-          # Gerar checksums para arquivos .asc (assinaturas)
-          for artifact in "${ARTIFACTS[@]}"; do
-            if [ -f "${artifact}.asc" ]; then
-              generate_checksums "${artifact}.asc"
-            fi
-          done
-          
-          echo "Checksums gerados:"
-          ls -lh *.sha1 *.md5 *.sha256 *.sha512 2>/dev/null || echo "Nenhum checksum encontrado"
-
-      - name: Create Bundle
-        run: |
-          VERSION=${{ steps.extract-version.outputs.VERSION }}
-          GROUP_ID=$(./mvnw help:evaluate -Dexpression=project.groupId -q -DforceStdout)
-          ARTIFACT_ID=$(./mvnw help:evaluate -Dexpression=project.artifactId -q -DforceStdout)
-          GROUP_PATH=$(echo "$GROUP_ID" | tr '.' '/')
-      
-          # Diretório temporário isolado
-          TMPDIR=$(mktemp -d)
-          FULL_PATH="$TMPDIR/$GROUP_PATH/$ARTIFACT_ID/$VERSION"
-          mkdir -p "$FULL_PATH"
-      
-          cd target
-          ARTIFACTS=(
-            "${ARTIFACT_ID}-${VERSION}.jar"
-            "${ARTIFACT_ID}-${VERSION}-sources.jar"
-            "${ARTIFACT_ID}-${VERSION}-javadoc.jar"
-            "${ARTIFACT_ID}-${VERSION}.pom"
-          )
-          EXTENSIONS=("" ".asc" ".sha1" ".md5" ".sha256" ".sha512")
-      
-          for artifact in "${ARTIFACTS[@]}"; do
-            for ext in "${EXTENSIONS[@]}"; do
-              file="${artifact}${ext}"
-              [ -f "$file" ] && cp "$file" "$FULL_PATH/"
-            done
-          done
-          cd ..
-      
-          ZIPFILE="spring-courier-${VERSION}-bundle.zip"
-          (cd "$TMPDIR" && zip -r -9 "$ZIPFILE" "$GROUP_PATH")
-          mv "$TMPDIR/$ZIPFILE" target/
-      
-          echo "Bundle pronto: target/$ZIPFILE"
-
-      - name: Publish to Maven Central
+      - name: Deploy reactor bundle to Maven Central
         env:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          VERSION=${{ steps.extract-version.outputs.VERSION }}
-          BUNDLE_FILE="target/spring-courier-${VERSION}-bundle.zip"
-          echo "Publicando bundle no Maven Central..."
-
-          RESPONSE=$(curl -X POST \
-            https://central.sonatype.com/api/v1/publisher/upload \
-            -u "${SONATYPE_USERNAME}:${SONATYPE_PASSWORD}" \
-            -F "bundle=@${BUNDLE_FILE}" \
-            -w "\n%{http_code}" \
-            -s)
-
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
-          echo "HTTP Status: $HTTP_CODE"
-          echo "Response: $BODY"
-
-          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
-            echo "✅ Bundle publicado com sucesso!"
-            echo "Verifique o status em: https://central.sonatype.com/publishing"
-          else
-            echo "❌ Erro ao publicar bundle"
-            exit 1
-          fi
-
-      - name: Upload Bundle as Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: maven-central-bundle
-          path: target/spring-courier-${{ steps.extract-version.outputs.VERSION }}-bundle.zip
-          retention-days: 30
+          # `deploy` aciona o central-publishing-maven-plugin (extensions=true),
+          # que agrega o parent POM e todos os módulos (jar + sources + javadoc
+          # + POM + assinaturas + checksums) em um único bundle e o envia ao
+          # Central Portal.
+          ./mvnw -B -ntp clean deploy -Prelease -DskipTests \
+            -Dgpg.passphrase="${GPG_PASSPHRASE}"
