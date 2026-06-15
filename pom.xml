@@ -150,15 +150,38 @@
             </plugin>
 
             <!-- The default deploy goal is unused: publishing to Maven Central
-                 goes through the central-publishing-maven-plugin (release
-                 profile). Disable it so a `deploy` build never tries to push to
-                 a (non-existent) distributionManagement repository. -->
+                 goes through the central-publishing-maven-plugin. Disable it so
+                 a `deploy` build never tries to push to a (non-existent)
+                 distributionManagement repository. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>
                 <version>3.1.2</version>
                 <configuration>
                     <skip>true</skip>
+                </configuration>
+            </plugin>
+
+            <!-- Official Sonatype Central publisher. Declared in the main build
+                 (NOT a profile) so its build extension registers the
+                 end-of-reactor lifecycle participant that aggregates the WHOLE
+                 reactor (parent POM + every module's jar/sources/javadoc/POM
+                 with signatures and checksums) into a SINGLE bundle and uploads
+                 it once on `deploy`. In a profile the extension is not reliably
+                 registered, which makes each module upload its own bundle and
+                 collide on shared coordinates. It only acts during `deploy`
+                 (release workflow); other phases are unaffected.
+                 autoPublish=false: the bundle is uploaded and validated, then
+                 published manually from the Central Portal. -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.7.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <autoPublish>false</autoPublish>
+                    <waitUntil>validated</waitUntil>
                 </configuration>
             </plugin>
         </plugins>
@@ -218,22 +241,6 @@
                                 <arg>loopback</arg>
                                 <arg>--no-tty</arg>
                             </gpgArguments>
-                        </configuration>
-                    </plugin>
-
-                    <!-- Official Sonatype Central publisher: collects every
-                         reactor module (parent POM + each module's jar,
-                         sources, javadoc, POM, signatures and checksums) into
-                         a single bundle and uploads it on `deploy`. -->
-                    <plugin>
-                        <groupId>org.sonatype.central</groupId>
-                        <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>0.7.0</version>
-                        <extensions>true</extensions>
-                        <configuration>
-                            <publishingServerId>central</publishingServerId>
-                            <autoPublish>true</autoPublish>
-                            <waitUntil>published</waitUntil>
                         </configuration>
                     </plugin>
                 </plugins>
