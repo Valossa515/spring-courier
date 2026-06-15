@@ -17,7 +17,7 @@ fire-and-forget e não oferece essa garantia atômica.
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-outbox</artifactId>
-    <version>4.0.0</version>
+    <version>5.0.0</version>
 </dependency>
 ```
 

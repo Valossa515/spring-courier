@@ -5,7 +5,7 @@
 
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-parent</artifactId>
-    <version>4.0.0</version>
+    <version>5.0.0</version>
     <packaging>pom</packaging>
     <name>Spring Courier Parent</name>
     <description>Reactor pai da família Spring Courier (CQRS + Mediator para Spring Boot)</description>

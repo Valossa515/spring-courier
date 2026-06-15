@@ -12,7 +12,7 @@ are unaffected by the split.
 - **GroupId:** `io.github.valossa515`
 - **Parent (aggregator) artifactId:** `spring-courier-parent` (packaging `pom`, not consumed directly)
 - **Core artifactId:** `spring-courier` (in module dir `spring-courier-core/`)
-- **Current Version:** 4.0.0
+- **Current Version:** 5.0.0
 - **License:** MIT
 
 ---
