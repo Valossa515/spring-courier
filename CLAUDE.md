@@ -4,8 +4,14 @@
 
 Spring Courier is a **Java library** (not an application) that provides a **CQRS + Mediator pattern** infrastructure for Spring Boot applications. It is distributed via **Maven Central**, built against the Spring Boot 4.x BOM (compatible with 3.x and 4.x apps), and requires Java 21+.
 
+It is a **multi-module Maven reactor**: a `spring-courier-parent` aggregator
+POM plus one module per concern. The core module keeps the historical
+`spring-courier` artifactId for backward compatibility, so existing consumers
+are unaffected by the split.
+
 - **GroupId:** `io.github.valossa515`
-- **ArtifactId:** `spring-courier`
+- **Parent (aggregator) artifactId:** `spring-courier-parent` (packaging `pom`, not consumed directly)
+- **Core artifactId:** `spring-courier` (in module dir `spring-courier-core/`)
 - **Current Version:** 4.0.0
 - **License:** MIT
 
@@ -14,38 +20,43 @@ Spring Courier is a **Java library** (not an application) that provides a **CQRS
 ## Repository Structure
 
 ```
-spring-courier/
+spring-courier/                  # reactor root (spring-courier-parent, packaging=pom)
 ├── .github/workflows/          # CI/CD pipelines (PR checks, Maven Central publishing)
 ├── .mvn/wrapper/               # Maven wrapper for consistent builds
-├── config/checkstyle/          # Checkstyle code quality rules
+├── config/checkstyle/          # Checkstyle rules (shared by all modules)
 ├── docs/diagrams/              # PlantUML architecture diagrams
-├── src/
-│   ├── main/java/io/github/valossa515/spring_courier/
-│   │   ├── annotations/        # @EnableSpringCourier, @ExposeHandler, @Idempotent, @Timeout
-│   │   ├── config/             # CourierAutoConfiguration, CourierProperties + actuator/metrics/
-│   │   │                       #   slack/tracing/transaction/validation autoconfigurations
-│   │   └── core/
-│   │       ├── Courier.java    # Main dispatcher (entry point for users)
-│   │       ├── exceptions/     # CourierException, HandlerNotFoundException, ValidationException
-│   │       ├── interfaces/     # IRequest, ICommand, IQuery, INotification + handler interfaces
-│   │       ├── metrics/        # CourierMetrics, MeteredCourier (Micrometer integration)
-│   │       ├── pipelines/      # PipelineBehavior/Executor/Registry + built-in behaviors
-│   │       │                   #   (Logging, Validation, Caching, Retry, Idempotency,
-│   │       │                   #    Transaction, Tracing) + Pre/PostProcessor support
-│   │       ├── slack/          # SlackNotifier, SlackAlertManager (metric-based alerting)
-│   │       ├── support/        # HandlerRegistry, NotificationRegistry, Response,
-│   │       │                   #   CourierContext(Holder), Discovery PostProcessors
-│   │       ├── testing/        # CourierTestSupport (user-facing test helper)
-│   │       └── validation/     # ValidationBehavior, JakartaValidationBehavior, Validator
-│   ├── main/resources/
-│   │   ├── application.properties
-│   │   └── META-INF/spring/   # Spring Boot autoconfiguration imports
-│   └── test/java/...           # 70+ test files mirroring main structure
-├── pom.xml
+├── pom.xml                     # parent/aggregator: <modules>, dependencyManagement, shared plugins
+├── spring-courier-core/        # core module — artifactId "spring-courier"
+│   ├── pom.xml
+│   └── src/
+│       ├── main/java/io/github/valossa515/spring_courier/
+│       │   ├── annotations/    # @EnableSpringCourier, @ExposeHandler, @Idempotent, @Timeout
+│       │   ├── config/         # CourierAutoConfiguration, CourierProperties + actuator/metrics/
+│       │   │                   #   slack/tracing/transaction/validation autoconfigurations
+│       │   └── core/
+│       │       ├── Courier.java    # Main dispatcher (entry point for users)
+│       │       ├── exceptions/     # CourierException, HandlerNotFoundException, ValidationException
+│       │       ├── interfaces/     # IRequest, ICommand, IQuery, INotification + handler interfaces
+│       │       ├── metrics/        # CourierMetrics, MeteredCourier (Micrometer integration)
+│       │       ├── pipelines/      # PipelineBehavior/Executor/Registry + built-in behaviors
+│       │       │                   #   (Logging, Validation, Caching, Retry, Idempotency,
+│       │       │                   #    Transaction, Tracing) + Pre/PostProcessor support
+│       │       ├── slack/          # SlackNotifier, SlackAlertManager (metric-based alerting)
+│       │       ├── support/        # HandlerRegistry, NotificationRegistry, Response,
+│       │       │                   #   CourierContext(Holder), Discovery PostProcessors
+│       │       ├── testing/        # CourierTestSupport (user-facing test helper)
+│       │       └── validation/     # ValidationBehavior, JakartaValidationBehavior, Validator
+│       ├── main/resources/
+│       │   ├── application.properties
+│       │   └── META-INF/spring/    # Spring Boot autoconfiguration imports
+│       └── test/java/...           # 70+ test files mirroring main structure
 ├── sonar-project.properties
 ├── README.md                   # User-facing docs (in Portuguese)
 └── CONTRIBUTING.md             # Contributor and release process guide
 ```
+
+> Future modules (e.g. `spring-courier-outbox`) are added as sibling
+> directories with their own `pom.xml` and a `<module>` entry in the parent.
 
 ---
 
@@ -333,10 +344,11 @@ JaCoCo is configured to generate reports at `target/site/jacoco/`. Coverage excl
 
 ### `.github/workflows/publish-maven-central.yml`
 
-- **Triggers:** GitHub Release published or manual `workflow_dispatch`
-- Signs artifacts with GPG (`release` Maven profile)
-- Packages sources, javadocs, checksums into Maven Central bundle
-- Uploads bundle to Sonatype Central Portal
+- **Triggers:** GitHub Release published, tag push (`v*`), or manual `workflow_dispatch`
+- Runs `./mvnw clean deploy -Prelease`: signs artifacts with GPG and lets the
+  `central-publishing-maven-plugin` aggregate the **whole reactor** (parent POM
+  + every module's jar/sources/javadoc/POM, with signatures and checksums) into
+  a single bundle that it uploads to the Sonatype Central Portal.
 - Required secrets: `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`, `SONATYPE_USERNAME`, `SONATYPE_PASSWORD`
 
 ---

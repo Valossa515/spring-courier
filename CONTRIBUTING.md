@@ -119,14 +119,19 @@ gpg --keyserver keys.openpgp.org --send-keys ABCD1234EFGH5678
 
 #### Option 1: Via GitHub Release (Recommended)
 
-1. **Update the version in `pom.xml`**:
-   ```xml
-   <version>1.0.0</version>
+1. **Bump the version across the whole reactor** (parent POM + every module).
+   Use the helper script (or the Maven Versions plugin) so the parent and all
+   `<module>` `<parent>` references stay in sync — do not hand-edit a single
+   `pom.xml`:
+   ```bash
+   ./scripts/bump-version.sh 1.0.0
+   # equivalent to:
+   # ./mvnw versions:set -DnewVersion=1.0.0 -DprocessAllModules=true -DgenerateBackupPoms=false
    ```
 
 2. **Commit and Push**:
    ```bash
-   git add pom.xml
+   git add pom.xml '**/pom.xml' README.md README.pt-BR.md CLAUDE.md
    git commit -m "chore: bump version to 1.0.0"
    git push origin main
    ```
@@ -158,7 +163,7 @@ After the workflow completes:
 ### 📝 Release Checklist
 
 - [ ] All changes have been tested
-- [ ] The version has been updated in `pom.xml`
+- [ ] The version has been updated across the reactor (parent + all modules)
 - [ ] The CHANGELOG has been updated (if applicable)
 - [ ] Tests are passing
 - [ ] The release has been created on GitHub

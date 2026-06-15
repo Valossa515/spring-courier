@@ -31,7 +31,7 @@ jobs:
       - name: Extract current version
         id: current
         run: |
-          VERSION=$(grep -m1 '<version>' pom.xml | sed 's/.*<version>\(.*\)<\/version>.*/\1/')
+          VERSION=$(./mvnw -q help:evaluate -Dexpression=project.version -DforceStdout)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Current version: $VERSION"
 
@@ -42,10 +42,10 @@ jobs:
         run: |
           echo "Bumping $OLD_VERSION → $NEW_VERSION"
 
-          # pom.xml — first <version> only (awk for portability)
-          awk -v old="$OLD_VERSION" -v new="$NEW_VERSION" \
-            '!done && /<version>/ { sub("<version>" old "</version>", "<version>" new "</version>"); done=1 } { print }' \
-            pom.xml > pom.xml.tmp && mv pom.xml.tmp pom.xml
+          # pom.xml — parent + every module (and their <parent> refs) at once
+          ./mvnw -B -ntp versions:set \
+            -DnewVersion="${NEW_VERSION}" \
+            -DprocessAllModules=true -DgenerateBackupPoms=false
 
           # README.md
           sed -i "s/<version>${OLD_VERSION}<\/version>/<version>${NEW_VERSION}<\/version>/g" README.md
@@ -72,7 +72,7 @@ jobs:
             Automated version bump: `${{ steps.current.outputs.version }}` → `${{ inputs.version }}`
 
             ### Files updated
-            - `pom.xml`
+            - `pom.xml` (parent + all reactor modules)
             - `README.md`
             - `README.pt-BR.md`
             - `CLAUDE.md`

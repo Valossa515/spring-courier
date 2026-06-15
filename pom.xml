@@ -4,11 +4,16 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.valossa515</groupId>
-    <artifactId>spring-courier</artifactId>
+    <artifactId>spring-courier-parent</artifactId>
     <version>4.0.0</version>
-    <name>Spring Courier</name>
-    <description>Lib CQRS leve para Spring Boot, inspirada no MediatR (.NET)</description>
+    <packaging>pom</packaging>
+    <name>Spring Courier Parent</name>
+    <description>Reactor pai da família Spring Courier (CQRS + Mediator para Spring Boot)</description>
     <url>https://github.com/valossa515/spring-courier</url>
+
+    <modules>
+        <module>spring-courier-core</module>
+    </modules>
 
     <licenses>
         <license>
@@ -40,19 +45,14 @@
         <url>https://github.com/valossa515/spring-courier</url>
     </scm>
 
-    <distributionManagement>
-        <repository>
-            <id>central</id>
-            <name>Central Portal</name>
-            <url>https://central.sonatype.com/publish</url>
-        </repository>
-    </distributionManagement>
-
     <properties>
         <java.version>21</java.version>
         <spring-boot.version>4.0.6</spring-boot.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <sonar.organization>valossa515</sonar.organization>
+        <!-- Shared Checkstyle config lives at the reactor root; resolve it
+             via the multi-module project directory so every module finds it. -->
+        <checkstyle.config.location>${maven.multiModuleProjectDirectory}/config/checkstyle/checkstyle.xml</checkstyle.config.location>
     </properties>
 
     <dependencyManagement>
@@ -64,99 +64,15 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
+            <!-- Internal modules: keep versions aligned across the reactor. -->
+            <dependency>
+                <groupId>io.github.valossa515</groupId>
+                <artifactId>spring-courier</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
-
-    <dependencies>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-autoconfigure</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.jetbrains</groupId>
-            <artifactId>annotations</artifactId>
-            <version>24.0.1</version>
-            <optional>true</optional>
-        </dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-        </dependency>
-
-        <!-- Only ResponseEntity & HTTP status types are used; the full
-             web starter is unnecessary for a library. -->
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-core</artifactId>
-            <optional>true</optional>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>jakarta.validation</groupId>
-            <artifactId>jakarta.validation-api</artifactId>
-            <optional>true</optional>
-        </dependency>
-
-        <dependency>
-            <groupId>org.hibernate.validator</groupId>
-            <artifactId>hibernate-validator</artifactId>
-            <optional>true</optional>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
-            <optional>true</optional>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-tx</artifactId>
-            <optional>true</optional>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-configuration-processor</artifactId>
-            <optional>true</optional>
-        </dependency>
-
-        <dependency>
-            <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-api</artifactId>
-            <version>1.44.1</version>
-            <optional>true</optional>
-        </dependency>
-    </dependencies>
 
     <build>
         <plugins>
@@ -208,7 +124,7 @@
                 <artifactId>maven-checkstyle-plugin</artifactId>
                 <version>3.6.0</version>
                 <configuration>
-                    <configLocation>config/checkstyle/checkstyle.xml</configLocation>
+                    <configLocation>${checkstyle.config.location}</configLocation>
                     <consoleOutput>true</consoleOutput>
                     <failOnViolation>true</failOnViolation>
                     <linkXRef>false</linkXRef>
@@ -267,12 +183,6 @@
 
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-deploy-plugin</artifactId>
-                        <version>3.1.2</version>
-                    </plugin>
-
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
                         <version>3.2.4</version>
                         <executions>
@@ -292,6 +202,22 @@
                                 <arg>loopback</arg>
                                 <arg>--no-tty</arg>
                             </gpgArguments>
+                        </configuration>
+                    </plugin>
+
+                    <!-- Official Sonatype Central publisher: collects every
+                         reactor module (parent POM + each module's jar,
+                         sources, javadoc, POM, signatures and checksums) into
+                         a single bundle and uploads it on `deploy`. -->
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.7.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
                         </configuration>
                     </plugin>
                 </plugins>

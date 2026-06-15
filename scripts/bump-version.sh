@@ -40,16 +40,12 @@ fi
 
 echo "Bumping version: $CURRENT_VERSION → $NEW_VERSION"
 
-# 1) pom.xml — only the project version (first <version> occurrence)
-#    Uses awk for portability across macOS (BSD sed) and Linux (GNU sed)
-awk -v old="$CURRENT_VERSION" -v new="$NEW_VERSION" '
-  !done && /<version>/ {
-    sub("<version>" old "</version>", "<version>" new "</version>")
-    done=1
-  }
-  { print }
-' "$REPO_ROOT/pom.xml" > "$REPO_ROOT/pom.xml.tmp" && mv "$REPO_ROOT/pom.xml.tmp" "$REPO_ROOT/pom.xml"
-echo "  ✓ pom.xml"
+# 1) pom.xml — parent + every reactor module (and their <parent> refs).
+#    The Maven Versions plugin keeps the whole reactor consistent.
+(cd "$REPO_ROOT" && ./mvnw -q -B -ntp versions:set \
+  -DnewVersion="$NEW_VERSION" \
+  -DprocessAllModules=true -DgenerateBackupPoms=false)
+echo "  ✓ pom.xml (parent + modules)"
 
 # Portable in-place sed: writes to temp file and moves, avoiding
 # the BSD vs GNU sed -i incompatibility.
@@ -76,5 +72,5 @@ echo "  ✓ CLAUDE.md"
 echo ""
 echo "Done! Version bumped to $NEW_VERSION across all files."
 echo "Next steps:"
-echo "  git add pom.xml README.md README.pt-BR.md CLAUDE.md"
+echo "  git add pom.xml '**/pom.xml' README.md README.pt-BR.md CLAUDE.md"
 echo "  git commit -m \"chore: bump version to $NEW_VERSION\""
