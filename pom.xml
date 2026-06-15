@@ -9,7 +9,7 @@
     <packaging>pom</packaging>
     <name>Spring Courier Parent</name>
     <description>Reactor pai da família Spring Courier (CQRS + Mediator para Spring Boot)</description>
-    <url>https://github.com/valossa515/spring-courier</url>
+    <url child.project.url.inherit.append.path="false">https://github.com/valossa515/spring-courier</url>
 
     <modules>
         <module>spring-courier-core</module>
@@ -40,7 +40,9 @@
         </developer>
     </developers>
 
-    <scm>
+    <scm child.scm.connection.inherit.append.path="false"
+         child.scm.developerConnection.inherit.append.path="false"
+         child.scm.url.inherit.append.path="false">
         <connection>scm:git:https://github.com/valossa515/spring-courier.git</connection>
         <developerConnection>scm:git:ssh://github.com/valossa515/spring-courier.git</developerConnection>
         <url>https://github.com/valossa515/spring-courier</url>
@@ -145,6 +147,19 @@
                 <groupId>org.sonarsource.scanner.maven</groupId>
                 <artifactId>sonar-maven-plugin</artifactId>
                 <version>3.10.0.2594</version>
+            </plugin>
+
+            <!-- The default deploy goal is unused: publishing to Maven Central
+                 goes through the central-publishing-maven-plugin (release
+                 profile). Disable it so a `deploy` build never tries to push to
+                 a (non-existent) distributionManagement repository. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>3.1.2</version>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
             </plugin>
         </plugins>
     </build>
