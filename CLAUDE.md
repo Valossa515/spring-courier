@@ -26,6 +26,10 @@ spring-courier/                  # reactor root (spring-courier-parent, packagin
 ├── config/checkstyle/          # Checkstyle rules (shared by all modules)
 ├── docs/diagrams/              # PlantUML architecture diagrams
 ├── pom.xml                     # parent/aggregator: <modules>, dependencyManagement, shared plugins
+├── spring-courier-outbox/      # transactional outbox module (artifactId "spring-courier-outbox")
+│   ├── pom.xml
+│   ├── README.md
+│   └── src/                    # OutboxPublisher/Poller/Store + JDBC impl + autoconfig
 ├── spring-courier-core/        # core module — artifactId "spring-courier"
 │   ├── pom.xml
 │   └── src/
@@ -55,8 +59,15 @@ spring-courier/                  # reactor root (spring-courier-parent, packagin
 └── CONTRIBUTING.md             # Contributor and release process guide
 ```
 
-> Future modules (e.g. `spring-courier-outbox`) are added as sibling
-> directories with their own `pom.xml` and a `<module>` entry in the parent.
+> Additional modules are added as sibling directories with their own `pom.xml`
+> and a `<module>` entry in the parent.
+
+### Modules
+
+| Module                   | ArtifactId               | Purpose                                                                 |
+|--------------------------|--------------------------|-------------------------------------------------------------------------|
+| `spring-courier-core`    | `spring-courier`         | CQRS + Mediator dispatcher, pipeline, registries, built-in behaviors    |
+| `spring-courier-outbox`  | `spring-courier-outbox`  | Transactional Outbox: persists notifications in the command's tx (JDBC) and delivers them at-least-once via a background poller. Opt-in via `OutboxPublisher.publish(...)`; enabled by `spring.courier.outbox.enabled=true`. See the module README. |
 
 ---
 
