@@ -39,10 +39,12 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- Required at runtime to (de)serialize outbox payloads. Declared
+             as a normal (transitive) dependency so consumers without Jackson
+             on the classpath do not hit NoClassDefFoundError. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>

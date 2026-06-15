@@ -33,7 +33,7 @@ via Flyway/Liquibase:
 - MySQL 8+: [`db/outbox-schema-mysql.sql`](src/main/resources/db/outbox-schema-mysql.sql)
 
 Em desenvolvimento, `spring.courier.outbox.auto-create-schema=true` cria a tabela
-no startup.
+no startup, adaptando o DDL ao banco detectado (H2, PostgreSQL ou MySQL/MariaDB).
 
 ## Uso
 

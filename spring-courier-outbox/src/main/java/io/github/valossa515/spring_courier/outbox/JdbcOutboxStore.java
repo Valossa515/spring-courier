@@ -88,16 +88,22 @@ public class JdbcOutboxStore implements OutboxStore {
     public void markFailed(String id, String error, int maxAttempts) {
         String truncated = error == null ? null
                 : error.substring(0, Math.min(error.length(), 2048));
-        // attempts is incremented; once it reaches maxAttempts the message is
-        // parked as FAILED, otherwise it returns to PENDING for another try.
+        Timestamp now = Timestamp.from(Instant.now());
+        // The CASE expressions must see the *current* attempts value. MySQL
+        // evaluates SET assignments left-to-right and lets later expressions
+        // observe already-updated columns, so the `attempts = attempts + 1`
+        // increment is placed LAST to keep behaviour identical across H2,
+        // PostgreSQL and MySQL. Once the next attempt reaches maxAttempts the
+        // message is parked as FAILED, otherwise it returns to PENDING.
         jdbc.update("UPDATE " + table
-                        + " SET attempts = attempts + 1, last_error = ?, updated_at = ?,"
+                        + " SET last_error = ?, updated_at = ?,"
                         + " status = CASE WHEN attempts + 1 >= ? THEN ? ELSE ? END,"
-                        + " processed_at = CASE WHEN attempts + 1 >= ? THEN ? ELSE processed_at END"
+                        + " processed_at = CASE WHEN attempts + 1 >= ? THEN ? ELSE processed_at END,"
+                        + " attempts = attempts + 1"
                         + " WHERE id = ?",
-                truncated, Timestamp.from(Instant.now()), maxAttempts,
+                truncated, now, maxAttempts,
                 OutboxStatus.FAILED.name(), OutboxStatus.PENDING.name(), maxAttempts,
-                Timestamp.from(Instant.now()), id);
+                now, id);
     }
 
     @Override
