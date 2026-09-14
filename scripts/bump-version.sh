@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# ────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────
 # bump-version.sh — Updates the project version in pom.xml,
 #                    README.md, README.pt-BR.md, and CLAUDE.md
 #
 # Usage:
 #   ./scripts/bump-version.sh <new-version>
 #   ./scripts/bump-version.sh 2.1.0
-# ────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
