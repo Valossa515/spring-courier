@@ -19,10 +19,7 @@ import org.springframework.data.redis.core.RedisTemplate;
  * eviction and no {@code maxSize} — bound the keyspace with Redis'
  * {@code maxmemory} policy instead.
  */
-public class RedisCacheStore implements CacheStore {
-
-    private final RedisTemplate<String, Object> template;
-    private final String keyPrefix;
+public class RedisCacheStore extends AbstractRedisStore implements CacheStore {
 
     /**
      * Creates a Redis-backed cache store.
@@ -31,33 +28,27 @@ public class RedisCacheStore implements CacheStore {
      * @param keyPrefix prefix applied to every key (namespacing)
      */
     public RedisCacheStore(RedisTemplate<String, Object> template, String keyPrefix) {
-        this.template = template;
-        this.keyPrefix = keyPrefix;
+        super(template, keyPrefix);
     }
 
     @Override
     public Optional<Object> get(String key) {
-        return Optional.ofNullable(template.opsForValue().get(keyPrefix + key));
+        return getValue(key);
     }
 
     @Override
     public void put(String key, Object value, Duration ttl) {
-        String redisKey = keyPrefix + key;
-        if (ttl == null || ttl.isZero() || ttl.isNegative()) {
-            template.opsForValue().set(redisKey, value);
-        } else {
-            template.opsForValue().set(redisKey, value, ttl);
-        }
+        putValue(key, value, ttl);
     }
 
     @Override
     public void invalidateAll() {
-        RedisKeys.deleteByPattern(template, keyPrefix);
+        clearValues();
     }
 
     @Override
     public void invalidateByPrefix(String keyPrefix) {
-        RedisKeys.deleteByPattern(template, this.keyPrefix + keyPrefix);
+        invalidateByPrefixValue(keyPrefix);
     }
 
     /**

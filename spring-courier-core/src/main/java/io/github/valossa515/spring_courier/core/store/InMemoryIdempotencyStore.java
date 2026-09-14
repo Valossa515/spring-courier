@@ -1,9 +1,7 @@
 package io.github.valossa515.spring_courier.core.store;
 
 import java.time.Duration;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,12 +16,9 @@ import org.slf4j.LoggerFactory;
  * another instance will execute again. Use a distributed
  * {@link IdempotencyStore} when that matters.
  */
-public class InMemoryIdempotencyStore implements IdempotencyStore {
+public class InMemoryIdempotencyStore extends AbstractMemoryStore implements IdempotencyStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(InMemoryIdempotencyStore.class);
-
-    private final Map<String, Entry> entries = new ConcurrentHashMap<>();
-    private final int maxSize;
 
     /**
      * Creates a store.
@@ -31,67 +26,31 @@ public class InMemoryIdempotencyStore implements IdempotencyStore {
      * @param maxSize maximum number of entries (0 or less = unlimited)
      */
     public InMemoryIdempotencyStore(int maxSize) {
-        this.maxSize = maxSize;
+        super(maxSize);
     }
 
     @Override
     public Optional<Object> get(String key) {
-        Entry entry = entries.get(key);
-        if (entry == null) {
-            return Optional.empty();
-        }
-        if (entry.isExpired()) {
-            entries.remove(key, entry);
-            return Optional.empty();
-        }
-        return Optional.of(entry.value());
+        return getValue(key);
     }
 
     @Override
     public void put(String key, Object value, Duration ttl) {
-        if (maxSize > 0 && entries.size() >= maxSize) {
-            evictExpired();
-            if (entries.size() >= maxSize) {
-                LOG.debug("Idempotency store full ({}/{}), not storing key {}",
-                        entries.size(), maxSize, key);
-                return;
-            }
-        }
-        entries.put(key, new Entry(value, expiresAt(ttl)));
+        putValue(key, value, ttl, "Idempotency", LOG);
     }
 
     @Override
     public void remove(String key) {
-        entries.remove(key);
+        removeValue(key);
     }
 
     @Override
     public void clear() {
-        entries.clear();
+        clearValues();
     }
 
     @Override
     public long size() {
-        return entries.size();
-    }
-
-    private static long expiresAt(Duration ttl) {
-        if (ttl == null || ttl.isZero() || ttl.isNegative()) {
-            return Long.MAX_VALUE;
-        }
-        long now = System.currentTimeMillis();
-        long ttlMs = ttl.toMillis();
-        // Saturate instead of overflowing into the past.
-        return (Long.MAX_VALUE - now < ttlMs) ? Long.MAX_VALUE : now + ttlMs;
-    }
-
-    private void evictExpired() {
-        entries.entrySet().removeIf(e -> e.getValue().isExpired());
-    }
-
-    private record Entry(Object value, long expiresAt) {
-        boolean isExpired() {
-            return System.currentTimeMillis() > expiresAt;
-        }
+        return sizeValue();
     }
 }

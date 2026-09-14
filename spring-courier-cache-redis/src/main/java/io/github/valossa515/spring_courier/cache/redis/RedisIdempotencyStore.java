@@ -19,10 +19,7 @@ import org.springframework.data.redis.core.RedisTemplate;
  * {@code IdempotencyBehavior} is per instance, and this store only records
  * results once a handler completes.
  */
-public class RedisIdempotencyStore implements IdempotencyStore {
-
-    private final RedisTemplate<String, Object> template;
-    private final String keyPrefix;
+public class RedisIdempotencyStore extends AbstractRedisStore implements IdempotencyStore {
 
     /**
      * Creates a Redis-backed idempotency store.
@@ -31,33 +28,27 @@ public class RedisIdempotencyStore implements IdempotencyStore {
      * @param keyPrefix prefix applied to every key (namespacing)
      */
     public RedisIdempotencyStore(RedisTemplate<String, Object> template, String keyPrefix) {
-        this.template = template;
-        this.keyPrefix = keyPrefix;
+        super(template, keyPrefix);
     }
 
     @Override
     public Optional<Object> get(String key) {
-        return Optional.ofNullable(template.opsForValue().get(keyPrefix + key));
+        return getValue(key);
     }
 
     @Override
     public void put(String key, Object value, Duration ttl) {
-        String redisKey = keyPrefix + key;
-        if (ttl == null || ttl.isZero() || ttl.isNegative()) {
-            template.opsForValue().set(redisKey, value);
-        } else {
-            template.opsForValue().set(redisKey, value, ttl);
-        }
+        putValue(key, value, ttl);
     }
 
     @Override
     public void remove(String key) {
-        template.delete(keyPrefix + key);
+        removeValue(key);
     }
 
     @Override
     public void clear() {
-        RedisKeys.deleteByPattern(template, keyPrefix);
+        clearValues();
     }
 
     /**
