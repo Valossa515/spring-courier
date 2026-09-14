@@ -3,18 +3,20 @@ package io.github.valossa515.spring_courier.core.pipelines;
 import io.github.valossa515.spring_courier.core.interfaces.IQuery;
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
 import io.github.valossa515.spring_courier.core.metrics.CourierMetrics;
+import io.github.valossa515.spring_courier.core.store.CacheStore;
+import io.github.valossa515.spring_courier.core.store.InMemoryCacheStore;
 import io.github.valossa515.spring_courier.core.support.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 
 import java.time.Duration;
-import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Pipeline behavior that caches {@link IQuery} responses in memory.
+ * Pipeline behavior that caches {@link IQuery} responses.
  * Commands ({@link io.github.valossa515.spring_courier.core.interfaces.ICommand})
  * always bypass the cache.
  *
@@ -26,7 +28,12 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Only successful results are cached — error
  * {@link Response Responses} always pass through uncached so transient
- * failures are not replayed for the duration of the TTL.
+ * failures are not replayed for the duration of the TTL. {@code null}
+ * results are never cached either.
+ *
+ * <p>Entries are held by a pluggable {@link CacheStore}. The default is
+ * {@link InMemoryCacheStore} (per-instance heap); swap in a distributed store
+ * to share cached results across application instances.
  *
  * <p>Enabled via {@code spring.courier.cache.enabled=true}
  * (disabled by default).
@@ -40,16 +47,14 @@ public class CachingBehavior<R extends IRequest<S>, S>
     private static final Logger logger =
             LoggerFactory.getLogger(CachingBehavior.class);
 
-    private final Map<String, CacheEntry> cache =
-            new ConcurrentHashMap<>();
     private final Set<Class<?>> unsupportedKeyWarned =
             ConcurrentHashMap.newKeySet();
-    private final long ttlMs;
-    private final int maxSize;
+    private final CacheStore store;
+    private final Duration ttl;
     private final BehaviorMetrics metrics;
 
     /**
-     * Creates a caching behavior with given TTL and max size.
+     * Creates a caching behavior backed by an in-memory store.
      *
      * @param ttl     time-to-live for cache entries
      * @param maxSize maximum number of entries (0 = unlimited)
@@ -59,7 +64,7 @@ public class CachingBehavior<R extends IRequest<S>, S>
     }
 
     /**
-     * Creates a caching behavior with metrics support.
+     * Creates a caching behavior backed by an in-memory store, with metrics.
      *
      * @param ttl     time-to-live for cache entries
      * @param maxSize maximum number of entries (0 = unlimited)
@@ -67,8 +72,20 @@ public class CachingBehavior<R extends IRequest<S>, S>
      */
     public CachingBehavior(Duration ttl, int maxSize,
             BehaviorMetrics metrics) {
-        this.ttlMs = ttl.toMillis();
-        this.maxSize = maxSize;
+        this(new InMemoryCacheStore(maxSize), ttl, metrics);
+    }
+
+    /**
+     * Creates a caching behavior backed by the given store.
+     *
+     * @param store   backend holding the cached entries
+     * @param ttl     time-to-live for cache entries
+     * @param metrics recorder for cache hit/miss counters
+     */
+    public CachingBehavior(CacheStore store, Duration ttl,
+            BehaviorMetrics metrics) {
+        this.store = store;
+        this.ttl = ttl;
         this.metrics = metrics != null
                 ? metrics : BehaviorMetrics.NOOP;
     }
@@ -94,17 +111,21 @@ public class CachingBehavior<R extends IRequest<S>, S>
         String key = requestClass.getName() + ":" + request;
         String requestType = requestClass.getSimpleName();
 
-        CacheEntry entry = cache.get(key);
-        if (entry != null && !entry.isExpired()) {
+        Optional<Object> cached = store.get(key);
+        if (cached.isPresent()) {
             logger.debug("Cache HIT for {}", requestType);
             metrics.incrementCounter(
                     CourierMetrics.CACHE_HITS, requestType);
-            return (S) entry.value();
+            return (S) cached.get();
         }
 
         S result = next.invoke();
         metrics.incrementCounter(
                 CourierMetrics.CACHE_MISSES, requestType);
+
+        if (result == null) {
+            return null;
+        }
 
         if (result instanceof Response<?> response
                 && !response.isSuccess()) {
@@ -113,18 +134,7 @@ public class CachingBehavior<R extends IRequest<S>, S>
             return result;
         }
 
-        if (maxSize > 0 && cache.size() >= maxSize) {
-            evictExpired();
-            if (cache.size() >= maxSize) {
-                logger.debug(
-                        "Cache full ({}/{}), skipping cache for {}",
-                        cache.size(), maxSize, requestType);
-                return result;
-            }
-        }
-
-        cache.put(key, new CacheEntry(result,
-                System.currentTimeMillis() + ttlMs));
+        store.put(key, result, ttl);
         logger.debug("Cache MISS — stored {}", requestType);
         return result;
     }
@@ -138,7 +148,7 @@ public class CachingBehavior<R extends IRequest<S>, S>
      * Invalidates all cached entries.
      */
     public void invalidateAll() {
-        cache.clear();
+        store.invalidateAll();
         logger.debug("Cache invalidated (all entries removed)");
     }
 
@@ -148,25 +158,15 @@ public class CachingBehavior<R extends IRequest<S>, S>
      * @param requestType the request class to evict
      */
     public void invalidate(Class<?> requestType) {
-        String prefix = requestType.getName() + ":";
-        cache.keySet().removeIf(k -> k.startsWith(prefix));
+        store.invalidateByPrefix(requestType.getName() + ":");
         logger.debug("Cache invalidated for {}", requestType.getSimpleName());
     }
 
     /**
-     * Returns the current number of cached entries.
+     * Returns the current number of cached entries, or {@code -1} when the
+     * backing store cannot report it.
      */
     public int size() {
-        return cache.size();
-    }
-
-    private void evictExpired() {
-        cache.entrySet().removeIf(e -> e.getValue().isExpired());
-    }
-
-    private record CacheEntry(Object value, long expiresAt) {
-        boolean isExpired() {
-            return System.currentTimeMillis() > expiresAt;
-        }
+        return (int) store.size();
     }
 }

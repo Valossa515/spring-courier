@@ -3,12 +3,16 @@ package io.github.valossa515.spring_courier.core.pipelines;
 import io.github.valossa515.spring_courier.annotations.Idempotent;
 import io.github.valossa515.spring_courier.core.interfaces.IRequest;
 import io.github.valossa515.spring_courier.core.metrics.CourierMetrics;
+import io.github.valossa515.spring_courier.core.store.IdempotencyStore;
+import io.github.valossa515.spring_courier.core.store.InMemoryIdempotencyStore;
 import io.github.valossa515.spring_courier.core.support.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 
+import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -20,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>When a request class carries {@code @Idempotent}, this
  * behavior uses the request's {@code toString()} as the
- * idempotency key. If a cached response exists and has not
+ * idempotency key. If a recorded response exists and has not
  * expired, it is returned immediately without invoking the
  * handler. Request classes that do not override
  * {@code toString()} are skipped (with a one-time warning),
@@ -29,10 +33,17 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>Concurrent duplicates are deduplicated as well: while a
  * request for a given key is in flight, identical requests wait
  * for its outcome instead of executing the handler a second time.
+ * This in-flight deduplication is <strong>per instance</strong>,
+ * regardless of the configured {@link IdempotencyStore}.
  *
  * <p>Only successful results are stored — error
- * {@link Response Responses} and exceptions are never recorded,
- * so a transient failure does not poison the key for the TTL.
+ * {@link Response Responses}, {@code null} results and exceptions
+ * are never recorded, so a transient failure does not poison the
+ * key for the TTL.
+ *
+ * <p>Recorded results are held by a pluggable {@link IdempotencyStore}.
+ * The default is {@link InMemoryIdempotencyStore} (per-instance heap);
+ * swap in a distributed store to deduplicate across instances.
  *
  * <p>Requests without the annotation pass through untouched.
  *
@@ -48,17 +59,15 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
     private static final Logger logger =
             LoggerFactory.getLogger(IdempotencyBehavior.class);
 
-    private final Map<String, IdempotencyEntry> store =
-            new ConcurrentHashMap<>();
     private final Map<String, CompletableFuture<Object>> inFlight =
             new ConcurrentHashMap<>();
     private final Set<Class<?>> unsupportedKeyWarned =
             ConcurrentHashMap.newKeySet();
-    private final int maxSize;
+    private final IdempotencyStore store;
     private final BehaviorMetrics metrics;
 
     /**
-     * Creates an idempotency behavior.
+     * Creates an idempotency behavior backed by an in-memory store.
      *
      * @param maxSize maximum number of stored entries (0 = unlimited)
      */
@@ -67,14 +76,26 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
     }
 
     /**
-     * Creates an idempotency behavior with metrics support.
+     * Creates an idempotency behavior backed by an in-memory store,
+     * with metrics.
      *
      * @param maxSize maximum number of stored entries (0 = unlimited)
      * @param metrics recorder for idempotency hit/miss counters
      */
     public IdempotencyBehavior(int maxSize,
             BehaviorMetrics metrics) {
-        this.maxSize = maxSize;
+        this(new InMemoryIdempotencyStore(maxSize), metrics);
+    }
+
+    /**
+     * Creates an idempotency behavior backed by the given store.
+     *
+     * @param store   backend holding the recorded results
+     * @param metrics recorder for idempotency hit/miss counters
+     */
+    public IdempotencyBehavior(IdempotencyStore store,
+            BehaviorMetrics metrics) {
+        this.store = store;
         this.metrics = metrics != null
                 ? metrics : BehaviorMetrics.NOOP;
     }
@@ -102,13 +123,13 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
         String key = requestClass.getName() + ":" + request;
         String requestType = requestClass.getSimpleName();
 
-        IdempotencyEntry entry = store.get(key);
-        if (entry != null && !entry.isExpired()) {
+        Optional<Object> recorded = store.get(key);
+        if (recorded.isPresent()) {
             logger.debug("Idempotent HIT for {}", requestType);
             metrics.incrementCounter(
                     CourierMetrics.IDEMPOTENCY_HITS,
                     requestType);
-            return (S) entry.response();
+            return (S) recorded.get();
         }
 
         CompletableFuture<Object> execution = new CompletableFuture<>();
@@ -161,6 +182,10 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
         metrics.incrementCounter(
                 CourierMetrics.IDEMPOTENCY_MISSES, requestType);
 
+        if (result == null) {
+            return;
+        }
+
         if (result instanceof Response<?> response
                 && !response.isSuccess()) {
             logger.debug("Idempotency skip for {} (error response)",
@@ -168,28 +193,11 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
             return;
         }
 
-        long expiresAt;
-        if (annotation.ttlSeconds() > 0) {
-            long ttlMs = annotation.ttlSeconds() * 1000L;
-            long now = System.currentTimeMillis();
-            expiresAt = (Long.MAX_VALUE - now < ttlMs)
-                    ? Long.MAX_VALUE : now + ttlMs;
-        } else {
-            expiresAt = Long.MAX_VALUE;
-        }
+        Duration ttl = annotation.ttlSeconds() > 0
+                ? Duration.ofSeconds(annotation.ttlSeconds())
+                : Duration.ZERO;
 
-        if (maxSize > 0 && store.size() >= maxSize) {
-            evictExpired();
-            if (store.size() >= maxSize) {
-                logger.debug(
-                        "Idempotency store full ({}/{}), "
-                                + "skipping storage for {}",
-                        store.size(), maxSize, requestType);
-                return;
-            }
-        }
-
-        store.put(key, new IdempotencyEntry(result, expiresAt));
+        store.put(key, result, ttl);
         logger.debug("Idempotent MISS — stored {}", requestType);
     }
 
@@ -206,10 +214,11 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
     }
 
     /**
-     * Returns the current number of stored entries.
+     * Returns the current number of stored entries, or {@code -1} when the
+     * backing store cannot report it.
      */
     public int size() {
-        return store.size();
+        return (int) store.size();
     }
 
     /**
@@ -220,16 +229,5 @@ public class IdempotencyBehavior<R extends IRequest<S>, S>
      */
     public void remove(Class<?> requestType, String requestKey) {
         store.remove(requestType.getName() + ":" + requestKey);
-    }
-
-    private void evictExpired() {
-        store.entrySet().removeIf(e -> e.getValue().isExpired());
-    }
-
-    private record IdempotencyEntry(Object response,
-            long expiresAt) {
-        boolean isExpired() {
-            return System.currentTimeMillis() > expiresAt;
-        }
     }
 }
