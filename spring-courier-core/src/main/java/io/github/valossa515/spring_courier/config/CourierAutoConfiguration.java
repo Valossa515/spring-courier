@@ -5,6 +5,10 @@ import io.github.valossa515.spring_courier.core.interfaces.ResponseEntityConvert
 import io.github.valossa515.spring_courier.core.pipelines.BehaviorMetrics;
 import io.github.valossa515.spring_courier.core.pipelines.CachingBehavior;
 import io.github.valossa515.spring_courier.core.pipelines.IdempotencyBehavior;
+import io.github.valossa515.spring_courier.core.store.CacheStore;
+import io.github.valossa515.spring_courier.core.store.IdempotencyStore;
+import io.github.valossa515.spring_courier.core.store.InMemoryCacheStore;
+import io.github.valossa515.spring_courier.core.store.InMemoryIdempotencyStore;
 import io.github.valossa515.spring_courier.core.pipelines.LoggingBehavior;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineExecutor;
 import io.github.valossa515.spring_courier.core.pipelines.PipelineRegistry;
@@ -119,11 +123,16 @@ public class CourierAutoConfiguration {
             havingValue = "true")
     public CachingBehavior<?, ?> cachingBehavior(
             CourierProperties properties,
-            ObjectProvider<BehaviorMetrics> metricsProvider) {
+            ObjectProvider<BehaviorMetrics> metricsProvider,
+            ObjectProvider<CacheStore> cacheStoreProvider) {
         CourierProperties.Cache cacheProps = properties.getCache();
+        // A CacheStore bean (e.g. the Redis module) wins; otherwise the
+        // per-instance in-memory default is used.
+        CacheStore store = cacheStoreProvider.getIfAvailable(
+                () -> new InMemoryCacheStore(cacheProps.getMaxSize()));
         return new CachingBehavior<>(
+                store,
                 Duration.ofSeconds(cacheProps.getTtlSeconds()),
-                cacheProps.getMaxSize(),
                 metricsProvider.getIfAvailable(
                         () -> BehaviorMetrics.NOOP));
     }
@@ -158,9 +167,15 @@ public class CourierAutoConfiguration {
             havingValue = "true")
     public IdempotencyBehavior<?, ?> idempotencyBehavior(
             CourierProperties properties,
-            ObjectProvider<BehaviorMetrics> metricsProvider) {
+            ObjectProvider<BehaviorMetrics> metricsProvider,
+            ObjectProvider<IdempotencyStore> idempotencyStoreProvider) {
+        // An IdempotencyStore bean (e.g. the Redis module) wins; otherwise the
+        // per-instance in-memory default is used.
+        IdempotencyStore store = idempotencyStoreProvider.getIfAvailable(
+                () -> new InMemoryIdempotencyStore(
+                        properties.getIdempotency().getMaxSize()));
         return new IdempotencyBehavior<>(
-                properties.getIdempotency().getMaxSize(),
+                store,
                 metricsProvider.getIfAvailable(
                         () -> BehaviorMetrics.NOOP));
     }
