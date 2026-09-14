@@ -30,6 +30,10 @@ spring-courier/                  # reactor root (spring-courier-parent, packagin
 │   ├── pom.xml
 │   ├── README.md
 │   └── src/                    # OutboxPublisher/Poller/Store + JDBC impl + autoconfig
+├── spring-courier-cache-redis/ # distributed cache/idempotency backend
+│   ├── pom.xml
+│   ├── README.md
+│   └── src/                    # RedisCacheStore/RedisIdempotencyStore + autoconfig
 ├── spring-courier-core/        # core module — artifactId "spring-courier"
 │   ├── pom.xml
 │   └── src/
@@ -46,6 +50,7 @@ spring-courier/                  # reactor root (spring-courier-parent, packagin
 │       │       │                   #   (Logging, Validation, Caching, Retry, Idempotency,
 │       │       │                   #    Transaction, Tracing) + Pre/PostProcessor support
 │       │       ├── slack/          # SlackNotifier, SlackAlertManager (metric-based alerting)
+│       │       ├── store/          # CacheStore/IdempotencyStore SPI + in-memory defaults
 │       │       ├── support/        # HandlerRegistry, NotificationRegistry, Response,
 │       │       │                   #   CourierContext(Holder), Discovery PostProcessors
 │       │       ├── testing/        # CourierTestSupport (user-facing test helper)
@@ -68,6 +73,19 @@ spring-courier/                  # reactor root (spring-courier-parent, packagin
 |--------------------------|--------------------------|-------------------------------------------------------------------------|
 | `spring-courier-core`    | `spring-courier`         | CQRS + Mediator dispatcher, pipeline, registries, built-in behaviors    |
 | `spring-courier-outbox`  | `spring-courier-outbox`  | Transactional Outbox: persists notifications in the command's tx (JDBC) and delivers them at-least-once via a background poller. Opt-in via `OutboxPublisher.publish(...)`; enabled by `spring.courier.outbox.enabled=true`. See the module README. |
+| `spring-courier-cache-redis` | `spring-courier-cache-redis` | Redis-backed `CacheStore`/`IdempotencyStore`, replacing the per-instance in-memory defaults so cache and idempotency are shared across instances. Enabled by `spring.courier.redis.enabled=true`; requires Spring Data Redis. See the module README. |
+
+### Store SPI
+
+`CachingBehavior` and `IdempotencyBehavior` do not hold state themselves — they
+delegate to `CacheStore` / `IdempotencyStore` (package `core/store`). The core
+auto-configuration uses the in-memory implementations unless the context
+supplies a bean of those types, which is how the Redis module takes over
+without any change to the behaviors.
+
+Values handed to a distributed store must be serializable by that store's
+serializer. `Response` carries a `@JsonCreator` so it survives a JSON round
+trip; handler return types must be Jackson-friendly too.
 
 ---
 
