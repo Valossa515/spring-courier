@@ -61,6 +61,15 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Test-only: proves Response survives a JSON round trip, which the
+             distributed store modules rely on. Not needed at runtime — the
+             library itself only uses jackson-annotations. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>
