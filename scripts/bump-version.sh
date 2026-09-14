@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# ──────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────
 # bump-version.sh — Updates the project version in pom.xml,
 #                    README.md, README.pt-BR.md, and CLAUDE.md
 #
 # Usage:
 #   ./scripts/bump-version.sh <new-version>
 #   ./scripts/bump-version.sh 2.1.0
-# ──────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
@@ -34,11 +34,14 @@ if [[ -z "$CURRENT_VERSION" ]]; then
 fi
 
 if [[ "$CURRENT_VERSION" == "$NEW_VERSION" ]]; then
-  echo "Version is already $NEW_VERSION — nothing to do."
-  exit 0
+  # Do NOT exit here: the POMs may already be at the target while the docs
+  # lag behind (e.g. after a hand-edited bump). Running on through realigns
+  # every file, which makes this script usable to repair drift, not just to
+  # move forward.
+  echo "POMs are already at $NEW_VERSION — re-syncing the docs anyway."
+else
+  echo "Bumping version: $CURRENT_VERSION → $NEW_VERSION"
 fi
-
-echo "Bumping version: $CURRENT_VERSION → $NEW_VERSION"
 
 # 1) pom.xml — parent + every reactor module (and their <parent> refs).
 #    The Maven Versions plugin keeps the whole reactor consistent.
@@ -55,14 +58,26 @@ portable_sed() {
   sed "$pattern" "$file" > "$file.tmp" && mv "$file.tmp" "$file"
 }
 
+# Dependency snippets in the READMEs. These deliberately match ANY version
+# rather than the current POM version: anchoring on $CURRENT_VERSION means that
+# once a README falls behind (a hand-edited bump, say) the pattern stops
+# matching and the file can never catch up again. The artifact id is captured
+# so module snippets (spring-courier-outbox, spring-courier-cache-redis) are
+# bumped too, not just the core one.
+SEMVER='[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[0-9A-Za-z.-]*'
+
+bump_readme() {
+  local file="$1"
+  portable_sed "s/<version>${SEMVER}<\/version>/<version>${NEW_VERSION}<\/version>/g" "$file"
+  portable_sed "s/\(spring-courier[a-z-]*\):${SEMVER}/\1:${NEW_VERSION}/g" "$file"
+}
+
 # 2) README.md — Maven and Gradle dependency snippets
-portable_sed "s/<version>${CURRENT_VERSION}<\/version>/<version>${NEW_VERSION}<\/version>/g" "$REPO_ROOT/README.md"
-portable_sed "s/spring-courier:${CURRENT_VERSION}/spring-courier:${NEW_VERSION}/g" "$REPO_ROOT/README.md"
+bump_readme "$REPO_ROOT/README.md"
 echo "  ✓ README.md"
 
 # 3) README.pt-BR.md — same dependency snippets
-portable_sed "s/<version>${CURRENT_VERSION}<\/version>/<version>${NEW_VERSION}<\/version>/g" "$REPO_ROOT/README.pt-BR.md"
-portable_sed "s/spring-courier:${CURRENT_VERSION}/spring-courier:${NEW_VERSION}/g" "$REPO_ROOT/README.pt-BR.md"
+bump_readme "$REPO_ROOT/README.pt-BR.md"
 echo "  ✓ README.pt-BR.md"
 
 # 4) CLAUDE.md — Current Version line (matches any version number)
