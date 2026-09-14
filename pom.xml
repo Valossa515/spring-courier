@@ -177,7 +177,12 @@
             <plugin>
                 <groupId>org.sonatype.central</groupId>
                 <artifactId>central-publishing-maven-plugin</artifactId>
-                <version>0.7.0</version>
+                <!-- 0.11.0+: the Central Portal API now returns a "warnings"
+                     field in DeploymentApiResponse. 0.7.0's model does not know
+                     it and does not ignore unknown fields, so publishing failed
+                     with a Jackson UnrecognizedPropertyException while parsing
+                     the response — after the bundle had already been uploaded. -->
+                <version>0.11.0</version>
                 <extensions>true</extensions>
                 <configuration>
                     <publishingServerId>central</publishingServerId>
