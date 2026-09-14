@@ -451,9 +451,24 @@ PlantUML diagrams are located in `docs/diagrams/`. View with any PlantUML-compat
 
 See `CONTRIBUTING.md` for the full release checklist. High-level steps:
 
-1. Update version in `pom.xml`
+1. **Bump the version across the whole reactor.** Never hand-edit a single
+   `pom.xml`: the parent version and every module's `<parent>` block must move
+   together, or Maven cannot resolve the parent and the build fails.
+
+   ```bash
+   ./scripts/bump-version.sh 12.1.0
+   # equivalent to:
+   # ./mvnw versions:set -DnewVersion=12.1.0 -DprocessAllModules=true -DgenerateBackupPoms=false
+   ```
+
+   The **Bump Version** GitHub workflow does the same and opens a PR, and both
+   also update the version references in `README.md`, `README.pt-BR.md` and
+   this file.
 2. Commit and push changes
 3. Create a GitHub Release (triggers `publish-maven-central.yml`)
-4. Artifacts are signed with GPG and uploaded to Sonatype Central Portal
+4. Artifacts are signed with GPG and the whole reactor is uploaded to the
+   Sonatype Central Portal as a single bundle. Because `autoPublish=false`, the
+   deployment stops at **VALIDATED** — review it and press **Publish** in the
+   Portal to make the release final (publishing is irreversible).
 
 GPG key and Sonatype credentials must be configured as GitHub repository secrets.
