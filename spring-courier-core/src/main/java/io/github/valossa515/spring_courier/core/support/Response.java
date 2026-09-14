@@ -4,7 +4,9 @@ import io.github.valossa515.spring_courier.core.exceptions.CourierException;
 import io.github.valossa515.spring_courier.core.exceptions.ValidationException;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.http.ResponseEntity;
 
 import java.util.Objects;
@@ -26,8 +28,18 @@ public class Response<T> {
     private final String exceptionType;
     private final Object errorDetails;
 
-    // Private constructor to maintain immutability
-    private Response(T data, String error, boolean success, int statusCode) {
+    // Private constructor to maintain immutability.
+    // Doubles as the Jackson creator so a Response can be read back from JSON
+    // (needed by distributed stores such as the Redis cache module). Only the
+    // four serialized properties are accepted; validationFailure/exceptionType/
+    // errorDetails are @JsonIgnore'd and only ever set on error responses,
+    // which are never cached.
+    @JsonCreator
+    private Response(
+            @JsonProperty("data") T data,
+            @JsonProperty("error") String error,
+            @JsonProperty("success") boolean success,
+            @JsonProperty("statusCode") int statusCode) {
         this(data, error, success, statusCode, false, null, null);
     }
 
