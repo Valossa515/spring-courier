@@ -89,7 +89,7 @@ public class ProductController {
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>5.0.0</version>
+    <version>12.0.0</version>
 </dependency>
 ```
 
