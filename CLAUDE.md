@@ -12,7 +12,7 @@ are unaffected by the split.
 - **GroupId:** `io.github.valossa515`
 - **Parent (aggregator) artifactId:** `spring-courier-parent` (packaging `pom`, not consumed directly)
 - **Core artifactId:** `spring-courier` (in module dir `spring-courier-core/`)
-- **Current Version:** 5.0.0
+- **Current Version:** 13.0.0
 - **License:** MIT
 
 ---
@@ -34,6 +34,10 @@ spring-courier/                  # reactor root (spring-courier-parent, packagin
 │   ├── pom.xml
 │   ├── README.md
 │   └── src/                    # RedisCacheStore/RedisIdempotencyStore + autoconfig
+├── spring-courier-resilience/ # circuit breaker / rate limiter / bulkhead
+│   ├── pom.xml
+│   ├── README.md
+│   └── src/                    # Resilience4j-backed behaviors + autoconfig
 ├── spring-courier-core/        # core module — artifactId "spring-courier"
 │   ├── pom.xml
 │   └── src/
@@ -74,6 +78,7 @@ spring-courier/                  # reactor root (spring-courier-parent, packagin
 | `spring-courier-core`    | `spring-courier`         | CQRS + Mediator dispatcher, pipeline, registries, built-in behaviors    |
 | `spring-courier-outbox`  | `spring-courier-outbox`  | Transactional Outbox: persists notifications in the command's tx (JDBC) and delivers them at-least-once via a background poller. Opt-in via `OutboxPublisher.publish(...)`; enabled by `spring.courier.outbox.enabled=true`. See the module README. |
 | `spring-courier-cache-redis` | `spring-courier-cache-redis` | Redis-backed `CacheStore`/`IdempotencyStore`, replacing the per-instance in-memory defaults so cache and idempotency are shared across instances. Enabled by `spring.courier.redis.enabled=true`; requires Spring Data Redis. See the module README. |
+| `spring-courier-resilience` | `spring-courier-resilience` | Circuit breaker, rate limiter and bulkhead as pipeline behaviors (Resilience4j), plus an `IRequestExceptionHandler` mapping rejections to 503/429. Enabled by `spring.courier.resilience.enabled=true`. See the module README. |
 
 ### Store SPI
 
@@ -199,12 +204,23 @@ Built-in behaviors and their orders (lower = outermost):
 | `TracingBehavior`          | `HIGHEST_PRECEDENCE + 10`    | OpenTelemetry on classpath                    |
 | `CachingBehavior`          | `HIGHEST_PRECEDENCE + 50`    | `spring.courier.cache.enabled`                |
 | `JakartaValidationBehavior`| `HIGHEST_PRECEDENCE + 100`   | jakarta.validation on classpath               |
+| `RateLimiterBehavior` ᴹ    | `HIGHEST_PRECEDENCE + 130`   | `spring.courier.resilience.rate-limiter-enabled` |
+| `CircuitBreakerBehavior` ᴹ | `HIGHEST_PRECEDENCE + 140`   | `spring.courier.resilience.enabled`           |
 | `RetryBehavior`            | `HIGHEST_PRECEDENCE + 150`   | `spring.courier.retry.enabled`                |
+| `BulkheadBehavior` ᴹ       | `HIGHEST_PRECEDENCE + 160`   | `spring.courier.resilience.bulkhead-enabled`  |
 | `TransactionBehavior`      | `HIGHEST_PRECEDENCE + 200`   | spring-tx on classpath                        |
+
+ᴹ = provided by the `spring-courier-resilience` module, listed here because the
+ordering only makes sense against the core behaviors.
 
 Retry runs **outside** the transaction so each attempt gets a fresh
 transaction. Caching/idempotency only store **successful** results and require
 the request type to override `toString()` (records qualify).
+
+The circuit breaker sits **outside** retry so an open circuit is rejected once
+instead of retried N times (retrying into a failing dependency amplifies the
+outage), while the bulkhead sits **inside** retry so a permit is not held across
+backoff sleeps. Both choices are pinned by tests in that module.
 
 ### Handler Execution Model
 

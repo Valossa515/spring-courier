@@ -89,7 +89,7 @@ public class ProductController {
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>5.0.0</version>
+    <version>13.0.0</version>
 </dependency>
 ```
 
@@ -253,12 +253,12 @@ Add the dependency to your `pom.xml` or `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>5.0.0</version>
+    <version>13.0.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier:5.0.0")
+implementation("io.github.valossa515:spring-courier:13.0.0")
 ```
 
 > 🔧 Requires **Java 21+** and **Spring Boot 4.x+**.
@@ -271,6 +271,8 @@ Spring Courier is published as a small family of artifacts under the same `group
 |----------|-------------|
 | `spring-courier` | Core CQRS + Mediator dispatcher, pipeline behaviors and registries. This is all most apps need. |
 | `spring-courier-outbox` | **Transactional Outbox**: persist notifications in the command's transaction and deliver them at-least-once via a background poller. Depends on (and pulls in) `spring-courier`. |
+| `spring-courier-cache-redis` | **Distributed cache & idempotency**: backs the caching and idempotency behaviors with Redis instead of per-instance memory, so they work across replicas. |
+| `spring-courier-resilience` | **Circuit breaker, rate limiter, bulkhead** (Resilience4j) as pipeline behaviors, with rejections mapped to `503`/`429`. |
 
 **Core only** → the snippet above. **Add the Outbox** (it brings the core transitively):
 
@@ -278,12 +280,12 @@ Spring Courier is published as a small family of artifacts under the same `group
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-outbox</artifactId>
-    <version>5.0.0</version>
+    <version>13.0.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier-outbox:5.0.0")
+implementation("io.github.valossa515:spring-courier-outbox:13.0.0")
 ```
 
 Enable it (a JDBC `DataSource` must be on the context) and publish from inside a transactional handler:
@@ -305,6 +307,44 @@ public Order handle(CreateOrderCommand cmd) {
 ```
 
 Delivery is **at-least-once**, so notification handlers must be idempotent. Full configuration, DDL and guarantees are in the [Outbox module README](spring-courier-outbox/README.md).
+
+#### Distributed cache & idempotency
+
+The built-in caching and idempotency behaviors keep their state in each instance's heap, so with multiple replicas the cache hit rate drops and idempotency does not actually deduplicate. Add the Redis module to share both across instances:
+
+```xml
+<dependency>
+    <groupId>io.github.valossa515</groupId>
+    <artifactId>spring-courier-cache-redis</artifactId>
+    <version>13.0.0</version>
+</dependency>
+```
+
+```properties
+spring.courier.cache.enabled=true        # the behavior, as before
+spring.courier.idempotency.enabled=true
+spring.courier.redis.enabled=true        # ...now backed by Redis
+```
+
+No code changes — the behaviors pick up the Redis-backed store automatically. Requires Spring Data Redis; cached values must be JSON-serializable. See the [Redis module README](spring-courier-cache-redis/README.md).
+
+#### Circuit breaker, rate limiter, bulkhead
+
+Retry **without** a circuit breaker is a known hazard: when a dependency fails, every request turns into N calls against it, multiplying load exactly when it hurts most. The resilience module closes that gap:
+
+```xml
+<dependency>
+    <groupId>io.github.valossa515</groupId>
+    <artifactId>spring-courier-resilience</artifactId>
+    <version>13.0.0</version>
+</dependency>
+```
+
+```properties
+spring.courier.resilience.enabled=true   # circuit breaker on; limiter/bulkhead are opt-in
+```
+
+The breaker is ordered **outside** retry, so an open circuit is rejected once instead of retried N times, and rejections surface as `503`/`429` rather than a masked `500`. Instances are per request type and tune through standard Resilience4j properties. See the [Resilience module README](spring-courier-resilience/README.md).
 
 ---
 

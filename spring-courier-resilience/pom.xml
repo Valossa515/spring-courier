@@ -10,21 +10,40 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>spring-courier-cache-redis</artifactId>
-    <name>Spring Courier Cache Redis</name>
-    <description>Backend Redis para cache e idempotência distribuídos do Spring Courier</description>
+    <artifactId>spring-courier-resilience</artifactId>
+    <name>Spring Courier Resilience</name>
+    <description>Circuit breaker, rate limiter e bulkhead para o pipeline do Spring Courier</description>
+
+    <properties>
+        <resilience4j.version>2.4.0</resilience4j.version>
+    </properties>
 
     <dependencies>
-        <!-- Core SPI (CacheStore / IdempotencyStore). -->
+        <!-- Core pipeline (PipelineBehavior, Response, exception handler SPI). -->
         <dependency>
             <groupId>io.github.valossa515</groupId>
             <artifactId>spring-courier</artifactId>
         </dependency>
 
+        <!-- Resilience4j is an implementation detail of this module rather than
+             something the host application is expected to already have, so it
+             is a normal (transitive) dependency: adding the module is enough. -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-            <scope>provided</scope>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
+            <version>${resilience4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-ratelimiter</artifactId>
+            <version>${resilience4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-bulkhead</artifactId>
+            <version>${resilience4j.version}</version>
         </dependency>
 
         <dependency>
@@ -33,9 +52,8 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Needed whenever a cached value is a Response: Jackson resolves the
-             signatures of Response#toEntity during introspection, which loads
-             ResponseEntity. Same 'provided' treatment as in the core module. -->
+        <!-- Response#toEntity's signature is resolved when the core Response
+             type is loaded; same 'provided' treatment as in the core module. -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
@@ -46,14 +64,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
             <scope>provided</scope>
-        </dependency>
-
-        <!-- Required at runtime by the default value serializer
-             (GenericJackson2JsonRedisSerializer), which spring-data-redis
-             does not pull in itself. -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
         </dependency>
 
         <dependency>
