@@ -89,7 +89,7 @@ public class ProductController {
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>5.0.0</version>
+    <version>13.0.0</version>
 </dependency>
 ```
 
@@ -253,12 +253,12 @@ Adicione a dependência no seu `pom.xml` ou `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>5.0.0</version>
+    <version>13.0.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier:5.0.0")
+implementation("io.github.valossa515:spring-courier:13.0.0")
 ```
 
 > 🔧 É necessário ter o **Java 21+** e **Spring Boot 3.x+**.
@@ -271,6 +271,8 @@ O Spring Courier é publicado como uma pequena família de artefatos com o mesmo
 |----------|-------------|
 | `spring-courier` | Dispatcher CQRS + Mediator, behaviors do pipeline e registries. É tudo que a maioria das aplicações precisa. |
 | `spring-courier-outbox` | **Transactional Outbox**: grava as notificações na transação do command e as entrega *at-least-once* via um poller em background. Depende de (e já traz) o `spring-courier`. |
+| `spring-courier-cache-redis` | **Cache e idempotência distribuídos**: usa Redis como backend dos behaviors de cache e idempotência em vez da memória de cada instância, para funcionarem entre réplicas. |
+| `spring-courier-resilience` | **Circuit breaker, rate limiter, bulkhead** (Resilience4j) como pipeline behaviors, com rejeições mapeadas para `503`/`429`. |
 
 **Só o core** → o snippet acima. **Adicionar o Outbox** (ele traz o core transitivamente):
 
@@ -278,12 +280,12 @@ O Spring Courier é publicado como uma pequena família de artefatos com o mesmo
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-outbox</artifactId>
-    <version>5.0.0</version>
+    <version>13.0.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier-outbox:5.0.0")
+implementation("io.github.valossa515:spring-courier-outbox:13.0.0")
 ```
 
 Ative-o (é preciso ter um `DataSource` JDBC no contexto) e publique de dentro de um handler transacional:
@@ -305,6 +307,44 @@ public Order handle(CreateOrderCommand cmd) {
 ```
 
 A entrega é **at-least-once**, então os handlers de notificação devem ser idempotentes. Configuração completa, DDL e garantias estão no [README do módulo Outbox](spring-courier-outbox/README.md).
+
+#### Cache e idempotência distribuídos
+
+Os behaviors de cache e idempotência guardam o estado na memória de cada instância — com várias réplicas, a taxa de acerto do cache cai e a idempotência **não deduplica de fato**. Adicione o módulo Redis para compartilhar os dois entre instâncias:
+
+```xml
+<dependency>
+    <groupId>io.github.valossa515</groupId>
+    <artifactId>spring-courier-cache-redis</artifactId>
+    <version>13.0.0</version>
+</dependency>
+```
+
+```properties
+spring.courier.cache.enabled=true        # o behavior, como antes
+spring.courier.idempotency.enabled=true
+spring.courier.redis.enabled=true        # ...agora com backend Redis
+```
+
+Sem mudança de código — os behaviors passam a usar o store do Redis automaticamente. Requer Spring Data Redis; os valores em cache precisam ser serializáveis em JSON. Veja o [README do módulo Redis](spring-courier-cache-redis/README.md).
+
+#### Circuit breaker, rate limiter, bulkhead
+
+Retry **sem** circuit breaker é um risco conhecido: quando uma dependência cai, cada request vira N chamadas contra ela, multiplicando a carga exatamente no pior momento. O módulo de resiliência fecha essa lacuna:
+
+```xml
+<dependency>
+    <groupId>io.github.valossa515</groupId>
+    <artifactId>spring-courier-resilience</artifactId>
+    <version>13.0.0</version>
+</dependency>
+```
+
+```properties
+spring.courier.resilience.enabled=true   # circuit breaker ligado; limiter/bulkhead são opt-in
+```
+
+O breaker fica **por fora** do retry, então um circuito aberto é rejeitado uma vez em vez de repetido N vezes, e as rejeições viram `503`/`429` em vez de um `500` mascarado. As instâncias são por tipo de request e se ajustam pelas propriedades padrão do Resilience4j. Veja o [README do módulo Resilience](spring-courier-resilience/README.md).
 
 ---
 
