@@ -1,7 +1,6 @@
 package io.github.valossa515.spring_courier.outbox;
 
 import io.github.valossa515.spring_courier.core.Courier;
-import io.github.valossa515.spring_courier.core.interfaces.INotification;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -13,8 +12,9 @@ import org.springframework.context.SmartLifecycle;
 
 /**
  * Background worker that drains the outbox: it reclaims crashed-in-flight
- * messages, fetches pending ones, claims each atomically and dispatches it to
- * the Courier notification handlers.
+ * messages, fetches pending ones, claims each atomically and hands it to an
+ * {@link OutboxDispatcher} — in-process Courier handlers by default, or a
+ * broker when a different dispatcher is supplied.
  *
  * <p>Delivery is <strong>at-least-once</strong>: a crash between a successful
  * dispatch and the {@code PROCESSED} write causes redelivery, so notification
@@ -28,18 +28,36 @@ public class OutboxPoller implements SmartLifecycle {
     private static final Logger LOG = LoggerFactory.getLogger(OutboxPoller.class);
 
     private final OutboxStore store;
-    private final OutboxSerializer serializer;
-    private final Courier courier;
+    private final OutboxDispatcher dispatcher;
     private final OutboxProperties properties;
 
     private ScheduledExecutorService scheduler;
     private volatile boolean running;
 
+    /**
+     * Creates a poller that republishes drained messages in-process.
+     *
+     * @deprecated use {@link #OutboxPoller(OutboxStore, OutboxDispatcher, OutboxProperties)};
+     *     this constructor is kept so existing callers keep compiling and
+     *     simply wraps the arguments in a {@link CourierOutboxDispatcher}.
+     */
+    @Deprecated(since = "14.0.0")
     public OutboxPoller(OutboxStore store, OutboxSerializer serializer,
             Courier courier, OutboxProperties properties) {
+        this(store, new CourierOutboxDispatcher(serializer, courier), properties);
+    }
+
+    /**
+     * Creates a poller that hands drained messages to the given dispatcher.
+     *
+     * @param store      outbox the messages are drained from
+     * @param dispatcher where a drained message is delivered
+     * @param properties poll interval, batch size and retry settings
+     */
+    public OutboxPoller(OutboxStore store, OutboxDispatcher dispatcher,
+            OutboxProperties properties) {
         this.store = store;
-        this.serializer = serializer;
-        this.courier = courier;
+        this.dispatcher = dispatcher;
         this.properties = properties;
     }
 
@@ -101,8 +119,7 @@ public class OutboxPoller implements SmartLifecycle {
 
     private void dispatch(OutboxMessage message) {
         try {
-            INotification event = serializer.deserialize(message.eventType(), message.payload());
-            courier.publish(event);
+            dispatcher.dispatch(message);
             store.markProcessed(message.id());
             LOG.debug("Dispatched outbox message {} ({})", message.id(), message.eventType());
         } catch (Exception e) {

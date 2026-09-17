@@ -80,6 +80,16 @@ echo "  ✓ README.md"
 bump_readme "$REPO_ROOT/README.pt-BR.md"
 echo "  ✓ README.pt-BR.md"
 
+# 3b) Each module's own README. These were missed for several releases and
+#     drifted to a version that no longer exists, which is exactly the kind of
+#     breakage the loop below prevents: every new module is picked up by the
+#     glob, so none of them can be forgotten again.
+for module_readme in "$REPO_ROOT"/spring-courier-*/README.md; do
+  [[ -f "$module_readme" ]] || continue
+  bump_readme "$module_readme"
+  echo "  ✓ $(basename "$(dirname "$module_readme")")/README.md"
+done
+
 # 4) CLAUDE.md — Current Version line (matches any version number)
 portable_sed "s/\*\*Current Version:\*\* [0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^ ]*/**Current Version:** ${NEW_VERSION}/g" "$REPO_ROOT/CLAUDE.md"
 echo "  ✓ CLAUDE.md"
@@ -87,5 +97,5 @@ echo "  ✓ CLAUDE.md"
 echo ""
 echo "Done! Version bumped to $NEW_VERSION across all files."
 echo "Next steps:"
-echo "  git add pom.xml '**/pom.xml' README.md README.pt-BR.md CLAUDE.md"
+echo "  git add pom.xml '**/pom.xml' README.md README.pt-BR.md '**/README.md' CLAUDE.md"
 echo "  git commit -m \"chore: bump version to $NEW_VERSION\""

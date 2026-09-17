@@ -17,7 +17,7 @@ fire-and-forget e não oferece essa garantia atômica.
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-outbox</artifactId>
-    <version>5.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
@@ -84,3 +84,24 @@ Um poller em background relê os pendentes e os despacha via `Courier.publish(..
 
 Todos os beans são `@ConditionalOnMissingBean` — você pode fornecer seu próprio
 `OutboxStore` (ex.: outro banco/dialeto), `OutboxSerializer` ou `OutboxPoller`.
+
+### Para onde a mensagem é entregue
+
+Quem decide o destino é o `OutboxDispatcher`:
+
+```java
+@FunctionalInterface
+public interface OutboxDispatcher {
+    void dispatch(OutboxMessage message);
+}
+```
+
+O default (`CourierOutboxDispatcher`) desserializa o payload e chama
+`Courier.publish(...)` — entrega **em processo**, que é o comportamento descrito acima.
+Fornecer outro bean troca o destino sem alterar publisher, handlers ou schema.
+
+O [`spring-courier-messaging`](../spring-courier-messaging/README.md) faz exatamente isso
+para entregar em **Kafka**, quando o evento precisa sair da aplicação.
+
+O dispatcher recebe a `OutboxMessage` crua (e não o evento já desserializado) justamente
+para que um destino voltado a broker possa encaminhar o JSON gravado como está.

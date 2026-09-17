@@ -33,6 +33,32 @@ class OutboxAutoConfigurationTest {
     }
 
     @Test
+    void dispatchesInProcessByDefault() {
+        runner.withPropertyValues(
+                        "spring.courier.outbox.enabled=true",
+                        "spring.courier.outbox.poll-delay-ms=3600000")
+                .run(ctx -> assertThat(ctx.getBean(OutboxDispatcher.class))
+                        .isInstanceOf(CourierOutboxDispatcher.class));
+    }
+
+    /**
+     * The hook {@code spring-courier-messaging} uses to send the events to a
+     * broker instead. Nothing else about the outbox changes.
+     */
+    @Test
+    void anApplicationSuppliedDispatcherWins() {
+        OutboxDispatcher custom = message -> {
+            // no-op
+        };
+
+        runner.withPropertyValues(
+                        "spring.courier.outbox.enabled=true",
+                        "spring.courier.outbox.poll-delay-ms=3600000")
+                .withBean(OutboxDispatcher.class, () -> custom)
+                .run(ctx -> assertThat(ctx.getBean(OutboxDispatcher.class)).isSameAs(custom));
+    }
+
+    @Test
     void backsOffWhenDisabled() {
         runner.run(ctx -> assertThat(ctx)
                 .doesNotHaveBean(OutboxPublisher.class)

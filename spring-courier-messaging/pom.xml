@@ -10,20 +10,24 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>spring-courier-cache-redis</artifactId>
-    <name>Spring Courier Cache Redis</name>
-    <description>Backend Redis para cache e idempotência distribuídos do Spring Courier</description>
+    <artifactId>spring-courier-messaging</artifactId>
+    <name>Spring Courier Messaging</name>
+    <description>Entrega dos eventos do outbox em um broker (Kafka), para consumo por outros serviços</description>
 
     <dependencies>
-        <!-- Core SPI (CacheStore / IdempotencyStore). -->
+        <!-- OutboxDispatcher SPI + OutboxMessage. -->
         <dependency>
             <groupId>io.github.valossa515</groupId>
-            <artifactId>spring-courier</artifactId>
+            <artifactId>spring-courier-outbox</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
+        <!-- The host application configures Kafka anyway (bootstrap servers,
+             serializers), so it brings the dependency, as with Spring Data
+             Redis in the cache module. -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
             <scope>provided</scope>
         </dependency>
 
@@ -33,27 +37,10 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Needed whenever a cached value is a Response: Jackson resolves the
-             signatures of Response#toEntity during introspection, which loads
-             ResponseEntity. Same 'provided' treatment as in the core module. -->
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
             <scope>provided</scope>
-        </dependency>
-
-        <!-- Required at runtime by the default value serializer
-             (GenericJackson2JsonRedisSerializer), which spring-data-redis
-             does not pull in itself. -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
         </dependency>
 
         <dependency>
@@ -71,6 +58,14 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Runs a real broker in-JVM (no Docker), so the send path is
+             exercised against Kafka rather than only against a mock. -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

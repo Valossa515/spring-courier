@@ -89,7 +89,7 @@ public class ProductController {
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
@@ -253,12 +253,12 @@ Adicione a dependência no seu `pom.xml` ou `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier:13.0.0")
+implementation("io.github.valossa515:spring-courier:14.0.0")
 ```
 
 > 🔧 É necessário ter o **Java 21+** e **Spring Boot 3.x+**.
@@ -273,6 +273,7 @@ O Spring Courier é publicado como uma pequena família de artefatos com o mesmo
 | `spring-courier-outbox` | **Transactional Outbox**: grava as notificações na transação do command e as entrega *at-least-once* via um poller em background. Depende de (e já traz) o `spring-courier`. |
 | `spring-courier-cache-redis` | **Cache e idempotência distribuídos**: usa Redis como backend dos behaviors de cache e idempotência em vez da memória de cada instância, para funcionarem entre réplicas. |
 | `spring-courier-resilience` | **Circuit breaker, rate limiter, bulkhead** (Resilience4j) como pipeline behaviors, com rejeições mapeadas para `503`/`429`. |
+| `spring-courier-messaging` | **Outbox → Kafka**: entrega os eventos do outbox em um broker em vez de republicá-los em processo, para que outros serviços possam consumi-los. Some ao `spring-courier-outbox`. |
 
 **Só o core** → o snippet acima. **Adicionar o Outbox** (ele traz o core transitivamente):
 
@@ -280,12 +281,12 @@ O Spring Courier é publicado como uma pequena família de artefatos com o mesmo
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-outbox</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier-outbox:13.0.0")
+implementation("io.github.valossa515:spring-courier-outbox:14.0.0")
 ```
 
 Ative-o (é preciso ter um `DataSource` JDBC no contexto) e publique de dentro de um handler transacional:
@@ -316,7 +317,7 @@ Os behaviors de cache e idempotência guardam o estado na memória de cada inst�
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-cache-redis</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
@@ -336,7 +337,7 @@ Retry **sem** circuit breaker é um risco conhecido: quando uma dependência cai
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-resilience</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
@@ -345,6 +346,26 @@ spring.courier.resilience.enabled=true   # circuit breaker ligado; limiter/bulkh
 ```
 
 O breaker fica **por fora** do retry, então um circuito aberto é rejeitado uma vez em vez de repetido N vezes, e as rejeições viram `503`/`429` em vez de um `500` mascarado. As instâncias são por tipo de request e se ajustam pelas propriedades padrão do Resilience4j. Veja o [README do módulo Resilience](spring-courier-resilience/README.md).
+
+#### Outbox → Kafka
+
+O Outbox garante que o evento seja gravado atomicamente com o command, mas entrega **em processo**: o poller republica via `Courier.publish(...)`, então os handlers rodam dentro da mesma aplicação que gerou o evento. Num sistema distribuído, o evento precisa **sair**. O módulo de messaging troca o destino:
+
+```xml
+<dependency>
+    <groupId>io.github.valossa515</groupId>
+    <artifactId>spring-courier-messaging</artifactId>
+    <version>14.0.0</version>
+</dependency>
+```
+
+```properties
+spring.courier.outbox.enabled=true
+spring.courier.messaging.enabled=true
+spring.kafka.bootstrap-servers=localhost:9092
+```
+
+Sem mudança de código — o lado produtor continua exatamente como escrito acima. Cada evento vira um registro em `courier.<NomeSimplesDoEvento>`, com key igual ao id do outbox, o payload JSON gravado encaminhado **como está** e os headers `courier-message-id` e `courier-event-type`. O envio é **aguardado** (`acks=all`, producer idempotente), de modo que o poller nunca marca como entregue algo que o Kafka não aceitou. Ligar o módulo **redireciona** a entrega — não a duplica. Veja o [README do módulo Messaging](spring-courier-messaging/README.md).
 
 ---
 
@@ -968,14 +989,21 @@ spring.courier.slack.enabled=false
 ## 🧩 Estrutura do Projeto
 
 ```
-spring-courier/
- ├── src/main/java/dev/valossa/springcourier/
- │    ├── core/               # Contratos e abstrações principais
- │    ├── annotations/        # Anotações utilitárias
- │    └── config/             # Configurações da lib
- ├── docs/diagrams/           # Diagramas UML da arquitetura
+spring-courier/                    # reactor Maven (spring-courier-parent)
+ ├── spring-courier-core/          # artifactId "spring-courier"
+ │    └── src/main/java/io/github/valossa515/spring_courier/
+ │         ├── core/               # Contratos e abstrações principais
+ │         ├── annotations/        # Anotações utilitárias
+ │         └── config/             # Configurações da lib
+ ├── spring-courier-outbox/        # Transactional Outbox
+ ├── spring-courier-cache-redis/   # Cache e idempotência distribuídos
+ ├── spring-courier-resilience/    # Circuit breaker / rate limiter / bulkhead
+ ├── spring-courier-messaging/     # Outbox → Kafka
+ ├── docs/diagrams/                # Diagramas UML da arquitetura
  └── pom.xml
 ```
+
+O módulo core mantém o artifactId histórico `spring-courier`, então a divisão em reactor é invisível para quem já consome a lib.
 
 ---
 

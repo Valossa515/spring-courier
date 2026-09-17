@@ -17,7 +17,7 @@ Este módulo fecha essa lacuna e adiciona os outros dois controles clássicos de
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-resilience</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
