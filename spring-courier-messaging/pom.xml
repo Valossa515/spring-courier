@@ -1,0 +1,72 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.valossa515</groupId>
+        <artifactId>spring-courier-parent</artifactId>
+        <version>13.0.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>spring-courier-messaging</artifactId>
+    <name>Spring Courier Messaging</name>
+    <description>Entrega dos eventos do outbox em um broker (Kafka), para consumo por outros serviços</description>
+
+    <dependencies>
+        <!-- OutboxDispatcher SPI + OutboxMessage. -->
+        <dependency>
+            <groupId>io.github.valossa515</groupId>
+            <artifactId>spring-courier-outbox</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- The host application configures Kafka anyway (bootstrap servers,
+             serializers), so it brings the dependency, as with Spring Data
+             Redis in the cache module. -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Runs a real broker in-JVM (no Docker), so the send path is
+             exercised against Kafka rather than only against a mock. -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

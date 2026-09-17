@@ -38,6 +38,10 @@ spring-courier/                  # reactor root (spring-courier-parent, packagin
 │   ├── pom.xml
 │   ├── README.md
 │   └── src/                    # Resilience4j-backed behaviors + autoconfig
+├── spring-courier-messaging/   # outbox → Kafka delivery
+│   ├── pom.xml
+│   ├── README.md
+│   └── src/                    # KafkaOutboxDispatcher/TopicResolver + autoconfig
 ├── spring-courier-core/        # core module — artifactId "spring-courier"
 │   ├── pom.xml
 │   └── src/
@@ -79,6 +83,7 @@ spring-courier/                  # reactor root (spring-courier-parent, packagin
 | `spring-courier-outbox`  | `spring-courier-outbox`  | Transactional Outbox: persists notifications in the command's tx (JDBC) and delivers them at-least-once via a background poller. Opt-in via `OutboxPublisher.publish(...)`; enabled by `spring.courier.outbox.enabled=true`. See the module README. |
 | `spring-courier-cache-redis` | `spring-courier-cache-redis` | Redis-backed `CacheStore`/`IdempotencyStore`, replacing the per-instance in-memory defaults so cache and idempotency are shared across instances. Enabled by `spring.courier.redis.enabled=true`; requires Spring Data Redis. See the module README. |
 | `spring-courier-resilience` | `spring-courier-resilience` | Circuit breaker, rate limiter and bulkhead as pipeline behaviors (Resilience4j), plus an `IRequestExceptionHandler` mapping rejections to 503/429. Enabled by `spring.courier.resilience.enabled=true`. See the module README. |
+| `spring-courier-messaging` | `spring-courier-messaging` | Delivers drained outbox messages to **Kafka** instead of republishing them in-process, so events leave the application. Supplies an `OutboxDispatcher` that replaces the outbox module's in-process default. Enabled by `spring.courier.messaging.enabled=true`; requires spring-kafka. See the module README. |
 
 ### Store SPI
 
@@ -91,6 +96,24 @@ without any change to the behaviors.
 Values handed to a distributed store must be serializable by that store's
 serializer. `Response` carries a `@JsonCreator` so it survives a JSON round
 trip; handler return types must be Jackson-friendly too.
+
+### Outbox dispatcher SPI
+
+`OutboxPoller` does not decide where a drained message goes — it delegates to
+`OutboxDispatcher` (package `outbox`), whose default `CourierOutboxDispatcher`
+deserializes the payload and calls `Courier.publish(...)` in process. The
+messaging module replaces that bean to send to Kafka instead; same
+`@ConditionalOnMissingBean` pattern as the store SPI.
+
+The dispatcher receives the raw `OutboxMessage`, not a deserialized event, so a
+broker-bound dispatcher can forward the stored JSON without a
+deserialize/re-serialize round trip. Because enabling it *redirects* delivery
+rather than adding to it, the messaging module is off by default.
+
+`dispatch` is expected to block until delivery is durable: the poller marks the
+message `PROCESSED` only after it returns, so returning early would let a crash
+lose the event. Failures must throw — that is what leaves the message pending
+for a retry.
 
 ---
 

@@ -273,6 +273,7 @@ Spring Courier is published as a small family of artifacts under the same `group
 | `spring-courier-outbox` | **Transactional Outbox**: persist notifications in the command's transaction and deliver them at-least-once via a background poller. Depends on (and pulls in) `spring-courier`. |
 | `spring-courier-cache-redis` | **Distributed cache & idempotency**: backs the caching and idempotency behaviors with Redis instead of per-instance memory, so they work across replicas. |
 | `spring-courier-resilience` | **Circuit breaker, rate limiter, bulkhead** (Resilience4j) as pipeline behaviors, with rejections mapped to `503`/`429`. |
+| `spring-courier-messaging` | **Outbox → Kafka**: delivers outbox events to a broker instead of republishing them in-process, so other services can consume them. Add on top of `spring-courier-outbox`. |
 
 **Core only** → the snippet above. **Add the Outbox** (it brings the core transitively):
 
@@ -345,6 +346,26 @@ spring.courier.resilience.enabled=true   # circuit breaker on; limiter/bulkhead 
 ```
 
 The breaker is ordered **outside** retry, so an open circuit is rejected once instead of retried N times, and rejections surface as `503`/`429` rather than a masked `500`. Instances are per request type and tune through standard Resilience4j properties. See the [Resilience module README](spring-courier-resilience/README.md).
+
+#### Outbox → Kafka
+
+The Outbox guarantees the event is stored atomically with the command, but it delivers **in-process**: the poller republishes through `Courier.publish(...)`, so handlers run inside the very application that produced the event. In a distributed system the event has to leave. The messaging module changes the destination:
+
+```xml
+<dependency>
+    <groupId>io.github.valossa515</groupId>
+    <artifactId>spring-courier-messaging</artifactId>
+    <version>13.0.0</version>
+</dependency>
+```
+
+```properties
+spring.courier.outbox.enabled=true
+spring.courier.messaging.enabled=true
+spring.kafka.bootstrap-servers=localhost:9092
+```
+
+No code changes — the producing side stays exactly as written above. Each event becomes a record on `courier.<EventSimpleName>`, keyed by the outbox id, carrying the stored JSON payload as-is plus `courier-message-id` and `courier-event-type` headers. The send is **awaited** (`acks=all`, idempotent producer) so the poller never marks a message delivered that Kafka has not accepted. Enabling this **redirects** delivery rather than duplicating it. See the [Messaging module README](spring-courier-messaging/README.md).
 
 ---
 
@@ -977,14 +998,21 @@ spring.courier.slack.enabled=false
 ## 🧩 Project Structure
 
 ```
-spring-courier/
- ├── src/main/java/io/github/valossa515/spring_courier/
- │    ├── core/               # Core contracts and abstractions
- │    ├── annotations/        # Utility annotations
- │    └── config/             # Library configurations
- ├── docs/diagrams/           # UML architecture diagrams
+spring-courier/                    # Maven reactor (spring-courier-parent)
+ ├── spring-courier-core/          # artifactId "spring-courier"
+ │    └── src/main/java/io/github/valossa515/spring_courier/
+ │         ├── core/               # Core contracts and abstractions
+ │         ├── annotations/        # Utility annotations
+ │         └── config/             # Library configurations
+ ├── spring-courier-outbox/        # Transactional Outbox
+ ├── spring-courier-cache-redis/   # Distributed cache & idempotency
+ ├── spring-courier-resilience/    # Circuit breaker / rate limiter / bulkhead
+ ├── spring-courier-messaging/     # Outbox → Kafka
+ ├── docs/diagrams/                # UML architecture diagrams
  └── pom.xml
 ```
+
+The core module keeps the historical `spring-courier` artifactId, so the split into a reactor is invisible to existing consumers.
 
 ---
 

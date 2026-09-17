@@ -16,6 +16,7 @@
         <module>spring-courier-outbox</module>
         <module>spring-courier-cache-redis</module>
         <module>spring-courier-resilience</module>
+        <module>spring-courier-messaging</module>
     </modules>
 
     <licenses>

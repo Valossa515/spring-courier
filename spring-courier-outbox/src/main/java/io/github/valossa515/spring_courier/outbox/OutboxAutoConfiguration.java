@@ -46,11 +46,23 @@ public class OutboxAutoConfiguration {
         return new OutboxPublisher(store, serializer);
     }
 
+    /**
+     * Where drained messages go. Defaults to republishing them in-process;
+     * a module that supplies its own {@link OutboxDispatcher} bean (e.g. the
+     * messaging module, sending to a broker) takes over without any other
+     * change.
+     */
+    @Bean
+    @ConditionalOnMissingBean(OutboxDispatcher.class)
+    public OutboxDispatcher outboxDispatcher(OutboxSerializer serializer, Courier courier) {
+        return new CourierOutboxDispatcher(serializer, courier);
+    }
+
     @Bean
     @ConditionalOnMissingBean
-    public OutboxPoller outboxPoller(OutboxStore store, OutboxSerializer serializer,
-            Courier courier, OutboxProperties properties) {
-        return new OutboxPoller(store, serializer, courier, properties);
+    public OutboxPoller outboxPoller(OutboxStore store, OutboxDispatcher dispatcher,
+            OutboxProperties properties) {
+        return new OutboxPoller(store, dispatcher, properties);
     }
 
     @Bean
