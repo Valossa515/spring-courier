@@ -22,7 +22,7 @@ Este módulo troca só o *backend*: os behaviors, a API e a configuração conti
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-cache-redis</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 

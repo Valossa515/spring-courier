@@ -89,7 +89,7 @@ public class ProductController {
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
@@ -253,12 +253,12 @@ Add the dependency to your `pom.xml` or `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier:13.0.0")
+implementation("io.github.valossa515:spring-courier:14.0.0")
 ```
 
 > 🔧 Requires **Java 21+** and **Spring Boot 4.x+**.
@@ -281,12 +281,12 @@ Spring Courier is published as a small family of artifacts under the same `group
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-outbox</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier-outbox:13.0.0")
+implementation("io.github.valossa515:spring-courier-outbox:14.0.0")
 ```
 
 Enable it (a JDBC `DataSource` must be on the context) and publish from inside a transactional handler:
@@ -317,7 +317,7 @@ The built-in caching and idempotency behaviors keep their state in each instance
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-cache-redis</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
@@ -337,7 +337,7 @@ Retry **without** a circuit breaker is a known hazard: when a dependency fails, 
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-resilience</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
@@ -355,7 +355,7 @@ The Outbox guarantees the event is stored atomically with the command, but it de
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-messaging</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 

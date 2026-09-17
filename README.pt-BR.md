@@ -89,7 +89,7 @@ public class ProductController {
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
@@ -253,12 +253,12 @@ Adicione a dependência no seu `pom.xml` ou `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier:13.0.0")
+implementation("io.github.valossa515:spring-courier:14.0.0")
 ```
 
 > 🔧 É necessário ter o **Java 21+** e **Spring Boot 3.x+**.
@@ -281,12 +281,12 @@ O Spring Courier é publicado como uma pequena família de artefatos com o mesmo
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-outbox</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier-outbox:13.0.0")
+implementation("io.github.valossa515:spring-courier-outbox:14.0.0")
 ```
 
 Ative-o (é preciso ter um `DataSource` JDBC no contexto) e publique de dentro de um handler transacional:
@@ -317,7 +317,7 @@ Os behaviors de cache e idempotência guardam o estado na memória de cada inst�
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-cache-redis</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
@@ -337,7 +337,7 @@ Retry **sem** circuit breaker é um risco conhecido: quando uma dependência cai
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-resilience</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
@@ -355,7 +355,7 @@ O Outbox garante que o evento seja gravado atomicamente com o command, mas entre
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-messaging</artifactId>
-    <version>13.0.0</version>
+    <version>14.0.0</version>
 </dependency>
 ```
 
