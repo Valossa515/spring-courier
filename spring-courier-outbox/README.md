@@ -68,6 +68,29 @@ Um poller em background relê os pendentes e os despacha via `Courier.publish(..
 - **Multi-instância:** o claim é atômico (`PENDING → PROCESSING` condicional), de
   modo que apenas uma instância despacha cada mensagem.
 
+## A notificação precisa ser um tipo concreto
+
+Só o nome da classe crua é gravado (`event_type`), e o erasure apaga os argumentos
+de tipo. Uma notificação genérica não volta inteira:
+
+```java
+record Changed<T>(T value) implements INotification { }
+
+outbox.publish(new Changed<>(product));   // OutboxException já no publish
+```
+
+Gravado e relido, `value` voltaria como `LinkedHashMap` e o handler quebraria com
+`ClassCastException`. O `publish` rejeita esses tipos **antes** do insert, então a
+exceção acontece na transação do command — e não horas depois, dentro do poller,
+onde viraria `attempts++` e `FAILED` longe de quem causou.
+
+Use um tipo concreto: `ProductChangedNotification` em vez de `Changed<Product>`.
+
+> A limitação é da entrega **em processo**, não da tabela: um `OutboxDispatcher`
+> voltado a broker encaminha o JSON intacto e nunca desserializa. A checagem vale
+> mesmo assim, porque qual dispatcher está ativo é decisão de deploy, invisível
+> para quem publica.
+
 ## Configuração
 
 | Propriedade                                   | Default          | Descrição                                              |
