@@ -12,7 +12,7 @@ are unaffected by the split.
 - **GroupId:** `io.github.valossa515`
 - **Parent (aggregator) artifactId:** `spring-courier-parent` (packaging `pom`, not consumed directly)
 - **Core artifactId:** `spring-courier` (in module dir `spring-courier-core/`)
-- **Current Version:** 14.0.0
+- **Current Version:** 15.0.0
 - **License:** MIT
 
 ---
@@ -114,6 +114,36 @@ rather than adding to it, the messaging module is off by default.
 message `PROCESSED` only after it returns, so returning early would let a crash
 lose the event. Failures must throw — that is what leaves the message pending
 for a retry.
+
+`OutboxPublisher.publish` rejects notification types that declare type
+parameters. Only the raw class name is stored, so `Changed<Product>` comes back
+as a raw `Changed` with its component as a `LinkedHashMap`. Failing at publish
+keeps that in the caller's transaction instead of surfacing as a
+`ClassCastException` inside the poller. Broker-bound dispatchers forward the
+JSON untouched and are unaffected, but the check still applies because the
+publisher cannot see which dispatcher is wired.
+
+### Generics and discovery
+
+Both discovery post-processors key the registries on an exact `Class`, so a
+handler is registered only when its request/notification type argument resolves
+to one. Three shapes are therefore detected but never registered, and each logs
+a warning naming the cause and the consequence:
+
+- the type argument is still a type variable (`CommandHandler<C, R>`),
+- the request type is itself generic (`CommandHandler<Create<T>, T>`) — type
+  erasure, so this is a hard limit rather than a gap to fill,
+- there is no type argument at all (a duck-typed catch-all handler).
+
+Reuse across request types belongs in a generic **base class** with concrete
+requests (`CreateProductHandler extends BaseCrudHandler<CreateProduct, Product>`),
+which discovery resolves normally. Handler interfaces do not have to come from
+the core: `checkIfHandlerInterface` duck-types any interface with a
+`handle`/`execute` method taking an `IRequest` and returning non-void.
+
+Notification dispatch is likewise an exact-class lookup, so a handler keyed on an
+interface or abstract type (`NotificationHandler<Audited>`) is rejected at
+discovery rather than silently never matching.
 
 ---
 

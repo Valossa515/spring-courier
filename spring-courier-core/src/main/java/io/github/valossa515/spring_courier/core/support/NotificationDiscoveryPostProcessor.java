@@ -70,6 +70,7 @@ public class NotificationDiscoveryPostProcessor implements BeanPostProcessor {
         logger.debug("Processing notification handler candidate: {}", beanClass.getName());
 
         boolean registered = false;
+        String reason = null;
 
         for (Type genericInterface : beanClass.getGenericInterfaces()) {
             if (!isNotificationHandlerParameterizedInterface(genericInterface)) {
@@ -79,15 +80,25 @@ public class NotificationDiscoveryPostProcessor implements BeanPostProcessor {
             ParameterizedType parameterizedType = (ParameterizedType) genericInterface;
             Type notificationArg = parameterizedType.getActualTypeArguments()[0];
 
-            if (tryRegisterConcreteNotification(bean, beanClass, notificationArg)) {
+            String failure = tryRegisterConcreteNotification(bean, notificationArg);
+            if (failure == null) {
                 registered = true;
+            } else if (reason == null) {
+                reason = failure;
             }
         }
 
         if (!registered) {
+            // Said in full because the consequence is silence, not an error:
+            // publish() finds no handler, logs and returns, so the event is
+            // dropped with nothing tying it back to this bean.
             logger.warn(
-                    "Notification handler discovered but not registered (unresolved type): {}",
-                    beanClass.getSimpleName()
+                    "Notification handler discovered but NOT registered: {}. {} Notifications it"
+                            + " was meant to handle will be dropped silently when published.",
+                    beanClass.getSimpleName(),
+                    reason != null ? reason
+                            : "Its NotificationHandler interface declares no notification type"
+                                    + " argument, so the event type cannot be determined."
             );
         }
     }
@@ -103,34 +114,43 @@ public class NotificationDiscoveryPostProcessor implements BeanPostProcessor {
                 && parameterizedType.getActualTypeArguments().length >= 1;
     }
 
-    private boolean tryRegisterConcreteNotification(Object bean, Class<?> beanClass, Type notificationArg) {
-        if (notificationArg instanceof TypeVariable<?>) {
-            logger.warn(
-                    "Notification handler discovered but not registered (unresolved generic type): {}",
-                    beanClass.getSimpleName()
-            );
-            return false;
+    /**
+     * Registers the handler, or returns the reason it could not be registered.
+     *
+     * @return {@code null} on success, otherwise a sentence explaining why
+     */
+    private String tryRegisterConcreteNotification(Object bean, Type notificationArg) {
+        if (notificationArg instanceof TypeVariable<?> typeVariable) {
+            return "Its notification type is still the type variable '" + typeVariable.getName()
+                    + "'; a handler bean must fix it to a concrete notification class.";
+        }
+
+        if (notificationArg instanceof ParameterizedType parameterizedType) {
+            return "Its notification type " + parameterizedType.getTypeName() + " is generic, and"
+                    + " type arguments are erased at runtime; use a concrete notification class.";
         }
 
         if (!(notificationArg instanceof Class<?> notificationType)) {
-            return false;
+            return "Its notification type " + notificationArg.getTypeName()
+                    + " could not be resolved to a class.";
         }
 
         if (!isConcrete(notificationType)) {
-            logger.warn(
-                    "Notification handler discovered but not registered (non-concrete type): {}",
-                    beanClass.getSimpleName()
-            );
-            return false;
+            // Dispatch is an exact-class lookup, so a handler keyed on an
+            // interface or abstract class would never match a published event.
+            return "Its notification type " + notificationType.getSimpleName() + " is "
+                    + (notificationType.isInterface() ? "an interface" : "abstract")
+                    + ", and notifications are dispatched by exact class; handlers must name the"
+                    + " concrete notification type.";
         }
 
         notificationRegistry.registerHandler(notificationType, bean);
         logger.info(
                 "Notification handler registered: {} -> {}",
                 notificationType.getSimpleName(),
-                beanClass.getSimpleName()
+                bean.getClass().getSimpleName()
         );
-        return true;
+        return null;
     }
 
     private boolean isConcrete(Class<?> type) {

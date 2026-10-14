@@ -13,6 +13,7 @@ import org.springframework.context.ApplicationContext;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
@@ -127,8 +128,58 @@ public class HandlerDiscoveryPostProcessor implements BeanPostProcessor {
         if (registered) {
             logger.info("Handler registered: {} -> {}", requestType, beanClass.getSimpleName());
         } else {
-            logger.warn("Handler discovered but not registered (unresolved type): {}", beanClass.getSimpleName());
+            logger.warn("Handler discovered but NOT registered: {}. {} Requests of this type will"
+                            + " fail with HandlerNotFoundException when dispatched.",
+                    beanClass.getSimpleName(), describeWhyNotRegistered(beanClass));
         }
+    }
+
+    /**
+     * Explains why a handler candidate could not be registered.
+     *
+     * <p>Worth the effort because the consequence surfaces far away: the bean
+     * starts fine, and the failure appears later as a
+     * {@code HandlerNotFoundException} on the first dispatch, with nothing
+     * pointing back to this warning. The message names the actual cause so the
+     * startup log is enough to fix it.
+     */
+    private String describeWhyNotRegistered(Class<?> beanClass) {
+        Type requestArg = firstHandlerTypeArgument(beanClass);
+
+        if (requestArg == null) {
+            return "Its handler interface declares no request type argument, so the request type"
+                    + " cannot be determined; parameterize it with the request class"
+                    + " (e.g. CommandHandler<CreateOrderCommand, Order>).";
+        }
+        if (requestArg instanceof TypeVariable<?> typeVariable) {
+            return "Its request type is still the type variable '" + typeVariable.getName()
+                    + "'; a handler bean must fix it to a concrete request class.";
+        }
+        if (requestArg instanceof ParameterizedType parameterizedType) {
+            return "Its request type " + parameterizedType.getTypeName() + " is generic, and type"
+                    + " arguments are erased at runtime; use a concrete request class instead.";
+        }
+        return "Its request type " + requestArg.getTypeName() + " could not be resolved to a class.";
+    }
+
+    /**
+     * Returns the request type argument declared on the bean's handler
+     * interface (or generic superclass), or {@code null} when there is none.
+     */
+    private Type firstHandlerTypeArgument(Class<?> beanClass) {
+        Type[] candidates = Arrays.copyOf(beanClass.getGenericInterfaces(),
+                beanClass.getGenericInterfaces().length + 1);
+        candidates[candidates.length - 1] = beanClass.getGenericSuperclass();
+
+        for (Type candidate : candidates) {
+            if (candidate instanceof ParameterizedType parameterizedType
+                    && parameterizedType.getRawType() instanceof Class<?> rawClass
+                    && isHandlerInterfaceType(rawClass)
+                    && parameterizedType.getActualTypeArguments().length >= 1) {
+                return parameterizedType.getActualTypeArguments()[0];
+            }
+        }
+        return null;
     }
 
     private boolean registerHandlerFromType(Object bean, Type type) {

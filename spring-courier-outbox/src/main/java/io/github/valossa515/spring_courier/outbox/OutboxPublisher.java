@@ -40,12 +40,14 @@ public class OutboxPublisher {
      * Captures a notification into the outbox within the current transaction.
      *
      * @param event the notification to deliver later; must be non-null
-     * @throws OutboxException if the event cannot be serialized or persisted
+     * @throws OutboxException if the event type is generic, or cannot be
+     *                         serialized or persisted
      */
     public void publish(INotification event) {
         if (event == null) {
             throw new IllegalArgumentException("notification must not be null");
         }
+        rejectGenericType(event.getClass());
         OutboxMessage message = new OutboxMessage(
                 UUID.randomUUID().toString(),
                 event.getClass().getName(),
@@ -58,5 +60,38 @@ public class OutboxPublisher {
         store.save(message);
         LOG.debug("Captured notification {} into outbox as {}",
                 message.eventType(), message.id());
+    }
+
+    /**
+     * Rejects notification types that carry type parameters, because the outbox
+     * cannot round-trip them.
+     *
+     * <p>Only the raw class name is stored (see {@link OutboxMessage#eventType()}),
+     * and type erasure means the arguments are not recoverable from it. On the
+     * way back, {@code Changed<Product>} is read as a raw {@code Changed} and its
+     * component arrives as a {@code LinkedHashMap}, so the handler fails with a
+     * {@link ClassCastException}.
+     *
+     * <p>Failing here is the point. That {@code ClassCastException} would
+     * otherwise surface inside the background poller — counted as a delivery
+     * attempt, retried, and eventually parked as {@code FAILED} long after the
+     * transaction that caused it has committed. Throwing during {@code publish}
+     * keeps the failure in the caller's transaction, where the stack trace names
+     * the culprit and nothing is persisted.
+     *
+     * <p>This is a limitation of in-process delivery, not of the outbox table: a
+     * broker-bound {@link OutboxDispatcher} forwards the stored JSON untouched
+     * and never deserializes it. The check still applies, because the dispatcher
+     * in use is a deployment choice the publisher cannot see.
+     */
+    private static void rejectGenericType(Class<?> eventType) {
+        if (eventType.getTypeParameters().length == 0) {
+            return;
+        }
+        throw new OutboxException("Cannot publish generic notification type "
+                + eventType.getName() + ": type arguments are erased, so the "
+                + "payload cannot be deserialized back into it. Use a concrete "
+                + "notification type instead (e.g. ProductChangedNotification "
+                + "rather than Changed<Product>).");
     }
 }
