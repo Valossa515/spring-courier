@@ -33,9 +33,15 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
  * the serialization round trip the mock-based tests cannot cover.
  *
  * <p>Skips itself when no Redis is reachable on {@code localhost:6379}, so the
- * build stays green on machines and CI runners without one.
+ * build stays green on developer machines without one. CI sets
+ * {@value #REQUIRE_REDIS_ENV}{@code =true} and provides Redis, and there a
+ * missing server is a failure: these tests are the only check that the
+ * idempotency claim really is atomic in Redis, and a silent skip would let a
+ * broken service turn them off without anyone noticing.
  */
 class RedisStoreIntegrationTest {
+
+    static final String REQUIRE_REDIS_ENV = "COURIER_REQUIRE_REDIS";
 
     private static final String PREFIX = "courier-it:" + UUID.randomUUID() + ":";
 
@@ -50,6 +56,10 @@ class RedisStoreIntegrationTest {
             factory.afterPropertiesSet();
             factory.getConnection().ping();
         } catch (Exception e) {
+            if (Boolean.parseBoolean(System.getenv(REQUIRE_REDIS_ENV))) {
+                throw new IllegalStateException(REQUIRE_REDIS_ENV
+                        + " is set but no Redis is reachable on localhost:6379", e);
+            }
             abort("No Redis reachable on localhost:6379 — skipping integration test");
         }
 

@@ -31,6 +31,21 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    # Real Redis for spring-courier-cache-redis's integration tests — the only
+    # check that the idempotency claim (SET NX PX) is atomic. With the variable
+    # set, a missing Redis fails the build instead of skipping those tests.
+    env:
+      COURIER_REQUIRE_REDIS: "true"
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -50,6 +65,18 @@ jobs:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       SONAR_ORGANIZATION: valossa515
       SONAR_PROJECT_KEY: Valossa515_spring-courier
+      # This job reruns the tests for coverage, so it needs the same Redis.
+      COURIER_REQUIRE_REDIS: "true"
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }

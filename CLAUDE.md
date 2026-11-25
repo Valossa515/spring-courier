@@ -453,6 +453,11 @@ JaCoCo is configured to generate reports at `target/site/jacoco/`. Coverage excl
 
 - **Triggers:** Push to `main`, PRs to `main`
 - Runs `mvn -B -ntp verify`
+- Both jobs start a `redis:7-alpine` service and set `COURIER_REQUIRE_REDIS=true`,
+  which turns the Redis integration tests' "skip when no Redis" into a failure.
+  Those tests are the only check that the idempotency claim is atomic in Redis,
+  so a broken service must not silently switch them off. Locally, without the
+  variable, they still skip.
 - Runs SonarCloud analysis on `main` branch and non-fork PRs
 - Requires secret: `SONAR_TOKEN`
 
