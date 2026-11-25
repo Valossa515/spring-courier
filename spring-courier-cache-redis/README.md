@@ -22,7 +22,7 @@ Este módulo troca só o *backend*: os behaviors, a API e a configuração conti
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-cache-redis</artifactId>
-    <version>15.0.0</version>
+    <version>15.1.0</version>
 </dependency>
 ```
 
@@ -79,10 +79,18 @@ Para trocar a serialização, forneça seu próprio bean chamado `courierRedisTe
 
 - **TTL** é delegado ao Redis (expiração de chave). Não há `maxSize`: limite o keyspace
   com a política `maxmemory` do Redis.
-- **Idempotência distribuída:** um duplicado que chega **depois** do primeiro request
-  terminar é servido do Redis em qualquer instância. Dois duplicados **simultâneos em
-  instâncias diferentes** ainda podem executar os dois — a deduplicação de requisições
-  em voo é por instância.
+- **Idempotência distribuída**, nos dois casos que importam:
+  - um duplicado que chega **depois** do primeiro request terminar é servido do Redis
+    em qualquer instância, com o mesmo resultado;
+  - um duplicado que chega **enquanto** o primeiro ainda executa em outra instância
+    (duplo clique, retry do cliente atrás de um load balancer) **não executa**: recebe
+    `409 Conflict`. Repetir depois que o primeiro termina devolve o resultado gravado.
+
+  Isso funciona com um *claim* atômico (`SET NX PX`) gravado antes de o handler rodar,
+  em `<key-prefix>idem:#claim:<chave>`. Se a instância que segura o claim morre no meio,
+  ele expira sozinho depois de `spring.courier.idempotency.claim-ttl-seconds` (padrão
+  `60`). Esse valor **precisa ser maior que o handler idempotente mais lento**: se o claim
+  expira no meio da execução, um duplicado em outra instância pode rodar.
 - **`size()` retorna `-1`**: contar chaves no Redis exige varrer o keyspace, caro demais
   para uma chamada de rotina. `invalidateAll()`/`clear()` usam `SCAN` (nunca `KEYS`),
   em lotes.

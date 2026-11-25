@@ -84,4 +84,37 @@ class RedisIdempotencyStoreTest {
     void sizeIsNotReported() {
         assertThat(store.size()).isEqualTo(-1);
     }
+
+    @Test
+    void claimUsesSetIfAbsentWithTheTtlOnASeparateNamespace() {
+        Duration ttl = Duration.ofSeconds(60);
+        when(valueOps.setIfAbsent(PREFIX + "#claim:k", "claimed", ttl)).thenReturn(true);
+
+        assertThat(store.tryClaim("k", ttl)).isTrue();
+        verify(valueOps).setIfAbsent(PREFIX + "#claim:k", "claimed", ttl);
+    }
+
+    @Test
+    void claimIsRefusedWhenTheKeyIsAlreadyClaimed() {
+        when(valueOps.setIfAbsent(any(), any(), any(Duration.class))).thenReturn(false);
+
+        assertThat(store.tryClaim("k", Duration.ofSeconds(60))).isFalse();
+    }
+
+    @Test
+    void aNullAnswerIsTreatedAsNotClaimed() {
+        when(valueOps.setIfAbsent(any(), any(), any(Duration.class))).thenReturn(null);
+
+        assertThat(store.tryClaim("k", Duration.ofSeconds(60)))
+                .as("when in doubt, refuse: a false conflict is a retry, a false claim "
+                        + "is a duplicate execution")
+                .isFalse();
+    }
+
+    @Test
+    void releaseDeletesTheClaimKeyOnly() {
+        store.releaseClaim("k");
+
+        verify(template).delete(PREFIX + "#claim:k");
+    }
 }

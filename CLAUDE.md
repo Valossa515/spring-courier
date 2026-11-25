@@ -12,7 +12,7 @@ are unaffected by the split.
 - **GroupId:** `io.github.valossa515`
 - **Parent (aggregator) artifactId:** `spring-courier-parent` (packaging `pom`, not consumed directly)
 - **Core artifactId:** `spring-courier` (in module dir `spring-courier-core/`)
-- **Current Version:** 15.0.0
+- **Current Version:** 15.1.0
 - **License:** MIT
 
 ---
@@ -96,6 +96,22 @@ without any change to the behaviors.
 Values handed to a distributed store must be serializable by that store's
 serializer. `Response` carries a `@JsonCreator` so it survives a JSON round
 trip; handler return types must be Jackson-friendly too.
+
+`IdempotencyStore` also **claims** keys (`tryClaim`/`releaseClaim`) for
+executions still running. The recorded result alone cannot stop a concurrent
+duplicate on another instance — it is only written when the handler returns —
+and the behavior's in-flight map is per JVM. So `IdempotencyBehavior` claims the
+key before running the handler and answers a duplicate that finds it taken with
+`409` (via `Response.error`, the `ValidationBehavior` precedent: a new
+`CourierException` subclass would break users' exhaustive switches over the
+sealed hierarchy). Two details are load-bearing and pinned by
+`IdempotencyCrossInstanceTest`: the holder records its result **before**
+releasing, and the new holder **re-reads** the store after claiming, which
+closes the window where the first finished between the second's miss and claim;
+a failure to release is logged, never allowed to replace the handler's result.
+The claim TTL (`claim-ttl-seconds`, default 60) must outlast the slowest
+idempotent handler. `tryClaim` defaults to `true`, so stores written before it
+existed keep their old behavior; Redis implements it with `SET NX PX`.
 
 ### Outbox dispatcher SPI
 
@@ -369,7 +385,7 @@ spring.courier.notification-strategy=SEQUENTIAL
 spring.courier.logging.enabled=true
 spring.courier.cache.enabled=false          # + ttl-seconds, max-size
 spring.courier.retry.enabled=false          # + max-attempts, delay-ms, multiplier
-spring.courier.idempotency.enabled=false    # + max-size
+spring.courier.idempotency.enabled=false    # + max-size, claim-ttl-seconds
 spring.courier.slack.webhook-url=           # enables Slack alerting when set
 ```
 
@@ -437,6 +453,11 @@ JaCoCo is configured to generate reports at `target/site/jacoco/`. Coverage excl
 
 - **Triggers:** Push to `main`, PRs to `main`
 - Runs `mvn -B -ntp verify`
+- Both jobs start a `redis:7-alpine` service and set `COURIER_REQUIRE_REDIS=true`,
+  which turns the Redis integration tests' "skip when no Redis" into a failure.
+  Those tests are the only check that the idempotency claim is atomic in Redis,
+  so a broken service must not silently switch them off. Locally, without the
+  variable, they still skip.
 - Runs SonarCloud analysis on `main` branch and non-fork PRs
 - Requires secret: `SONAR_TOKEN`
 
@@ -512,7 +533,30 @@ PlantUML diagrams are located in `docs/diagrams/`. View with any PlantUML-compat
 - No REST controllers or HTTP endpoints (library pattern — users wire `Courier` into their own controllers)
 - No JPA entities, repositories, or database migrations
 - No Docker/containerization (distributed as JAR via Maven Central)
-- No authentication or authorization (application-level concern)
+- No authentication or authorization (application-level concern). A
+  `spring-courier-security` module (declarative `@RequiresRole` on requests) was
+  considered and **rejected by the maintainer to keep this scope** — do not
+  propose it again.
+
+---
+
+## Module Roadmap
+
+The original plan for feature modules, kept here so it survives between
+sessions. Update the status when a module ships or a decision changes.
+
+| # | Module | Status |
+|---|--------|--------|
+| 1 | `spring-courier-outbox` | Shipped. Guarantee is **at-least-once**, not exactly-once — that needs an idempotent consumer (see 2). |
+| 2 | `spring-courier-messaging` | **Half done.** Publishes outbox events to Kafka. Missing: RabbitMQ, and the **consumer side** (transactional inbox: record the message id under a unique constraint in the same DB transaction as the handlers). Open decision: consumed messages become notifications or commands. |
+| 3 | `spring-courier-resilience` | Shipped. |
+| 4 | `spring-courier-cache-redis` | Shipped. Cross-instance concurrent duplicates fixed in 15.1.0 (claims). |
+| 5 | `spring-courier-security` | **Rejected** — out of the library's scope (see above). |
+| 6 | `spring-courier-test` | Not started. `CourierTestSupport` ships in the core's `src/main`, so moving it needs a deprecation period; `CourierTestFixture` is test-only and unpublished. |
+| 7 | `spring-courier-scheduling` | Not started. Cron-only would be thin over Spring's `@Scheduled`; durable deferred dispatch would reuse the outbox table and poller. |
+
+New modules are a **minor** version bump: adding an artifact breaks nobody, and
+the Central Portal now enforces monthly publishing limits.
 
 ---
 

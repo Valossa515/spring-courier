@@ -489,6 +489,14 @@ public class CourierProperties {
         /** Maximum stored entries. 0 = unlimited. Default: 10000. */
         private int maxSize = 10_000;
 
+        /**
+         * How long a claim on a running request holds if the instance
+         * running it dies without releasing it. Must outlast the slowest
+         * idempotent handler: a claim that lapses mid-execution lets a
+         * duplicate on another instance run. Default: 60.
+         */
+        private int claimTtlSeconds = 60;
+
         public boolean isEnabled() {
             return enabled;
         }
@@ -503,6 +511,19 @@ public class CourierProperties {
 
         public void setMaxSize(int maxSize) {
             this.maxSize = maxSize;
+        }
+
+        public int getClaimTtlSeconds() {
+            return claimTtlSeconds;
+        }
+
+        public void setClaimTtlSeconds(int claimTtlSeconds) {
+            if (claimTtlSeconds < 1) {
+                throw new IllegalArgumentException(
+                        "claimTtlSeconds must be at least 1, was "
+                                + claimTtlSeconds);
+            }
+            this.claimTtlSeconds = claimTtlSeconds;
         }
     }
 }

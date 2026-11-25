@@ -89,7 +89,7 @@ public class ProductController {
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>15.0.0</version>
+    <version>15.1.0</version>
 </dependency>
 ```
 
@@ -253,12 +253,12 @@ Adicione a dependência no seu `pom.xml` ou `build.gradle`:
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier</artifactId>
-    <version>15.0.0</version>
+    <version>15.1.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier:15.0.0")
+implementation("io.github.valossa515:spring-courier:15.1.0")
 ```
 
 > 🔧 É necessário ter o **Java 21+** e **Spring Boot 3.x+**.
@@ -281,12 +281,12 @@ O Spring Courier é publicado como uma pequena família de artefatos com o mesmo
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-outbox</artifactId>
-    <version>15.0.0</version>
+    <version>15.1.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation("io.github.valossa515:spring-courier-outbox:15.0.0")
+implementation("io.github.valossa515:spring-courier-outbox:15.1.0")
 ```
 
 Ative-o (é preciso ter um `DataSource` JDBC no contexto) e publique de dentro de um handler transacional:
@@ -317,7 +317,7 @@ Os behaviors de cache e idempotência guardam o estado na memória de cada inst�
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-cache-redis</artifactId>
-    <version>15.0.0</version>
+    <version>15.1.0</version>
 </dependency>
 ```
 
@@ -337,7 +337,7 @@ Retry **sem** circuit breaker é um risco conhecido: quando uma dependência cai
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-resilience</artifactId>
-    <version>15.0.0</version>
+    <version>15.1.0</version>
 </dependency>
 ```
 
@@ -355,7 +355,7 @@ O Outbox garante que o evento seja gravado atomicamente com o command, mas entre
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-messaging</artifactId>
-    <version>15.0.0</version>
+    <version>15.1.0</version>
 </dependency>
 ```
 
@@ -712,12 +712,17 @@ public record CreateOrderCommand(String orderId) implements ICommand<OrderResult
 
 Requests duplicados (mesma classe + chave `toString()`) retornam o `Response` cacheado sem re-executar o handler.
 
+Um duplicado que chega **enquanto o primeiro ainda executa** também é tratado. Na mesma instância, ele espera e reaproveita o resultado do primeiro. Em outra instância, recebe `409 Conflict` em vez de rodar o handler, e repetir depois que o primeiro termina devolve o resultado gravado. A parte entre instâncias exige um store compartilhado: o default em memória é por instância, então use o [módulo Redis](spring-courier-cache-redis/README.md).
+
 **Ativação:**
 
 ```properties
 spring.courier.idempotency.enabled=true
-spring.courier.idempotency.max-size=10000  # Máximo de chaves armazenadas (default: 10000)
+spring.courier.idempotency.max-size=10000        # Máximo de chaves armazenadas (default: 10000)
+spring.courier.idempotency.claim-ttl-seconds=60  # Precisa superar o handler idempotente mais lento
 ```
+
+Duplicados recusados entre instâncias são contados em `courier.idempotency.conflicts`.
 
 ---
 

@@ -20,7 +20,7 @@ do que já está escrito — nem no `OutboxPublisher`, nem nos handlers, nem no 
 <dependency>
     <groupId>io.github.valossa515</groupId>
     <artifactId>spring-courier-messaging</artifactId>
-    <version>15.0.0</version>
+    <version>15.1.0</version>
 </dependency>
 ```
 
