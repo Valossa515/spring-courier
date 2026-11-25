@@ -3,6 +3,12 @@ package io.github.valossa515.spring_courier.core.store;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class InMemoryIdempotencyStoreTest {
@@ -88,5 +94,100 @@ class InMemoryIdempotencyStoreTest {
         store.clear();
 
         assertThat(store.size()).isZero();
+    }
+
+    // ── Claims ──────────────────────────────────────────────────────────
+
+    @Test
+    void onlyOneCallerWinsAClaim() {
+        InMemoryIdempotencyStore store = new InMemoryIdempotencyStore(0);
+
+        assertThat(store.tryClaim("k", ONE_MINUTE)).isTrue();
+        assertThat(store.tryClaim("k", ONE_MINUTE)).isFalse();
+    }
+
+    @Test
+    void aReleasedClaimCanBeTakenAgain() {
+        InMemoryIdempotencyStore store = new InMemoryIdempotencyStore(0);
+        store.tryClaim("k", ONE_MINUTE);
+
+        store.releaseClaim("k");
+
+        assertThat(store.tryClaim("k", ONE_MINUTE)).isTrue();
+    }
+
+    @Test
+    void anExpiredClaimCanBeTakenAgain() throws InterruptedException {
+        InMemoryIdempotencyStore store = new InMemoryIdempotencyStore(0);
+        store.tryClaim("k", Duration.ofMillis(1));
+        Thread.sleep(10);
+
+        assertThat(store.tryClaim("k", ONE_MINUTE))
+                .as("a holder that died must not block the key forever")
+                .isTrue();
+    }
+
+    @Test
+    void releasingAClaimThatIsNotHeldIsANoOp() {
+        InMemoryIdempotencyStore store = new InMemoryIdempotencyStore(0);
+
+        store.releaseClaim("never-claimed");
+
+        assertThat(store.tryClaim("never-claimed", ONE_MINUTE)).isTrue();
+    }
+
+    @Test
+    void aClaimIsInvisibleToResultsAndSize() {
+        InMemoryIdempotencyStore store = new InMemoryIdempotencyStore(1);
+        store.tryClaim("k", ONE_MINUTE);
+
+        assertThat(store.get("k"))
+                .as("get() must only ever return a finished result")
+                .isEmpty();
+        assertThat(store.size()).isZero();
+
+        store.put("k", "result", ONE_MINUTE);
+        assertThat(store.get("k"))
+                .as("a claim must not take the room of a result in a bounded store")
+                .contains("result");
+    }
+
+    @Test
+    void clearAlsoDropsClaims() {
+        InMemoryIdempotencyStore store = new InMemoryIdempotencyStore(0);
+        store.tryClaim("k", ONE_MINUTE);
+
+        store.clear();
+
+        assertThat(store.tryClaim("k", ONE_MINUTE)).isTrue();
+    }
+
+    @Test
+    void concurrentClaimersProduceExactlyOneWinner() throws Exception {
+        InMemoryIdempotencyStore store = new InMemoryIdempotencyStore(0);
+        int threads = 16;
+        var start = new CountDownLatch(1);
+        var pool = Executors.newFixedThreadPool(threads);
+        try {
+            var winners = new AtomicInteger();
+            var futures = new ArrayList<Future<?>>();
+            for (int i = 0; i < threads; i++) {
+                futures.add(pool.submit(() -> {
+                    start.await();
+                    if (store.tryClaim("k", ONE_MINUTE)) {
+                        winners.incrementAndGet();
+                    }
+                    return null;
+                }));
+            }
+            start.countDown();
+            for (var f : futures) {
+                f.get(5, TimeUnit.SECONDS);
+            }
+
+            assertThat(winners.get()).isEqualTo(1);
+        } finally {
+            pool.shutdownNow();
+        }
     }
 }

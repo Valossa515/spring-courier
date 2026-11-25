@@ -28,7 +28,10 @@ public class MicrometerBehaviorMetrics implements BehaviorMetrics {
                     CourierMetrics.IDEMPOTENCY_HITS,
                     "Idempotent requests deduplicated",
                     CourierMetrics.IDEMPOTENCY_MISSES,
-                    "Idempotent requests executed");
+                    "Idempotent requests executed",
+                    CourierMetrics.IDEMPOTENCY_CONFLICTS,
+                    "Idempotent duplicates rejected while another "
+                            + "instance was running the same request");
 
     private final MeterRegistry registry;
 

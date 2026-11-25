@@ -177,7 +177,9 @@ public class CourierAutoConfiguration {
         return new IdempotencyBehavior<>(
                 store,
                 metricsProvider.getIfAvailable(
-                        () -> BehaviorMetrics.NOOP));
+                        () -> BehaviorMetrics.NOOP),
+                Duration.ofSeconds(
+                        properties.getIdempotency().getClaimTtlSeconds()));
     }
 
     @Bean

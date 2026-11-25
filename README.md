@@ -721,12 +721,17 @@ public record CreateOrderCommand(String orderId) implements ICommand<OrderResult
 
 Duplicate requests (same class + `toString()` key) return the cached `Response` without re-executing the handler.
 
+A duplicate that arrives **while the first is still running** is handled too. On the same instance it waits and reuses the first one's outcome. On another instance it gets `409 Conflict` instead of running the handler, and retrying once the first one finishes returns the recorded result. The cross-instance part needs a shared store: the in-memory default is per instance, so use the [Redis module](spring-courier-cache-redis/README.md).
+
 **Activation:**
 
 ```properties
 spring.courier.idempotency.enabled=true
-spring.courier.idempotency.max-size=10000  # Max stored keys (default: 10000)
+spring.courier.idempotency.max-size=10000        # Max stored keys (default: 10000)
+spring.courier.idempotency.claim-ttl-seconds=60  # Must outlast your slowest idempotent handler
 ```
+
+Rejected cross-instance duplicates are counted in `courier.idempotency.conflicts`.
 
 ---
 
